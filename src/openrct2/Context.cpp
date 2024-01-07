@@ -73,6 +73,7 @@
 #include "ui/WindowManager.h"
 #include "util/Util.h"
 #include "world/Park.h"
+#include "ride/thrill/meta/Condor.h"
 
 #include <algorithm>
 #include <cmath>
@@ -328,6 +329,9 @@ namespace OpenRCT2
 
         bool Initialise() final override
         {
+            //initialize the condor constants
+            Condor::Constants = CondorConstants::ReadFromJson(_env);
+
             if (_initialised)
             {
                 throw std::runtime_error("Context already initialised.");

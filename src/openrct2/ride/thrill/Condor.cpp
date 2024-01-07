@@ -24,6 +24,8 @@
 #include "../../util/Util.h"
 #include <cmath>
 #include <fstream>
+#include "../../core/Json.hpp"
+#include "../../core/Path.hpp"
 
 #include <algorithm>
 #include <cstring>
@@ -693,3 +695,33 @@ void CondorRideData::Reset()
     TowerRotationFrameTime = GetTowerRotationFrameTime(0, 0, 100);
     VehicleRotationFrameTime = GetVehicleRotationFrameTime(0, 0, 100);
 }
+
+CondorConstants CondorConstants::ReadFromJson(std::shared_ptr<OpenRCT2::IPlatformEnvironment> env)
+{
+    CondorConstants result;
+
+    //get the current path
+    auto path = env->GetDirectoryPath(OpenRCT2::DIRBASE::USER, OpenRCT2::DIRID::OBJECT);
+    auto filepath = Path::Combine(path, "CondorData.json");
+
+    //read the json
+    auto root = Json::ReadFromFile(filepath);
+
+    result.CondorRadius = Json::GetNumber<int>(root["CondorRadius"]);
+    result.CondorCenter = Json::GetNumber<int>(root["CondorCenter"]);
+    result.NumArmSprites = Json::GetNumber<int>(root["NumArmSprites"]);
+    result.NumArmSpritesSymmetry = Json::GetNumber<int>(root["NumArmSpritesSymmetry"]);
+    result.NumVehicleAngles = Json::GetNumber<int>(root["NumVehicleAngles"]);
+    result.NumCarsPerVehicle = Json::GetNumber<int>(root["NumCarsPerVehicle"]);
+    result.NumCarsTiltAngles = Json::GetNumber<int>(root["NumCarsTiltAngles"]);
+    result.MaxVehicleRotationSpeed = Json::GetNumber<int>(root["MaxVehicleRotationSpeed"]);
+    result.MinVehicleRotationSpeed = Json::GetNumber<int>(root["MinVehicleRotationSpeed"]);
+    result.MaxTowerRotationSpeed = Json::GetNumber<int>(root["MaxTowerRotationSpeed"]);
+    result.MinTowerRotationSpeed = Json::GetNumber<int>(root["MinTowerRotationSpeed"]);
+    result.MaxRiseFrameTime = Json::GetNumber<int>(root["MaxRiseFrameTime"]);
+    result.MinRiseFrameTime = Json::GetNumber<int>(root["MinRiseFrameTime"]);
+    result.SpinningTopTime = Json::GetNumber<int>(root["SpinningTopTime"]);
+
+    return result;
+}
+

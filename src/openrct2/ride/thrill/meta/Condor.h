@@ -14,6 +14,7 @@
 #include "../../ShopItem.h"
 #include "../../Track.h"
 #include "../../TrackData.h"
+#include "../../../PlatformEnvironment.h"
 
 void CondorRideUpdate(Ride& ride);
 
@@ -78,6 +79,8 @@ struct CondorConstants
     int32_t MaxRiseFrameTime = 4;
     int32_t MinRiseFrameTime = 2;
     int32_t SpinningTopTime = 120;
+
+    static CondorConstants ReadFromJson(std::shared_ptr<OpenRCT2::IPlatformEnvironment> env);
 };
 
 namespace Condor
