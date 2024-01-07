@@ -73,7 +73,7 @@ static auto CondorLocations = CalculateLocations();
 static constexpr int NumArmSpritesSymmetry = 4;
 static constexpr int NumVehicleAngles = 8;
 static constexpr int NumCarsPerVehicle = 7;
-static constexpr int NumCarsTiltAngles = 4;
+static constexpr int NumCarsTiltAngles = 1;
 
 // degrees/second
 static constexpr float MaxVehicleRotationSpeed = 120;
@@ -128,7 +128,6 @@ static int MaxVehicleRotationFrameTime = GetVehicleRotationFrameTime(0, 0, 100);
 static int MinVehicleRotationFrameTime = GetVehicleRotationFrameTime(100, 0, 100);
 
 // tilt angle is function of the vehicle roation speed
-constexpr int NumTiltAngles = 8;
 static uint8_t GetVehicleTilt(int vehicleFrameTime)
 {
     float progress = static_cast<float>(vehicleFrameTime - MinVehicleRotationFrameTime)
