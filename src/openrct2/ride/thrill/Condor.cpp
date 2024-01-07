@@ -23,6 +23,7 @@
 #include "../RideBoundboxBuilder.h"
 #include "../../util/Util.h"
 #include <cmath>
+#include <fstream>
 
 #include <algorithm>
 #include <cstring>
@@ -36,6 +37,11 @@ enum
     SPR_ROTO_DROP_TOWER_BASE_90_DEG = 14562,
     SPR_ROTO_DROP_TOWER_BASE_SEGMENT_90_DEG = 14563,
 };
+
+namespace Condor
+{
+    CondorConstants Constants;
+}
 
 /**
  *
@@ -51,42 +57,23 @@ void VehicleVisualCondor(
 static constexpr const std::array<CoordsXY, 4> StartLocations = { CoordsXY{ 0, 96 }, CoordsXY{ 96, 192 },
                                                                   CoordsXY{ 192, 96 }, CoordsXY{ 128, 0 } };
 
-static constexpr int CondorRadius = 48;
-static constexpr int CondorCenter = 96;
-static constexpr float CondorAngleDelta = 0.09817f;
-
-static constexpr int NumArmSprites = 16;
-
-static std::array<CoordsXY, NumArmSprites*4> CalculateLocations()
+static std::vector<CoordsXY> CalculateLocations()
 {
-    std::array<CoordsXY, NumArmSprites*4> res;
+    std::vector<CoordsXY> res;
     int i = 0;
-    for (i = 0; i < NumArmSprites*4; i++)
+
+    float condorAngleDelta = 1.57072f / Condor::Constants.NumArmSprites;
+
+    for (i = 0; i < Condor::Constants.NumArmSprites * 4; i++)
     {
-        res[i] = CoordsXY{ static_cast<int>(CondorCenter + CondorRadius * cos(i * CondorAngleDelta)),
-                           static_cast<int>(CondorCenter + CondorRadius * sin(i * CondorAngleDelta)) };
+        res.push_back(CoordsXY{
+            static_cast<int>(Condor::Constants.CondorCenter + Condor::Constants.CondorRadius * cos(i * condorAngleDelta)),
+            static_cast<int>(Condor::Constants.CondorCenter + Condor::Constants.CondorRadius * sin(i * condorAngleDelta))
+        });
     }
     return res;
 }
 static auto CondorLocations = CalculateLocations();
-
-static constexpr int NumArmSpritesSymmetry = 4;
-static constexpr int NumVehicleAngles = 8;
-static constexpr int NumCarsPerVehicle = 7;
-static constexpr int NumCarsTiltAngles = 1;
-
-// degrees/second
-static constexpr float MaxVehicleRotationSpeed = 120;
-static constexpr float MinVehicleRotationSpeed = 10;
-static constexpr float MaxTowerRotationSpeed = 30;
-static constexpr float MinTowerRotationSpeed = 10;
-
-//rise time
-static constexpr int32_t MaxRiseFrameTime = 4;
-static constexpr int32_t MinRiseFrameTime = 2;
-
-//standing at the top of the tower
-constexpr int SpinningTopTime = 120;
 
 static int GetTowerRotationFrameTime(int currentHeight, int minHeight, int maxHeight)
 {
@@ -94,10 +81,10 @@ static int GetTowerRotationFrameTime(int currentHeight, int minHeight, int maxHe
 
     //spin faster at the middle point
     float rotationSpeed = CubicLerp(
-        progress, -1.0f, 0.0f, 0.5f, 1.0f, MinTowerRotationSpeed, MinTowerRotationSpeed, MaxTowerRotationSpeed,
-        MinTowerRotationSpeed);
+        progress, -1.0f, 0.0f, 0.5f, 1.0f, Condor::Constants.MinTowerRotationSpeed, Condor::Constants.MinTowerRotationSpeed, Condor::Constants.MaxTowerRotationSpeed,
+        Condor::Constants.MinTowerRotationSpeed);
 
-    float rotationFrameTime = 1.0f / rotationSpeed / static_cast<float>(NumArmSprites) * NumArmSpritesSymmetry * 360.0f;
+    float rotationFrameTime = 1.0f / rotationSpeed / static_cast<float>(Condor::Constants.NumArmSprites) * Condor::Constants.NumArmSpritesSymmetry * 360.0f;
     return static_cast<int>(round(rotationFrameTime));
 }
 
@@ -107,10 +94,10 @@ static int GetVehicleRotationFrameTime(int currentHeight, int minHeight, int max
 
     //the max vehicle rotation speed is at the top
     float rotationSpeed = CubicLerp(
-        progress, -1.0f, 0.0f, 1.0f, 2.0f, MinVehicleRotationSpeed, MinVehicleRotationSpeed, MaxVehicleRotationSpeed,
-        MaxVehicleRotationSpeed);
+        progress, -1.0f, 0.0f, 1.0f, 2.0f, Condor::Constants.MinVehicleRotationSpeed, Condor::Constants.MinVehicleRotationSpeed, Condor::Constants.MaxVehicleRotationSpeed,
+        Condor::Constants.MaxVehicleRotationSpeed);
 
-    float rotationFrameTime = 1.0f / rotationSpeed / static_cast<float>(NumVehicleAngles) * static_cast<float>(NumCarsPerVehicle) * 360.0f;
+    float rotationFrameTime = 1.0f / rotationSpeed / static_cast<float>(Condor::Constants.NumVehicleAngles) * static_cast<float>(Condor::Constants.NumCarsPerVehicle) * 360.0f;
     return static_cast<int>(round(rotationFrameTime));
 }
 
@@ -120,7 +107,7 @@ static int GetCondorRiseFrameTime(int currentHeight, int minHeight, int maxHeigh
 
     //maximum raise speed is at middle of tower
     auto riseFrameTime = CubicLerp(
-        progress, -1.0f, 0.0f, 0.5f, 1.0f, MaxRiseFrameTime, MaxRiseFrameTime, MinRiseFrameTime, MaxRiseFrameTime);
+        progress, -1.0f, 0.0f, 0.5f, 1.0f, Condor::Constants.MaxRiseFrameTime, Condor::Constants.MaxRiseFrameTime, Condor::Constants.MinRiseFrameTime, Condor::Constants.MaxRiseFrameTime);
     return static_cast<int>(round(riseFrameTime));
 }
 
@@ -132,7 +119,7 @@ static uint8_t GetVehicleTilt(int vehicleFrameTime)
 {
     float progress = static_cast<float>(vehicleFrameTime - MinVehicleRotationFrameTime)
         / static_cast<float>(MaxVehicleRotationFrameTime - MinVehicleRotationFrameTime);
-    return Lerp(NumCarsTiltAngles - 1, 0, progress);
+    return Lerp(Condor::Constants.NumCarsTiltAngles - 1, 0, progress);
 }
 
 static void PaintCondorStructure(
@@ -171,13 +158,13 @@ static void PaintCondorStructure(
         auto vehicleZ = condorRideData->VehiclesZ;
         auto tilt = GetVehicleTilt(condorRideData->VehicleRotationFrameTime);
         auto armsImageId = imageTemplate.WithIndex(
-            rideEntry->Cars[0].base_image_id + (condorRideData->ArmRotation % NumArmSprites));
+            rideEntry->Cars[0].base_image_id + (condorRideData->ArmRotation % Condor::Constants.NumArmSprites));
 
         //arm offset
-        auto carIndex = rideEntry->Cars[0].base_image_id + NumArmSprites;
+        auto carIndex = rideEntry->Cars[0].base_image_id + Condor::Constants.NumArmSprites;
 
         //tilt offset
-        carIndex = carIndex + tilt * NumVehicleAngles * (NumCarsPerVehicle + 1);
+        carIndex = carIndex + tilt * Condor::Constants.NumVehicleAngles * (Condor::Constants.NumCarsPerVehicle + 1);
 
         auto vehicle = GetEntity<Vehicle>(ride.vehicles[0]);
         auto car0 = vehicle->GetCar(0);
@@ -190,12 +177,13 @@ static void PaintCondorStructure(
             std::array<Vehicle*, 4> cars = { car0, car1, car2, car3 };
             for (int i = 0; i < 4; i++)
             {
-                int locationIndex = i * NumArmSprites;
+                int locationIndex = i * Condor::Constants.NumArmSprites;
                 locationIndex += condorRideData->ArmRotation;
-                locationIndex %= (NumArmSprites * 4);
+                locationIndex %= (Condor::Constants.NumArmSprites * 4);
 
                 // draw the cars
-                auto imageId = imageTemplate.WithIndex(carIndex + (condorRideData->QuadRotation[i] % NumArmSprites));
+                auto imageId = imageTemplate.WithIndex(
+                    carIndex + (condorRideData->QuadRotation[i] % Condor::Constants.NumArmSprites));
                 PaintAddImageAsParent(
                     session, imageId,
                     { -bbOffset.x + CondorLocations[locationIndex].x, -bbOffset.y + CondorLocations[locationIndex].y,
@@ -207,7 +195,8 @@ static void PaintCondorStructure(
                 {
                     auto peepTemplate = ImageId(0, cars[i]->peep_tshirt_colours[j], cars[i]->peep_tshirt_colours[j + 1]);
                     auto peepId = peepTemplate.WithIndex(
-                        carIndex + (1 + j / 2) * NumVehicleAngles + condorRideData->QuadRotation[i] % NumArmSprites);
+                        carIndex + (1 + j / 2) * Condor::Constants.NumVehicleAngles
+                        + condorRideData->QuadRotation[i] % Condor::Constants.NumArmSprites);
                     PaintAddImageAsChild(
                         session, peepId,
                         { -bbOffset.x + CondorLocations[locationIndex].x, -bbOffset.y + CondorLocations[locationIndex].y,
@@ -218,8 +207,10 @@ static void PaintCondorStructure(
 
                 //(over)draw the arms
                 PaintAddImageAsChild(
-                    session, armsImageId, { -bbOffset.x + CondorCenter, -bbOffset.y + CondorCenter, vehicleZ + 32 },
-                    { { CondorCenter, CondorCenter, 32 + vehicleZ }, { 24, 24, 12 } });
+                    session, armsImageId,
+                    { -bbOffset.x + Condor::Constants.CondorCenter, -bbOffset.y + Condor::Constants.CondorCenter,
+                      vehicleZ + 32 },
+                    { { Condor::Constants.CondorCenter, Condor::Constants.CondorCenter, 32 + vehicleZ }, { 24, 24, 12 } });
             }
         }
         
@@ -395,7 +386,7 @@ CondorRideData::CondorRideData()
     , SpinningTopCounter(0)
     , VehicleRotationCounter(0)
     , RiseFrameCounter(0)
-    , RiseFrameTime(MaxRiseFrameTime)
+    , RiseFrameTime(Condor::Constants.MaxRiseFrameTime)
 {
     QuadRotation = { 0, 0, 0, 0 };
     InitialQuadRotation = QuadRotation[0];
@@ -452,7 +443,7 @@ void CondorCreateVehicle(
     vehicle->update_flags = 0;
 
     // place the car in a circle, centered around the tower
-    auto centerOffset = CoordsXY{ CondorCenter, CondorCenter };
+    auto centerOffset = CoordsXY{ Condor::Constants.CondorCenter, Condor::Constants.CondorCenter };
     auto chosenLoc = carPosition + CoordsXYZ{ StartLocations[carIndex], 0 };
     vehicle->MoveTo(chosenLoc);
     vehicle->sprite_direction = 0;
@@ -501,7 +492,7 @@ static void UpdateRotation(CondorRideData* condorRideData)
     if (condorRideData->TowerRotationCounter >= condorRideData->TowerRotationFrameTime)
     {
         condorRideData->ArmRotation++;
-        condorRideData->ArmRotation %= (NumArmSprites * 4);
+        condorRideData->ArmRotation %= (Condor::Constants.NumArmSprites * 4);
         condorRideData->TowerRotationCounter = 0;
     }
 
@@ -514,7 +505,7 @@ static void UpdateRotation(CondorRideData* condorRideData)
         for (auto& quadRot : condorRideData->QuadRotation)
         {
             quadRot++;
-            quadRot %= NumVehicleAngles;
+            quadRot %= Condor::Constants.NumVehicleAngles;
         }
         condorRideData->VehicleRotationCounter = 0;
     }
@@ -575,9 +566,9 @@ static void CondorRideUpdateFalling(Ride& ride)
             if (oldQuadRotation == condorRideData->InitialQuadRotation)
             {
                 condorRideData->QuadRotation[0] = condorRideData->InitialQuadRotation;
-                condorRideData->QuadRotation[1] = condorRideData->QuadRotation[0] + NumArmSprites;
-                condorRideData->QuadRotation[2] = condorRideData->QuadRotation[1] + NumArmSprites;
-                condorRideData->QuadRotation[3] = condorRideData->QuadRotation[2] + NumArmSprites;
+                condorRideData->QuadRotation[1] = condorRideData->QuadRotation[0] + Condor::Constants.NumArmSprites;
+                condorRideData->QuadRotation[2] = condorRideData->QuadRotation[1] + Condor::Constants.NumArmSprites;
+                condorRideData->QuadRotation[3] = condorRideData->QuadRotation[2] + Condor::Constants.NumArmSprites;
             }
                 
 
@@ -608,7 +599,7 @@ static void CondorRideUpdateSpinningAtTop(Ride& ride)
         condorRideData->TowerRotationCounter = 0;
 
         condorRideData->SpinningTopCounter++;
-        if (condorRideData->SpinningTopCounter >= SpinningTopTime)
+        if (condorRideData->SpinningTopCounter >= Condor::Constants.SpinningTopTime)
         {
             condorRideData->SpinningTopCounter = 0;
             condorRideData->State = CondorRideState::Falling;
@@ -696,7 +687,7 @@ void CondorRideData::Reset()
     SpinningTopCounter = 0;
     VehicleRotationCounter = 0;
     RiseFrameCounter = 0;
-    RiseFrameTime = MaxRiseFrameTime;
+    RiseFrameTime = Condor::Constants.MaxRiseFrameTime;
     QuadRotation = { 0, 0, 0, 0 };
     InitialQuadRotation = QuadRotation[0];
     TowerRotationFrameTime = GetTowerRotationFrameTime(0, 0, 100);

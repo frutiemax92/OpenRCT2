@@ -62,6 +62,29 @@ static void MakeCenterTileLast(std::array<uint8_t, NumElements>& elements)
     std::iter_swap(centerElement, lastElement);
 }
 
+struct CondorConstants
+{
+    int CondorRadius = 48;
+    int CondorCenter = 96;
+    int NumArmSprites = 16;
+    int NumArmSpritesSymmetry = 4;
+    int NumVehicleAngles = 8;
+    int NumCarsPerVehicle = 7;
+    int NumCarsTiltAngles = 1;
+    float MaxVehicleRotationSpeed = 120;
+    float MinVehicleRotationSpeed = 10;
+    float MaxTowerRotationSpeed = 30;
+    float MinTowerRotationSpeed = 10;
+    int32_t MaxRiseFrameTime = 4;
+    int32_t MinRiseFrameTime = 2;
+    int32_t SpinningTopTime = 120;
+};
+
+namespace Condor
+{
+    extern CondorConstants Constants;
+}
+
     //static std::vector<PreviewTrack> GetTrackBlocks9x9()
 
 constexpr const RideTypeDescriptor CondorRTD =
