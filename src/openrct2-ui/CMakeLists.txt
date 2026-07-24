@@ -56,16 +56,18 @@ endif ()
 if (NOT DISABLE_VULKAN AND NOT EMSCRIPTEN)
     set(VULKAN_SHADER_DIR "${ROOT_DIR}/data/shaders")
     set(VULKAN_SHADER_SPV_FILES)
-    foreach (VULKAN_SHADER_STAGE vert frag)
-        set(VULKAN_SHADER_SRC "${VULKAN_SHADER_DIR}/applypalette_vk.${VULKAN_SHADER_STAGE}")
-        set(VULKAN_SHADER_SPV "${VULKAN_SHADER_SRC}.spv")
-        add_custom_command(
-            OUTPUT "${VULKAN_SHADER_SPV}"
-            COMMAND "${GLSLANG_VALIDATOR}" -V "${VULKAN_SHADER_SRC}" -o "${VULKAN_SHADER_SPV}"
-            DEPENDS "${VULKAN_SHADER_SRC}"
-            COMMENT "Compiling Vulkan shader applypalette_vk.${VULKAN_SHADER_STAGE} to SPIR-V"
-            VERBATIM)
-        list(APPEND VULKAN_SHADER_SPV_FILES "${VULKAN_SHADER_SPV}")
+    foreach (VULKAN_SHADER_BASENAME applypalette_vk rect_vk line_vk)
+        foreach (VULKAN_SHADER_STAGE vert frag)
+            set(VULKAN_SHADER_SRC "${VULKAN_SHADER_DIR}/${VULKAN_SHADER_BASENAME}.${VULKAN_SHADER_STAGE}")
+            set(VULKAN_SHADER_SPV "${VULKAN_SHADER_SRC}.spv")
+            add_custom_command(
+                OUTPUT "${VULKAN_SHADER_SPV}"
+                COMMAND "${GLSLANG_VALIDATOR}" -V "${VULKAN_SHADER_SRC}" -o "${VULKAN_SHADER_SPV}"
+                DEPENDS "${VULKAN_SHADER_SRC}"
+                COMMENT "Compiling Vulkan shader ${VULKAN_SHADER_BASENAME}.${VULKAN_SHADER_STAGE} to SPIR-V"
+                VERBATIM)
+            list(APPEND VULKAN_SHADER_SPV_FILES "${VULKAN_SHADER_SPV}")
+        endforeach ()
     endforeach ()
     add_custom_target(openrct2_vulkan_shaders DEPENDS ${VULKAN_SHADER_SPV_FILES})
 endif ()

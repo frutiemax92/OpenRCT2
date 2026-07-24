@@ -10,6 +10,8 @@
 #ifndef DISABLE_VULKAN
 
 #include "../DrawingEngineFactory.hpp"
+#include "VulkanDrawingContext.h"
+#include "VulkanHelpers.h"
 
 #include <SDL_vulkan.h>
 #include <vulkan/vulkan.h>
@@ -19,18 +21,26 @@
 #include <cstring>
 #include <functional>
 #include <limits>
-#include <string>
 #include <stdexcept>
+#include <string>
 #include <vector>
 
+#include <openrct2-ui/interface/Window.h>
 #include <openrct2/Context.h>
 #include <openrct2/Diagnostic.h>
 #include <openrct2/PlatformEnvironment.h>
 #include <openrct2/core/EnumUtils.hpp>
 #include <openrct2/core/FileStream.h>
+#include <openrct2/core/Guard.hpp>
 #include <openrct2/core/Path.hpp>
-#include <openrct2/drawing/X8DrawingEngine.h>
+#include <openrct2/drawing/Drawing.h>
+#include <openrct2/drawing/IDrawingEngine.h>
+#include <openrct2/drawing/InvalidationGrid.h>
+#include <openrct2/drawing/RenderTarget.h>
+#include <openrct2/drawing/WeatherDrawer.h>
+#include <openrct2/interface/Screenshot.h>
 #include <openrct2/ui/UiContext.h>
+#include <openrct2/world/Weather.h>
 
 using namespace OpenRCT2;
 using namespace OpenRCT2::Drawing;
@@ -38,35 +48,61 @@ using namespace OpenRCT2::Ui;
 
 namespace
 {
-    constexpr uint32_t kFramesInFlight = 2;
-
-    uint32_t FindMemoryType(VkPhysicalDevice physicalDevice, uint32_t typeFilter, VkMemoryPropertyFlags properties)
-    {
-        VkPhysicalDeviceMemoryProperties memProperties{};
-        vkGetPhysicalDeviceMemoryProperties(physicalDevice, &memProperties);
-
-        for (uint32_t i = 0; i < memProperties.memoryTypeCount; i++)
-        {
-            if ((typeFilter & (1u << i)) != 0
-                && (memProperties.memoryTypes[i].propertyFlags & properties) == properties)
-            {
-                return i;
-            }
-        }
-
-        throw std::runtime_error("Unable to find suitable Vulkan memory type.");
-    }
-
-    void CheckVk(VkResult result, const char* what)
-    {
-        if (result != VK_SUCCESS)
-        {
-            throw std::runtime_error(std::string(what) + " failed with error code " + std::to_string(result));
-        }
-    }
+    constexpr uint32_t kFramesInFlight = kVulkanFramesInFlight;
 } // namespace
 
-class VulkanDrawingEngine final : public X8DrawingEngine
+class VulkanWeatherDrawer final : public IWeatherDrawer
+{
+    VulkanDrawingContext* _drawingContext;
+
+public:
+    explicit VulkanWeatherDrawer(VulkanDrawingContext* drawingContext)
+        : _drawingContext(drawingContext)
+    {
+    }
+
+    void Draw(
+        RenderTarget& rt, int32_t x, int32_t y, int32_t width, int32_t height, int32_t xStart, int32_t yStart,
+        const uint8_t* weatherpattern) override
+    {
+        const uint8_t* pattern = weatherpattern;
+        auto patternXSpace = *pattern++;
+        auto patternYSpace = *pattern++;
+
+        uint8_t patternStartXOffset = xStart % patternXSpace;
+        uint8_t patternStartYOffset = yStart % patternYSpace;
+
+        uint32_t pixelOffset = rt.LineStride() * y + x;
+        uint8_t patternYPos = patternStartYOffset % patternYSpace;
+
+        for (; height != 0; height--)
+        {
+            auto patternX = pattern[patternYPos * 2];
+            if (patternX != 0xFF)
+            {
+                uint32_t finalPixelOffset = width + pixelOffset;
+
+                uint32_t xPixelOffset = pixelOffset;
+                xPixelOffset += (static_cast<uint8_t>(patternX - patternStartXOffset)) % patternXSpace;
+
+                auto patternPixel = static_cast<PaletteIndex>(pattern[patternYPos * 2 + 1]);
+                for (; xPixelOffset < finalPixelOffset; xPixelOffset += patternXSpace)
+                {
+                    int32_t pixelX = xPixelOffset % rt.width;
+                    int32_t pixelY = (xPixelOffset / rt.width) % rt.height;
+
+                    _drawingContext->DrawLine(rt, patternPixel, { { pixelX, pixelY }, { pixelX + 1, pixelY + 1 } });
+                }
+            }
+
+            pixelOffset += rt.LineStride();
+            patternYPos++;
+            patternYPos %= patternYSpace;
+        }
+    }
+};
+
+class VulkanDrawingEngine final : public IDrawingEngine
 {
 private:
     IUiContext& _uiContext;
@@ -85,7 +121,7 @@ private:
     std::vector<VkImage> _swapchainImages;
 
     VkCommandPool _commandPool = VK_NULL_HANDLE;
-    std::vector<VkCommandBuffer> _commandBuffers;
+    std::array<VkCommandBuffer, kFramesInFlight> _commandBuffers{};
 
     std::array<VkSemaphore, kFramesInFlight> _imageAvailable{};
     std::array<VkSemaphore, kFramesInFlight> _renderFinished{};
@@ -95,8 +131,9 @@ private:
     std::vector<VkImageView> _swapchainImageViews;
     std::vector<VkFramebuffer> _framebuffers;
 
-    // Device-lifetime shader/pipeline resources: created once and reused across swapchain
-    // recreations (resize), since they don't depend on the swapchain extent.
+    // Device-lifetime shader/pipeline resources for the final composite pass (palette lookup
+    // from the drawing context's R8_UINT offscreen colour target into the presentable swapchain
+    // image) - created once and reused across swapchain recreations.
     VkRenderPass _renderPass = VK_NULL_HANDLE;
     VkDescriptorSetLayout _descriptorSetLayout = VK_NULL_HANDLE;
     VkPipelineLayout _pipelineLayout = VK_NULL_HANDLE;
@@ -105,38 +142,40 @@ private:
     VkDescriptorPool _descriptorPool = VK_NULL_HANDLE;
     std::array<VkDescriptorSet, kFramesInFlight> _descriptorSets{};
 
-    // Each frame-in-flight gets its own upload buffer so the CPU can write the next frame's
-    // pixel data while the GPU is still consuming a previous frame's buffer, without a race.
-    // The buffer now holds raw 8-bit palette indices (1 byte/pixel) rather than pre-converted
-    // BGRA colour (4 bytes/pixel): the palette lookup itself is done on the GPU by the
-    // fragment shader (data/shaders/applypalette_vk.frag), mirroring the OpenGL renderer.
-    std::array<VkBuffer, kFramesInFlight> _uploadBuffers{};
-    std::array<VkDeviceMemory, kFramesInFlight> _uploadBufferMemories{};
-    std::array<void*, kFramesInFlight> _uploadBuffersMapped{};
-    VkDeviceSize _uploadBufferSize = 0;
-
-    // Palette-index sampled image (R8_UINT), one per frame-in-flight for the same reason as
-    // the upload buffers above.
-    std::array<VkImage, kFramesInFlight> _paletteIndexImages{};
-    std::array<VkDeviceMemory, kFramesInFlight> _paletteIndexImageMemories{};
-    std::array<VkImageView, kFramesInFlight> _paletteIndexImageViews{};
-
-    // Palette colour lookup table, uploaded to a uniform buffer read by the fragment shader.
-    // One per frame-in-flight so an update while a previous frame is still in flight can't race.
+    // Palette colour lookup table, uploaded to a uniform buffer read by the composite fragment
+    // shader. One per frame-in-flight so an update while a previous frame is still in flight
+    // can't race.
     std::array<VkBuffer, kFramesInFlight> _paletteBuffers{};
     std::array<VkDeviceMemory, kFramesInFlight> _paletteBufferMemories{};
     std::array<void*, kFramesInFlight> _paletteBuffersMapped{};
     std::array<float, 256 * 4> _paletteData{};
 
+    // Scratch image used only by CopyRect() to move a rectangular region within the drawing
+    // context's persistent colour image (window/list scrolling) - sized to the full render
+    // resolution and recreated on resize.
+    VkImage _copyTempImage = VK_NULL_HANDLE;
+    VkDeviceMemory _copyTempImageMemory = VK_NULL_HANDLE;
+
+    VulkanDrawingContext _drawingContext;
+    VulkanWeatherDrawer _weatherDrawer;
+    InvalidationGrid _invalidationGrid;
+
+    uint32_t _width = 0;
+    uint32_t _height = 0;
+    uint32_t _pitch = 0;
+    size_t _bitsSize = 0;
+    std::unique_ptr<PaletteIndex[]> _bits;
+    RenderTarget _mainRT{};
 
     bool _useVsync = true;
 
 public:
     explicit VulkanDrawingEngine(IUiContext& uiContext)
-        : X8DrawingEngine(uiContext)
-        , _uiContext(uiContext)
+        : _uiContext(uiContext)
+        , _weatherDrawer(&_drawingContext)
     {
         _window = static_cast<SDL_Window*>(_uiContext.GetWindow());
+        _mainRT.DrawingEngine = this;
     }
 
     ~VulkanDrawingEngine() override
@@ -146,15 +185,89 @@ public:
 
     void Initialise() override
     {
-        X8DrawingEngine::Initialise();
-        CreateVulkan();
-        LOG_VERBOSE("Vulkan renderer initialised (%ux%u).", _width, _height);
+        CreateInstance();
+        CreateSurface();
+        PickPhysicalDeviceAndQueue();
+        CreateDevice();
+        CreateCommandPool();
+        CreateSyncObjects();
+        CreateDescriptorSetLayout();
+        CreatePipelineLayout();
+        CreateSampler();
+        CreateDescriptorPool();
+        CreatePaletteBuffers();
+
+        _drawingContext.Initialise(_device, _physicalDevice, _graphicsQueue, _commandPool, &_mainRT);
+
+        LOG_VERBOSE("Vulkan renderer initialised.");
     }
 
     void Resize(uint32_t width, uint32_t height) override
     {
-        X8DrawingEngine::Resize(width, height);
+        ConfigureBits(width, height, width);
+        ConfigureDirtyGrid();
         RecreateSwapchainAndResources();
+    }
+
+    void ConfigureDirtyGrid()
+    {
+        const auto blockWidth = 1u << 8;
+        const auto blockHeight = 1u << 8;
+        _invalidationGrid.reset(_width, _height, blockWidth, blockHeight);
+    }
+
+    // Maintains a dummy CPU-side pixel buffer that is never actually rendered into - its only
+    // purpose is so RenderTarget::Crop()'d sub-render-targets can be mapped back to an absolute
+    // screen-space rectangle via pointer arithmetic (see VulkanDrawingContext::CalculateClipping),
+    // exactly mirroring OpenGLDrawingEngine::ConfigureBits.
+    void ConfigureBits(uint32_t width, uint32_t height, uint32_t pitch)
+    {
+        size_t newBitsSize = static_cast<size_t>(pitch) * height;
+
+        auto newBits = std::make_unique<PaletteIndex[]>(newBitsSize);
+        if (_bits == nullptr)
+        {
+            std::fill_n(newBits.get(), newBitsSize, PaletteIndex::transparent);
+        }
+        else
+        {
+            if (_pitch == pitch)
+            {
+                std::copy_n(_bits.get(), std::min(_bitsSize, newBitsSize), newBits.get());
+            }
+            else
+            {
+                PaletteIndex* src = _bits.get();
+                PaletteIndex* dst = newBits.get();
+
+                uint32_t minWidth = std::min(_width, width);
+                uint32_t minHeight = std::min(_height, height);
+                for (uint32_t y = 0; y < minHeight; y++)
+                {
+                    std::copy_n(src, minWidth, dst);
+                    if (pitch - minWidth > 0)
+                    {
+                        std::fill_n(dst + minWidth, pitch - minWidth, PaletteIndex::transparent);
+                    }
+                    src += _pitch;
+                    dst += pitch;
+                }
+            }
+        }
+
+        _bits = std::move(newBits);
+        _bitsSize = newBitsSize;
+        _width = width;
+        _height = height;
+        _pitch = pitch;
+
+        RenderTarget* rt = &_mainRT;
+        rt->bits = _bits.get();
+        rt->x = 0;
+        rt->y = 0;
+        rt->width = width;
+        rt->height = height;
+        rt->pitch = _pitch - width;
     }
 
     void SetPalette(const GamePalette& palette) override
@@ -194,33 +307,149 @@ public:
         }
     }
 
-    void EndDraw() override
+    void Invalidate(int32_t left, int32_t top, int32_t right, int32_t bottom) override
     {
-        X8DrawingEngine::EndDraw();
-        Present();
+        _invalidationGrid.invalidate(left, top, right, bottom);
     }
 
-private:
-    void CreateVulkan()
+    void BeginDraw() override
     {
-        CreateInstance();
-        CreateSurface();
-        PickPhysicalDeviceAndQueue();
-        CreateDevice();
-        CreateCommandPool();
-        CreateSyncObjects();
-        CreateDescriptorSetLayout();
-        CreatePipelineLayout();
-        CreateSampler();
-        CreateDescriptorPool();
-        CreatePaletteBuffers();
+        _drawingContext.StartNewDraw();
+    }
 
-        if (_width > 0 && _height > 0)
+    void EndDraw() override
+    {
+        Present();
+        _drawingContext.FinishDraw();
+    }
+
+    void PaintWindows() override
+    {
+        if (Weather::hasWeatherEffect() || gPaintForceRedraw)
         {
-            RecreateSwapchainAndResources();
+            WindowUpdateAllViewports();
+            // No support for restoring pixels between frames (the offscreen colour target is
+            // persistent, but a moving weather overlay would otherwise leave old raindrops
+            // behind), so always redraw the whole screen while weather is active.
+            WindowDrawAll(_mainRT, 0, 0, static_cast<int32_t>(_width), static_cast<int32_t>(_height));
+        }
+        else
+        {
+            // Redraw dirty regions before updating the viewports, otherwise when viewports get
+            // panned, they copy dirty pixels.
+            DrawAllDirtyBlocks();
+            WindowUpdateAllViewports();
+            DrawAllDirtyBlocks();
         }
     }
 
+    void DrawAllDirtyBlocks()
+    {
+        _invalidationGrid.traverseDirtyCells([this](int32_t left, int32_t top, int32_t right, int32_t bottom) {
+            WindowDrawAll(_mainRT, left, top, right, bottom);
+        });
+    }
+
+    void PaintWeather() override
+    {
+        DrawWeather(_mainRT, &_weatherDrawer);
+    }
+
+    std::string Screenshot() override
+    {
+        // Not yet implemented for the Vulkan renderer's new offscreen-GPU architecture - reading
+        // back the colour attachment into _mainRT and dumping it as a PNG needs a staging buffer
+        // + vkCmdCopyImageToBuffer round trip. Fall back to an empty result rather than crashing.
+        return {};
+    }
+
+    void CopyRect(int32_t x, int32_t y, int32_t width, int32_t height, int32_t dx, int32_t dy) override
+    {
+        if (dx == 0 && dy == 0)
+            return;
+        if (_device == VK_NULL_HANDLE || _copyTempImage == VK_NULL_HANDLE)
+            return;
+
+        const int32_t texWidth = static_cast<int32_t>(_width);
+        const int32_t texHeight = static_cast<int32_t>(_height);
+
+        // Adjust for move off screen
+        int32_t lmargin = std::min(x - dx, 0);
+        int32_t rmargin = std::min(texWidth - (x - dx + width), 0);
+        int32_t tmargin = std::min(y - dy, 0);
+        int32_t bmargin = std::min(texHeight - (y - dy + height), 0);
+        x -= lmargin;
+        y -= tmargin;
+        width += lmargin + rmargin;
+        height += tmargin + bmargin;
+
+        if (width <= 0 || height <= 0)
+            return;
+
+        // Flush any draw calls queued so far this frame into the persistent colour image before
+        // copying from it, matching OpenGLDrawingEngine::CopyRect's FlushCommandBuffers() call.
+        RunOneTimeCommands([this](VkCommandBuffer cmd) { _drawingContext.FlushCommandBuffers(cmd, _currentFrame); });
+
+        // Both the drawing context's colour image and this scratch image are kept permanently
+        // in VK_IMAGE_LAYOUT_GENERAL (a valid layout for vkCmdCopyImage source/destination), so
+        // no layout transitions are needed - just two copies through the scratch image (a direct
+        // same-image overlapping-region copy is not portably expressible in Vulkan).
+        RunOneTimeCommands([&](VkCommandBuffer cmd) {
+            VkImageCopy toTemp{};
+            toTemp.srcSubresource = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1 };
+            toTemp.srcOffset = { x - dx, y - dy, 0 };
+            toTemp.dstSubresource = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1 };
+            toTemp.dstOffset = { 0, 0, 0 };
+            toTemp.extent = { static_cast<uint32_t>(width), static_cast<uint32_t>(height), 1 };
+            vkCmdCopyImage(
+                cmd, _drawingContext.GetColourImage(), VK_IMAGE_LAYOUT_GENERAL, _copyTempImage, VK_IMAGE_LAYOUT_GENERAL, 1,
+                &toTemp);
+
+            VkMemoryBarrier barrier{};
+            barrier.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER;
+            barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+            barrier.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
+            vkCmdPipelineBarrier(
+                cmd, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 1, &barrier, 0, nullptr, 0, nullptr);
+
+            VkImageCopy toMain{};
+            toMain.srcSubresource = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1 };
+            toMain.srcOffset = { 0, 0, 0 };
+            toMain.dstSubresource = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1 };
+            toMain.dstOffset = { x, y, 0 };
+            toMain.extent = { static_cast<uint32_t>(width), static_cast<uint32_t>(height), 1 };
+            vkCmdCopyImage(
+                cmd, _copyTempImage, VK_IMAGE_LAYOUT_GENERAL, _drawingContext.GetColourImage(), VK_IMAGE_LAYOUT_GENERAL, 1,
+                &toMain);
+        });
+    }
+
+    IDrawingContext* GetDrawingContext() override
+    {
+        if (!_drawingContext.IsActive())
+        {
+            Guard::Fail("Drawing context is not active.");
+            return nullptr;
+        }
+        return &_drawingContext;
+    }
+
+    RenderTarget* getRT() override
+    {
+        return &_mainRT;
+    }
+
+    DrawingEngineFlags GetFlags() override
+    {
+        return DrawingEngineFlag::dirtyOptimisations;
+    }
+
+    void InvalidateImage(uint32_t image) override
+    {
+        _drawingContext.GetTextureCache().InvalidateImage(image);
+    }
+
+private:
     void DestroyVulkan()
     {
         if (_device != VK_NULL_HANDLE)
@@ -229,6 +458,7 @@ private:
         }
 
         DestroySwapchainAndResources();
+        _drawingContext.Destroy();
 
         for (uint32_t i = 0; i < kFramesInFlight; i++)
         {
@@ -414,48 +644,24 @@ private:
         if (_device == VK_NULL_HANDLE)
             return;
 
-        for (uint32_t i = 0; i < kFramesInFlight; i++)
+        if (_copyTempImage != VK_NULL_HANDLE)
         {
-            if (_uploadBuffers[i] != VK_NULL_HANDLE)
-            {
-                if (_uploadBuffersMapped[i] != nullptr)
-                {
-                    vkUnmapMemory(_device, _uploadBufferMemories[i]);
-                    _uploadBuffersMapped[i] = nullptr;
-                }
-                vkDestroyBuffer(_device, _uploadBuffers[i], nullptr);
-                _uploadBuffers[i] = VK_NULL_HANDLE;
-            }
-            if (_uploadBufferMemories[i] != VK_NULL_HANDLE)
-            {
-                vkFreeMemory(_device, _uploadBufferMemories[i], nullptr);
-                _uploadBufferMemories[i] = VK_NULL_HANDLE;
-            }
+            vkDestroyImage(_device, _copyTempImage, nullptr);
+            _copyTempImage = VK_NULL_HANDLE;
+        }
+        if (_copyTempImageMemory != VK_NULL_HANDLE)
+        {
+            vkFreeMemory(_device, _copyTempImageMemory, nullptr);
+            _copyTempImageMemory = VK_NULL_HANDLE;
         }
 
-        for (uint32_t i = 0; i < kFramesInFlight; i++)
+        for (auto& cmd : _commandBuffers)
         {
-            if (_paletteIndexImageViews[i] != VK_NULL_HANDLE)
+            if (cmd != VK_NULL_HANDLE)
             {
-                vkDestroyImageView(_device, _paletteIndexImageViews[i], nullptr);
-                _paletteIndexImageViews[i] = VK_NULL_HANDLE;
+                vkFreeCommandBuffers(_device, _commandPool, 1, &cmd);
+                cmd = VK_NULL_HANDLE;
             }
-            if (_paletteIndexImages[i] != VK_NULL_HANDLE)
-            {
-                vkDestroyImage(_device, _paletteIndexImages[i], nullptr);
-                _paletteIndexImages[i] = VK_NULL_HANDLE;
-            }
-            if (_paletteIndexImageMemories[i] != VK_NULL_HANDLE)
-            {
-                vkFreeMemory(_device, _paletteIndexImageMemories[i], nullptr);
-                _paletteIndexImageMemories[i] = VK_NULL_HANDLE;
-            }
-        }
-
-        if (!_commandBuffers.empty())
-        {
-            vkFreeCommandBuffers(_device, _commandPool, static_cast<uint32_t>(_commandBuffers.size()), _commandBuffers.data());
-            _commandBuffers.clear();
         }
 
         for (auto framebuffer : _framebuffers)
@@ -496,12 +702,16 @@ private:
             CreateGraphicsPipeline();
         }
         CreateFramebuffers();
-        CreateUploadResources();
+        CreateCopyTempImage();
         CreateCommandBuffers();
+
+        _drawingContext.Resize(_width, _height);
+        UpdateCompositeDescriptorSets();
     }
 
-    // Runs a single one-shot command buffer synchronously. Only used during (re)creation of
-    // swapchain/image resources, never in the per-frame hot path.
+    // Runs a single one-shot command buffer synchronously. Not used in the regular per-frame
+    // hot path (Present() records/submits its own per-frame command buffer) - only for
+    // (re)creation of swapchain/image resources and for CopyRect's occasional GPU-side copies.
     void RunOneTimeCommands(const std::function<void(VkCommandBuffer)>& fn)
     {
         VkCommandBufferAllocateInfo alloc{};
@@ -535,12 +745,18 @@ private:
     void CreateSwapchain()
     {
         VkSurfaceCapabilitiesKHR caps{};
-        CheckVk(vkGetPhysicalDeviceSurfaceCapabilitiesKHR(_physicalDevice, _surface, &caps), "vkGetPhysicalDeviceSurfaceCapabilitiesKHR");
+        CheckVk(
+            vkGetPhysicalDeviceSurfaceCapabilitiesKHR(_physicalDevice, _surface, &caps),
+            "vkGetPhysicalDeviceSurfaceCapabilitiesKHR");
 
         uint32_t formatCount = 0;
-        CheckVk(vkGetPhysicalDeviceSurfaceFormatsKHR(_physicalDevice, _surface, &formatCount, nullptr), "vkGetPhysicalDeviceSurfaceFormatsKHR(count)");
+        CheckVk(
+            vkGetPhysicalDeviceSurfaceFormatsKHR(_physicalDevice, _surface, &formatCount, nullptr),
+            "vkGetPhysicalDeviceSurfaceFormatsKHR(count)");
         std::vector<VkSurfaceFormatKHR> formats(formatCount);
-        CheckVk(vkGetPhysicalDeviceSurfaceFormatsKHR(_physicalDevice, _surface, &formatCount, formats.data()), "vkGetPhysicalDeviceSurfaceFormatsKHR(list)");
+        CheckVk(
+            vkGetPhysicalDeviceSurfaceFormatsKHR(_physicalDevice, _surface, &formatCount, formats.data()),
+            "vkGetPhysicalDeviceSurfaceFormatsKHR(list)");
 
         VkSurfaceFormatKHR chosenFormat = formats[0];
         for (const auto& f : formats)
@@ -554,9 +770,13 @@ private:
         _swapchainFormat = chosenFormat.format;
 
         uint32_t presentModeCount = 0;
-        CheckVk(vkGetPhysicalDeviceSurfacePresentModesKHR(_physicalDevice, _surface, &presentModeCount, nullptr), "vkGetPhysicalDeviceSurfacePresentModesKHR(count)");
+        CheckVk(
+            vkGetPhysicalDeviceSurfacePresentModesKHR(_physicalDevice, _surface, &presentModeCount, nullptr),
+            "vkGetPhysicalDeviceSurfacePresentModesKHR(count)");
         std::vector<VkPresentModeKHR> presentModes(presentModeCount);
-        CheckVk(vkGetPhysicalDeviceSurfacePresentModesKHR(_physicalDevice, _surface, &presentModeCount, presentModes.data()), "vkGetPhysicalDeviceSurfacePresentModesKHR(list)");
+        CheckVk(
+            vkGetPhysicalDeviceSurfacePresentModesKHR(_physicalDevice, _surface, &presentModeCount, presentModes.data()),
+            "vkGetPhysicalDeviceSurfacePresentModesKHR(list)");
 
         VkPresentModeKHR presentMode = VK_PRESENT_MODE_FIFO_KHR;
         if (!_useVsync)
@@ -615,7 +835,9 @@ private:
         uint32_t swapCount = 0;
         CheckVk(vkGetSwapchainImagesKHR(_device, _swapchain, &swapCount, nullptr), "vkGetSwapchainImagesKHR(count)");
         _swapchainImages.resize(swapCount);
-        CheckVk(vkGetSwapchainImagesKHR(_device, _swapchain, &swapCount, _swapchainImages.data()), "vkGetSwapchainImagesKHR(list)");
+        CheckVk(
+            vkGetSwapchainImagesKHR(_device, _swapchain, &swapCount, _swapchainImages.data()),
+            "vkGetSwapchainImagesKHR(list)");
     }
 
     void CreateSwapchainImageViews()
@@ -638,7 +860,7 @@ private:
     // Render pass used to draw the fullscreen palette-lookup triangle into a swapchain image.
     // Its initial/final layouts mean Vulkan handles the UNDEFINED -> COLOR_ATTACHMENT_OPTIMAL
     // -> PRESENT_SRC_KHR transitions for us automatically, so no manual barriers are needed
-    // around it (unlike the old copy/blit path).
+    // around it.
     void CreateRenderPass()
     {
         VkAttachmentDescription colorAttachment{};
@@ -697,6 +919,37 @@ private:
             info.layers = 1;
             CheckVk(vkCreateFramebuffer(_device, &info, nullptr, &_framebuffers[i]), "vkCreateFramebuffer");
         }
+    }
+
+    void CreateCopyTempImage()
+    {
+        VkImageCreateInfo imageInfo{};
+        imageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+        imageInfo.imageType = VK_IMAGE_TYPE_2D;
+        imageInfo.format = VK_FORMAT_R8_UINT;
+        imageInfo.extent = { _width, _height, 1 };
+        imageInfo.mipLevels = 1;
+        imageInfo.arrayLayers = 1;
+        imageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
+        imageInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
+        imageInfo.usage = VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+        imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+        imageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+        CheckVk(vkCreateImage(_device, &imageInfo, nullptr, &_copyTempImage), "vkCreateImage(copyTemp)");
+
+        VkMemoryRequirements memReq{};
+        vkGetImageMemoryRequirements(_device, _copyTempImage, &memReq);
+        VkMemoryAllocateInfo alloc{};
+        alloc.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+        alloc.allocationSize = memReq.size;
+        alloc.memoryTypeIndex = FindMemoryType(_physicalDevice, memReq.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+        CheckVk(vkAllocateMemory(_device, &alloc, nullptr, &_copyTempImageMemory), "vkAllocateMemory(copyTemp)");
+        CheckVk(vkBindImageMemory(_device, _copyTempImage, _copyTempImageMemory, 0), "vkBindImageMemory(copyTemp)");
+
+        RunOneTimeCommands([this](VkCommandBuffer cmd) {
+            TransitionImageLayout(
+                cmd, _copyTempImage, VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL);
+        });
     }
 
     void CreateDescriptorSetLayout()
@@ -792,7 +1045,8 @@ private:
                 _physicalDevice, memReq.memoryTypeBits,
                 VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
             CheckVk(vkAllocateMemory(_device, &alloc, nullptr, &_paletteBufferMemories[i]), "vkAllocateMemory(palette)");
-            CheckVk(vkBindBufferMemory(_device, _paletteBuffers[i], _paletteBufferMemories[i], 0), "vkBindBufferMemory(palette)");
+            CheckVk(
+                vkBindBufferMemory(_device, _paletteBuffers[i], _paletteBufferMemories[i], 0), "vkBindBufferMemory(palette)");
             CheckVk(
                 vkMapMemory(_device, _paletteBufferMemories[i], 0, bufferSize, 0, &_paletteBuffersMapped[i]),
                 "vkMapMemory(palette)");
@@ -800,6 +1054,43 @@ private:
             // Initialise with whatever palette data we currently have (may just be the
             // zero-initialised default if SetPalette() hasn't been called yet).
             std::memcpy(_paletteBuffersMapped[i], _paletteData.data(), bufferSize);
+        }
+    }
+
+    // Binds each frame-in-flight's descriptor set to the drawing context's offscreen colour
+    // image view (which changes handle every resize) and its own palette uniform buffer. Called
+    // once after every _drawingContext.Resize() rather than every frame, since the view is
+    // otherwise stable between resizes.
+    void UpdateCompositeDescriptorSets()
+    {
+        for (uint32_t i = 0; i < kFramesInFlight; i++)
+        {
+            VkDescriptorImageInfo imgInfo{};
+            imgInfo.sampler = _paletteIndexSampler;
+            imgInfo.imageView = _drawingContext.GetColourImageView();
+            imgInfo.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
+
+            VkDescriptorBufferInfo bufInfo{};
+            bufInfo.buffer = _paletteBuffers[i];
+            bufInfo.offset = 0;
+            bufInfo.range = VK_WHOLE_SIZE;
+
+            VkWriteDescriptorSet writes[2]{};
+            writes[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+            writes[0].dstSet = _descriptorSets[i];
+            writes[0].dstBinding = 0;
+            writes[0].descriptorCount = 1;
+            writes[0].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+            writes[0].pImageInfo = &imgInfo;
+
+            writes[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+            writes[1].dstSet = _descriptorSets[i];
+            writes[1].dstBinding = 1;
+            writes[1].descriptorCount = 1;
+            writes[1].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+            writes[1].pBufferInfo = &bufInfo;
+
+            vkUpdateDescriptorSets(_device, 2, writes, 0, nullptr);
         }
     }
 
@@ -834,8 +1125,9 @@ private:
     }
 
     // Builds the graphics pipeline that renders a fullscreen triangle and looks up each pixel's
-    // final colour from the palette in the fragment shader - the Vulkan equivalent of the
-    // OpenGL renderer's ApplyPaletteShader, replacing the old CPU-side palette conversion.
+    // final colour from the palette in the fragment shader, reading from the drawing context's
+    // R8_UINT offscreen colour target - the Vulkan equivalent of the OpenGL renderer's
+    // ApplyPaletteShader.
     void CreateGraphicsPipeline()
     {
         auto vertCode = ReadSpirV("applypalette_vk.vert.spv");
@@ -882,8 +1174,8 @@ private:
 
         VkPipelineColorBlendAttachmentState blendAttachment{};
         blendAttachment.blendEnable = VK_FALSE;
-        blendAttachment.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT
-            | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
+        blendAttachment.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT
+            | VK_COLOR_COMPONENT_A_BIT;
 
         VkPipelineColorBlendStateCreateInfo colorBlend{};
         colorBlend.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
@@ -919,247 +1211,49 @@ private:
         vkDestroyShaderModule(_device, fragModule, nullptr);
     }
 
-    // Pre-records one command buffer per (swapchain image, frame-in-flight) combination.
-    // Since the CPU-side work (palette conversion) and copy/blit regions never change between
-    // frames, we record the transitions and copy/blit commands exactly once here instead of
-    // re-recording (vkBegin/vkCmd.../vkEnd) every single frame, which is the classic Vulkan
-    // "record once, submit many" pattern and removes significant per-frame CPU/API overhead.
+    // Allocates one command buffer per frame-in-flight, recorded fresh every Present() call
+    // (unlike the old "record once" scheme) since the offscreen rect/line draw calls now vary in
+    // count every frame.
     void CreateCommandBuffers()
     {
-        const auto imageCount = static_cast<uint32_t>(_swapchainImages.size());
-        _commandBuffers.resize(imageCount * kFramesInFlight);
-
         VkCommandBufferAllocateInfo alloc{};
         alloc.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
         alloc.commandPool = _commandPool;
         alloc.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-        alloc.commandBufferCount = static_cast<uint32_t>(_commandBuffers.size());
+        alloc.commandBufferCount = kFramesInFlight;
         CheckVk(vkAllocateCommandBuffers(_device, &alloc, _commandBuffers.data()), "vkAllocateCommandBuffers");
-
-        for (uint32_t imageIndex = 0; imageIndex < imageCount; imageIndex++)
-        {
-            for (uint32_t frameIndex = 0; frameIndex < kFramesInFlight; frameIndex++)
-            {
-                RecordCommandBuffer(_commandBuffers[imageIndex * kFramesInFlight + frameIndex], imageIndex, frameIndex);
-            }
-        }
     }
 
-    // Creates resources that are sized to the current render resolution (_width x _height) and
-    // therefore need to be recreated on resize: the per-frame-in-flight upload buffers and the
-    // palette-index sampled image the fragment shader reads from.
-    void CreateUploadResources()
+    // Records this frame's offscreen rect/line draws (via the drawing context) followed by the
+    // final palette-lookup composite pass into the swapchain image, then submits and presents.
+    void Present()
     {
-        _uploadBufferSize = static_cast<VkDeviceSize>(_width) * static_cast<VkDeviceSize>(_height);
-
-        for (uint32_t i = 0; i < kFramesInFlight; i++)
-        {
-            VkBufferCreateInfo bufferInfo{};
-            bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-            bufferInfo.size = _uploadBufferSize;
-            bufferInfo.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
-            bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-            CheckVk(vkCreateBuffer(_device, &bufferInfo, nullptr, &_uploadBuffers[i]), "vkCreateBuffer(upload)");
-
-            VkMemoryRequirements bufferMemReq{};
-            vkGetBufferMemoryRequirements(_device, _uploadBuffers[i], &bufferMemReq);
-
-            VkMemoryAllocateInfo bufferAlloc{};
-            bufferAlloc.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-            bufferAlloc.allocationSize = bufferMemReq.size;
-            bufferAlloc.memoryTypeIndex = FindMemoryType(
-                _physicalDevice, bufferMemReq.memoryTypeBits,
-                VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
-            CheckVk(vkAllocateMemory(_device, &bufferAlloc, nullptr, &_uploadBufferMemories[i]), "vkAllocateMemory(upload)");
-            CheckVk(vkBindBufferMemory(_device, _uploadBuffers[i], _uploadBufferMemories[i], 0), "vkBindBufferMemory(upload)");
-            CheckVk(
-                vkMapMemory(_device, _uploadBufferMemories[i], 0, _uploadBufferSize, 0, &_uploadBuffersMapped[i]),
-                "vkMapMemory(upload)");
-
-            VkImageCreateInfo imageInfo{};
-            imageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
-            imageInfo.imageType = VK_IMAGE_TYPE_2D;
-            imageInfo.format = VK_FORMAT_R8_UINT;
-            imageInfo.extent = { _width, _height, 1 };
-            imageInfo.mipLevels = 1;
-            imageInfo.arrayLayers = 1;
-            imageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
-            imageInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
-            imageInfo.usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
-            imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-            imageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-            CheckVk(vkCreateImage(_device, &imageInfo, nullptr, &_paletteIndexImages[i]), "vkCreateImage(paletteIndex)");
-
-            VkMemoryRequirements imageMemReq{};
-            vkGetImageMemoryRequirements(_device, _paletteIndexImages[i], &imageMemReq);
-
-            VkMemoryAllocateInfo imageAlloc{};
-            imageAlloc.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-            imageAlloc.allocationSize = imageMemReq.size;
-            imageAlloc.memoryTypeIndex = FindMemoryType(
-                _physicalDevice, imageMemReq.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-            CheckVk(vkAllocateMemory(_device, &imageAlloc, nullptr, &_paletteIndexImageMemories[i]), "vkAllocateMemory(paletteIndex)");
-            CheckVk(vkBindImageMemory(_device, _paletteIndexImages[i], _paletteIndexImageMemories[i], 0), "vkBindImageMemory(paletteIndex)");
-
-            VkImageViewCreateInfo viewInfo{};
-            viewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-            viewInfo.image = _paletteIndexImages[i];
-            viewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
-            viewInfo.format = VK_FORMAT_R8_UINT;
-            viewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-            viewInfo.subresourceRange.levelCount = 1;
-            viewInfo.subresourceRange.layerCount = 1;
-            CheckVk(vkCreateImageView(_device, &viewInfo, nullptr, &_paletteIndexImageViews[i]), "vkCreateImageView(paletteIndex)");
-
-            // One-time transition so every pre-recorded command buffer can assume a fixed
-            // "previous layout" of SHADER_READ_ONLY_OPTIMAL for this image, every frame.
-            RunOneTimeCommands([this, i](VkCommandBuffer cmd) {
-                TransitionImage(
-                    cmd, _paletteIndexImages[i], VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
-            });
-
-            // Bind this frame-in-flight's image/sampler/palette buffer into its descriptor set.
-            VkDescriptorImageInfo imgInfo{};
-            imgInfo.sampler = _paletteIndexSampler;
-            imgInfo.imageView = _paletteIndexImageViews[i];
-            imgInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-
-            VkDescriptorBufferInfo bufInfo{};
-            bufInfo.buffer = _paletteBuffers[i];
-            bufInfo.offset = 0;
-            bufInfo.range = VK_WHOLE_SIZE;
-
-            VkWriteDescriptorSet writes[2]{};
-            writes[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-            writes[0].dstSet = _descriptorSets[i];
-            writes[0].dstBinding = 0;
-            writes[0].descriptorCount = 1;
-            writes[0].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-            writes[0].pImageInfo = &imgInfo;
-
-            writes[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-            writes[1].dstSet = _descriptorSets[i];
-            writes[1].dstBinding = 1;
-            writes[1].descriptorCount = 1;
-            writes[1].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-            writes[1].pBufferInfo = &bufInfo;
-
-            vkUpdateDescriptorSets(_device, 2, writes, 0, nullptr);
-        }
-    }
-
-    void TransitionImage(VkCommandBuffer cmd, VkImage image, VkImageLayout oldLayout, VkImageLayout newLayout)
-    {
-        VkImageMemoryBarrier barrier{};
-        barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
-        barrier.oldLayout = oldLayout;
-        barrier.newLayout = newLayout;
-        barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-        barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-        barrier.image = image;
-        barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-        barrier.subresourceRange.baseMipLevel = 0;
-        barrier.subresourceRange.levelCount = 1;
-        barrier.subresourceRange.baseArrayLayer = 0;
-        barrier.subresourceRange.layerCount = 1;
-
-        VkPipelineStageFlags srcStage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
-        VkPipelineStageFlags dstStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
-        barrier.srcAccessMask = 0;
-        barrier.dstAccessMask = 0;
-
-        if (oldLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL)
-        {
-            srcStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
-            barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-        }
-        else if (oldLayout == VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL)
-        {
-            srcStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
-            barrier.srcAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
-        }
-        else if (oldLayout == VK_IMAGE_LAYOUT_PRESENT_SRC_KHR)
-        {
-            srcStage = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;
-        }
-        else if (oldLayout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL)
-        {
-            srcStage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
-            barrier.srcAccessMask = VK_ACCESS_SHADER_READ_BIT;
-        }
-
-        if (newLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL)
-        {
-            dstStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
-            barrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-        }
-        else if (newLayout == VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL)
-        {
-            dstStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
-            barrier.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
-        }
-        else if (newLayout == VK_IMAGE_LAYOUT_PRESENT_SRC_KHR)
-        {
-            dstStage = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;
-        }
-        else if (newLayout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL)
-        {
-            dstStage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
-            barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
-        }
-
-        vkCmdPipelineBarrier(
-            cmd, srcStage, dstStage, 0, 0, nullptr, 0, nullptr, 1, &barrier);
-    }
-
-    void UploadFrameToBuffer()
-    {
-        void* mapped = _uploadBuffersMapped[_currentFrame];
-        if (_uploadBuffers[_currentFrame] == VK_NULL_HANDLE || mapped == nullptr)
+        if (_device == VK_NULL_HANDLE || _swapchain == VK_NULL_HANDLE || _width == 0 || _height == 0)
             return;
 
-        // The fragment shader now performs the palette lookup on the GPU (see
-        // data/shaders/applypalette_vk.frag), mirroring the OpenGL renderer's ApplyPaletteShader.
-        // All the CPU needs to do each frame is copy the raw 8-bit palette-index framebuffer
-        // across - a single memcpy, not a per-pixel lookup - so no worker-thread pool is needed
-        // here any more.
-        std::memcpy(mapped, _bits, static_cast<size_t>(_width) * _height);
-    }
+        CheckVk(vkWaitForFences(_device, 1, &_inFlightFences[_currentFrame], VK_TRUE, UINT64_MAX), "vkWaitForFences");
 
-    // Records the fixed sequence of commands for a given (swapchain image, frame-in-flight)
-    // pair: upload this frame-in-flight's palette-index data into its sampled image, then run
-    // the palette-lookup render pass directly into the swapchain image. Called only during
-    // setup/resize, never per-frame (the classic Vulkan "record once, submit many" pattern).
-    // The palette-index image is assumed to be in SHADER_READ_ONLY_OPTIMAL before this runs
-    // (guaranteed by the one-time init transition plus the fact this always ends by
-    // transitioning back to it). The render pass handles all of the swapchain image's layout
-    // transitions via its initialLayout/finalLayout, so no manual barriers are needed around it.
-    void RecordCommandBuffer(VkCommandBuffer cmd, uint32_t imageIndex, uint32_t frameIndex)
-    {
+        uint32_t imageIndex = 0;
+        VkResult acquire = vkAcquireNextImageKHR(
+            _device, _swapchain, UINT64_MAX, _imageAvailable[_currentFrame], VK_NULL_HANDLE, &imageIndex);
+
+        if (acquire == VK_ERROR_OUT_OF_DATE_KHR)
+        {
+            RecreateSwapchainAndResources();
+            return;
+        }
+        CheckVk(acquire, "vkAcquireNextImageKHR");
+
+        CheckVk(vkResetFences(_device, 1, &_inFlightFences[_currentFrame]), "vkResetFences");
+
+        VkCommandBuffer cmd = _commandBuffers[_currentFrame];
+        CheckVk(vkResetCommandBuffer(cmd, 0), "vkResetCommandBuffer");
+
         VkCommandBufferBeginInfo beginInfo{};
         beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
         CheckVk(vkBeginCommandBuffer(cmd, &beginInfo), "vkBeginCommandBuffer");
 
-        TransitionImage(
-            cmd, _paletteIndexImages[frameIndex], VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-            VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
-
-        VkBufferImageCopy copy{};
-        copy.bufferOffset = 0;
-        copy.bufferRowLength = 0;
-        copy.bufferImageHeight = 0;
-        copy.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-        copy.imageSubresource.mipLevel = 0;
-        copy.imageSubresource.baseArrayLayer = 0;
-        copy.imageSubresource.layerCount = 1;
-        copy.imageOffset = { 0, 0, 0 };
-        copy.imageExtent = { _width, _height, 1 };
-        vkCmdCopyBufferToImage(
-            cmd, _uploadBuffers[frameIndex], _paletteIndexImages[frameIndex], VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &copy);
-
-        TransitionImage(
-            cmd, _paletteIndexImages[frameIndex], VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-            VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+        _drawingContext.FlushCommandBuffers(cmd, _currentFrame);
 
         VkRenderPassBeginInfo rpBegin{};
         rpBegin.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
@@ -1170,7 +1264,7 @@ private:
 
         vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, _pipeline);
         vkCmdBindDescriptorSets(
-            cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, _pipelineLayout, 0, 1, &_descriptorSets[frameIndex], 0, nullptr);
+            cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, _pipelineLayout, 0, 1, &_descriptorSets[_currentFrame], 0, nullptr);
 
         VkViewport viewport{};
         viewport.width = static_cast<float>(_swapchainExtent.width);
@@ -1189,13 +1283,7 @@ private:
         vkCmdEndRenderPass(cmd);
 
         CheckVk(vkEndCommandBuffer(cmd), "vkEndCommandBuffer");
-    }
 
-    // Submits a pre-recorded command buffer for the current frame-in-flight. This is the only
-    // per-frame Vulkan "work" beyond the palette-index upload: no recording, no barrier setup
-    // here.
-    void SubmitCommandBuffer(VkCommandBuffer cmd)
-    {
         VkPipelineStageFlags waitStage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
         VkSubmitInfo submit{};
         submit.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
@@ -1206,36 +1294,7 @@ private:
         submit.pCommandBuffers = &cmd;
         submit.signalSemaphoreCount = 1;
         submit.pSignalSemaphores = &_renderFinished[_currentFrame];
-
         CheckVk(vkQueueSubmit(_graphicsQueue, 1, &submit, _inFlightFences[_currentFrame]), "vkQueueSubmit");
-    }
-
-    void Present()
-    {
-        if (_device == VK_NULL_HANDLE || _swapchain == VK_NULL_HANDLE || _width == 0 || _height == 0)
-            return;
-
-        CheckVk(vkWaitForFences(_device, 1, &_inFlightFences[_currentFrame], VK_TRUE, UINT64_MAX), "vkWaitForFences");
-        CheckVk(vkResetFences(_device, 1, &_inFlightFences[_currentFrame]), "vkResetFences");
-
-        uint32_t imageIndex = 0;
-        VkResult acquire = vkAcquireNextImageKHR(
-            _device,
-            _swapchain,
-            UINT64_MAX,
-            _imageAvailable[_currentFrame],
-            VK_NULL_HANDLE,
-            &imageIndex);
-
-        if (acquire == VK_ERROR_OUT_OF_DATE_KHR)
-        {
-            RecreateSwapchainAndResources();
-            return;
-        }
-        CheckVk(acquire, "vkAcquireNextImageKHR");
-
-        UploadFrameToBuffer();
-        SubmitCommandBuffer(_commandBuffers[imageIndex * kFramesInFlight + _currentFrame]);
 
         VkPresentInfoKHR present{};
         present.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
