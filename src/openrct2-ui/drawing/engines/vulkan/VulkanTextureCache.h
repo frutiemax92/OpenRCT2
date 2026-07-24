@@ -246,6 +246,9 @@ namespace OpenRCT2::Ui
 
     private:
         void EnlargeAtlasesImage(uint32_t newLayers);
+        // Lazily generates the palette-remap lookup texture on first use (see .cpp for why this
+        // must not happen eagerly during Initialise()).
+        void EnsurePaletteTexture();
         void GeneratePaletteTexture();
         VulkanAtlasTextureInfo AllocateImage(int32_t imageWidth, int32_t imageHeight);
         VulkanAtlasTextureInfo LoadImageTexture(ImageId imageId);

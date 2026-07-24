@@ -101,6 +101,20 @@ void VulkanTextureCache::Initialise(VkDevice device, VkPhysicalDevice physicalDe
     _atlasDimensions = std::min<int32_t>(kTextureCacheMaxAtlasSize, static_cast<int32_t>(props.limits.maxImageDimension2D));
     _atlasLayerLimit = std::min<uint32_t>(256, props.limits.maxImageArrayLayers);
 
+    // Deliberately NOT generating the palette texture here. Doing so eagerly (as part of engine
+    // Initialise(), which runs very early during a cold boot with Vulkan as the initially
+    // configured renderer) can run before all G1/object data used for palette remaps (ride and
+    // vehicle recolours, peep clothing, etc.) has finished loading, permanently baking an
+    // incomplete lookup texture that is never regenerated afterwards. Instead this is deferred
+    // until the first actual texture request (see EnsurePaletteTexture()), matching the OpenGL
+    // renderer's equally lazy TextureCache::CreateTextures() behaviour.
+}
+
+void VulkanTextureCache::EnsurePaletteTexture()
+{
+    if (_initialised)
+        return;
+
     GeneratePaletteTexture();
     _initialised = true;
 }
@@ -158,6 +172,8 @@ void VulkanTextureCache::InvalidateImage(ImageIndex image)
 
 VulkanBasicTextureInfo VulkanTextureCache::GetOrLoadImageTexture(ImageId imageId)
 {
+    EnsurePaletteTexture();
+
     uint32_t index = _indexMap[imageId.GetIndex()];
     if (index != kUnusedIndex)
     {
@@ -174,6 +190,8 @@ VulkanBasicTextureInfo VulkanTextureCache::GetOrLoadImageTexture(ImageId imageId
 
 VulkanBasicTextureInfo VulkanTextureCache::GetOrLoadGlyphTexture(ImageId imageId, const PaletteMap& paletteMap)
 {
+    EnsurePaletteTexture();
+
     VulkanGlyphId glyphId{};
     glyphId.Image = imageId.GetIndex();
 
@@ -197,6 +215,8 @@ VulkanBasicTextureInfo VulkanTextureCache::GetOrLoadGlyphTexture(ImageId imageId
 
 VulkanBasicTextureInfo VulkanTextureCache::GetOrLoadBitmapTexture(ImageIndex image, const void* pixels, size_t width, size_t height)
 {
+    EnsurePaletteTexture();
+
     uint32_t index = _indexMap[image];
     if (index != kUnusedIndex)
     {
