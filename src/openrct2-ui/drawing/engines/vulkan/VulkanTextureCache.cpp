@@ -327,6 +327,19 @@ void VulkanTextureCache::EnlargeAtlasesImage(uint32_t newLayers)
             newCapacity);
     });
 
+    // The old atlas image's view is bound into each frame-in-flight's descriptor set, and only
+    // gets rebound (to whichever atlas is current) once that frame is next recorded. RunOneTimeCommands
+    // above only waits for its own one-off submission - it does NOT guarantee that some OTHER
+    // frame's previously-submitted (and still executing) command buffer has finished sampling
+    // the OLD image via its still-bound descriptor set. Since atlas growth can happen mid-session
+    // (whenever a not-yet-cached sprite is first seen - this is common for peeps, which have far
+    // more distinct animation/direction sprite variants than e.g. rides, so growth keeps getting
+    // triggered long after startup), destroying the old image/view here without waiting for the
+    // device to go fully idle first is a use-after-free race that intermittently corrupts
+    // sampling results (seen as sprites flickering/changing colour) for whichever frame is still
+    // in flight on the GPU at the moment of destruction.
+    vkDeviceWaitIdle(_device);
+
     if (_atlasImageView != VK_NULL_HANDLE)
         vkDestroyImageView(_device, _atlasImageView, nullptr);
     if (_atlasImage != VK_NULL_HANDLE)
@@ -442,8 +455,16 @@ VulkanAtlasTextureInfo VulkanTextureCache::LoadImageTexture(ImageId imageId)
     int32_t width = g1Element->width;
     int32_t height = g1Element->height;
 
+    // The atlas is cached/keyed by sprite index only (see GetOrLoadImageTexture), so the pixel
+    // data baked in here must NOT have this particular imageId's colour applied - otherwise
+    // whichever ImageId (i.e. whichever peep's colours) first triggers the load for a given
+    // index "wins" and every other draw that reuses this same cached index (extremely common -
+    // e.g. every peep sharing the same walk-cycle frame/direction) would incorrectly show that
+    // first caller's colours instead of its own. Colour is applied per-draw-instance at shader
+    // time instead (see command.palettes/fPalettes in rect_vk.frag), so strip colour/remap here,
+    // matching OpenGL's TextureCache::GetImageAsRT (which uses ImageId(imageId.GetIndex())).
     RenderTarget rt = CreateScratchRT(width, height);
-    GfxDrawSpriteSoftware(rt, imageId, { -g1Element->xOffset, -g1Element->yOffset });
+    GfxDrawSpriteSoftware(rt, ImageId(imageId.GetIndex()), { -g1Element->xOffset, -g1Element->yOffset });
 
     VulkanAtlasTextureInfo cacheInfo = AllocateImage(width, height);
     cacheInfo.image = imageId.GetIndex();
