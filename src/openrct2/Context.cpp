@@ -595,6 +595,22 @@ namespace OpenRCT2
 
             auto drawingEngineType = Config::Get().general.drawingEngine;
 
+            // Config can still contain renderer values that are not compiled into this build.
+#ifdef DISABLE_OPENGL
+            if (drawingEngineType == DrawingEngine::OpenGL)
+            {
+                LOG_ERROR("OpenGL renderer is not available in this build. Falling back to software.");
+                drawingEngineType = DrawingEngine::SoftwareWithHardwareDisplay;
+            }
+#endif
+#ifdef DISABLE_VULKAN
+            if (drawingEngineType == DrawingEngine::Vulkan)
+            {
+                LOG_ERROR("Vulkan renderer is not available in this build. Falling back to software.");
+                drawingEngineType = DrawingEngine::SoftwareWithHardwareDisplay;
+            }
+#endif
+
             // Attempt to create drawing engine of the type specified in the config.
             {
                 auto drawingEngine = initializeEngine(drawingEngineType);
@@ -605,7 +621,11 @@ namespace OpenRCT2
                 else
                 {
                     // If the drawing engine creation failed, try to create a software engine.
-                    if (drawingEngineType == DrawingEngine::OpenGL)
+                    if (drawingEngineType == DrawingEngine::OpenGL
+#ifndef DISABLE_VULKAN
+                        || drawingEngineType == DrawingEngine::Vulkan
+#endif
+                    )
                     {
                         drawingEngineType = DrawingEngine::SoftwareWithHardwareDisplay;
                         LOG_ERROR("Trying fallback back to software...");

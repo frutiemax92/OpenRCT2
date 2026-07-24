@@ -46,8 +46,12 @@ static IDrawingEngine* GetDrawingEngine()
 
 bool DrawingEngineRequiresNewWindow(DrawingEngine srcEngine, DrawingEngine dstEngine)
 {
-    bool openGL = srcEngine == DrawingEngine::OpenGL || dstEngine == DrawingEngine::OpenGL;
-    return Platform::RequireNewWindow(openGL);
+    bool nonSoftwareWindowFlagEngine = srcEngine == DrawingEngine::OpenGL || dstEngine == DrawingEngine::OpenGL;
+#ifndef DISABLE_VULKAN
+    nonSoftwareWindowFlagEngine = nonSoftwareWindowFlagEngine || srcEngine == DrawingEngine::Vulkan
+        || dstEngine == DrawingEngine::Vulkan;
+#endif
+    return Platform::RequireNewWindow(nonSoftwareWindowFlagEngine);
 }
 
 void DrawingEngineInit()

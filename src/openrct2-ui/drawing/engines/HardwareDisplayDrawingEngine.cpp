@@ -12,6 +12,7 @@
 #include <SDL.h>
 #include <cmath>
 #include <memory>
+#include <stdexcept>
 #include <openrct2/Diagnostic.h>
 #include <openrct2/Game.h>
 #include <openrct2/config/Config.h>
@@ -44,15 +45,20 @@ private:
     uint32_t _lightPaletteHWMapped[256] = { 0 };
 
     bool _useVsync = true;
+    const char* _preferredRendererDriver = nullptr;
+    bool _requirePreferredRendererDriver = false;
 
     std::vector<uint32_t> _dirtyVisualsTime;
 
     bool smoothNN = false;
 
 public:
-    explicit HardwareDisplayDrawingEngine(IUiContext& uiContext)
+    explicit HardwareDisplayDrawingEngine(
+        IUiContext& uiContext, const char* preferredRendererDriver = nullptr, bool requirePreferredRendererDriver = false)
         : X8DrawingEngine(uiContext)
         , _uiContext(uiContext)
+        , _preferredRendererDriver(preferredRendererDriver)
+        , _requirePreferredRendererDriver(requirePreferredRendererDriver)
     {
         _window = static_cast<SDL_Window*>(_uiContext.GetWindow());
     }
@@ -73,7 +79,48 @@ public:
 
     void Initialise() override
     {
+        const char* previousRenderDriver = SDL_GetHint(SDL_HINT_RENDER_DRIVER);
+        if (_preferredRendererDriver != nullptr)
+        {
+            SDL_SetHint(SDL_HINT_RENDER_DRIVER, _preferredRendererDriver);
+        }
+
         _sdlRenderer = SDL_CreateRenderer(_window, -1, SDL_RENDERER_ACCELERATED | (_useVsync ? SDL_RENDERER_PRESENTVSYNC : 0));
+
+        if (previousRenderDriver != nullptr)
+        {
+            SDL_SetHint(SDL_HINT_RENDER_DRIVER, previousRenderDriver);
+        }
+        else
+        {
+            SDL_SetHint(SDL_HINT_RENDER_DRIVER, "");
+        }
+
+        if (_sdlRenderer == nullptr)
+        {
+            throw std::runtime_error(std::string("SDL_CreateRenderer failed: ") + SDL_GetError());
+        }
+
+        SDL_RendererInfo rendererInfo = {};
+        if (SDL_GetRendererInfo(_sdlRenderer, &rendererInfo) == 0)
+        {
+            LOG_VERBOSE("Hardware display renderer backend: %s", rendererInfo.name);
+            if (_requirePreferredRendererDriver && _preferredRendererDriver != nullptr
+                && SDL_strcasecmp(rendererInfo.name, _preferredRendererDriver) != 0)
+            {
+                SDL_DestroyRenderer(_sdlRenderer);
+                _sdlRenderer = nullptr;
+                throw std::runtime_error(
+                    std::string("Requested SDL renderer backend '") + _preferredRendererDriver + "' but got '"
+                    + rendererInfo.name + "'.");
+            }
+        }
+        else if (_requirePreferredRendererDriver)
+        {
+            SDL_DestroyRenderer(_sdlRenderer);
+            _sdlRenderer = nullptr;
+            throw std::runtime_error(std::string("SDL_GetRendererInfo failed: ") + SDL_GetError());
+        }
     }
 
     void SetVSync(bool vsync) override
@@ -378,7 +425,9 @@ private:
     }
 };
 
-std::unique_ptr<IDrawingEngine> Ui::CreateHardwareDisplayDrawingEngine(IUiContext& uiContext)
+std::unique_ptr<IDrawingEngine> Ui::CreateHardwareDisplayDrawingEngine(
+    IUiContext& uiContext, const char* preferredRendererDriver, bool requirePreferredRendererDriver)
 {
-    return std::make_unique<HardwareDisplayDrawingEngine>(uiContext);
+    return std::make_unique<HardwareDisplayDrawingEngine>(
+        uiContext, preferredRendererDriver, requirePreferredRendererDriver);
 }

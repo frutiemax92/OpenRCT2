@@ -17,9 +17,13 @@ namespace OpenRCT2::Ui
 {
     struct IUiContext;
 
-    [[nodiscard]] std::unique_ptr<Drawing::IDrawingEngine> CreateHardwareDisplayDrawingEngine(IUiContext& uiContext);
+    [[nodiscard]] std::unique_ptr<Drawing::IDrawingEngine> CreateHardwareDisplayDrawingEngine(
+        IUiContext& uiContext, const char* preferredRendererDriver = nullptr, bool requirePreferredRendererDriver = false);
 #ifndef DISABLE_OPENGL
     [[nodiscard]] std::unique_ptr<Drawing::IDrawingEngine> CreateOpenGLDrawingEngine(IUiContext& uiContext);
+#endif
+#ifndef DISABLE_VULKAN
+    [[nodiscard]] std::unique_ptr<Drawing::IDrawingEngine> CreateVulkanDrawingEngine(IUiContext& uiContext);
 #endif
 
     class DrawingEngineFactory final : public Drawing::IDrawingEngineFactory
@@ -34,6 +38,16 @@ namespace OpenRCT2::Ui
 #ifndef DISABLE_OPENGL
                 case DrawingEngine::OpenGL:
                     return CreateOpenGLDrawingEngine(uiContext);
+#else
+                case DrawingEngine::OpenGL:
+                    return nullptr;
+#endif
+#ifndef DISABLE_VULKAN
+                case DrawingEngine::Vulkan:
+                    return CreateVulkanDrawingEngine(uiContext);
+#else
+                case DrawingEngine::Vulkan:
+                    return nullptr;
 #endif
                 default:
                     Guard::Fail("Unknown renderer: %u", static_cast<uint32_t>(type));

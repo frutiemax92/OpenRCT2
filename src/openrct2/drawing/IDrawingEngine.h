@@ -21,6 +21,7 @@ enum class DrawingEngine : int32_t
     None = -1,
     SoftwareWithHardwareDisplay,
     OpenGL,
+    Vulkan,
     Count,
 };
 

@@ -35,6 +35,41 @@ if (NOT DISABLE_OPENGL AND NOT EMSCRIPTEN)
     endif ()
 endif ()
 
+if (NOT DISABLE_VULKAN AND NOT EMSCRIPTEN)
+    find_package(Vulkan QUIET)
+    if (NOT Vulkan_FOUND)
+        message("Vulkan headers/libs not found; disabling Vulkan renderer backend.")
+        set(DISABLE_VULKAN ON)
+    endif ()
+endif ()
+
+# The Vulkan renderer uses a real shader-based palette lookup (like the OpenGL renderer's
+# ApplyPaletteShader), which requires its GLSL sources to be precompiled to SPIR-V.
+if (NOT DISABLE_VULKAN AND NOT EMSCRIPTEN)
+    find_program(GLSLANG_VALIDATOR NAMES glslangValidator)
+    if (NOT GLSLANG_VALIDATOR)
+        message("glslangValidator not found (needed to compile Vulkan renderer shaders); disabling Vulkan renderer backend. Install the 'glslang-tools' package (or equivalent for your platform) to enable it.")
+        set(DISABLE_VULKAN ON)
+    endif ()
+endif ()
+
+if (NOT DISABLE_VULKAN AND NOT EMSCRIPTEN)
+    set(VULKAN_SHADER_DIR "${ROOT_DIR}/data/shaders")
+    set(VULKAN_SHADER_SPV_FILES)
+    foreach (VULKAN_SHADER_STAGE vert frag)
+        set(VULKAN_SHADER_SRC "${VULKAN_SHADER_DIR}/applypalette_vk.${VULKAN_SHADER_STAGE}")
+        set(VULKAN_SHADER_SPV "${VULKAN_SHADER_SRC}.spv")
+        add_custom_command(
+            OUTPUT "${VULKAN_SHADER_SPV}"
+            COMMAND "${GLSLANG_VALIDATOR}" -V "${VULKAN_SHADER_SRC}" -o "${VULKAN_SHADER_SPV}"
+            DEPENDS "${VULKAN_SHADER_SRC}"
+            COMMENT "Compiling Vulkan shader applypalette_vk.${VULKAN_SHADER_STAGE} to SPIR-V"
+            VERBATIM)
+        list(APPEND VULKAN_SHADER_SPV_FILES "${VULKAN_SHADER_SPV}")
+    endforeach ()
+    add_custom_target(openrct2_vulkan_shaders DEPENDS ${VULKAN_SHADER_SPV_FILES})
+endif ()
+
 # Sources
 file(GLOB_RECURSE OPENRCT2_UI_SOURCES
     "${CMAKE_CURRENT_LIST_DIR}/*.cpp")
@@ -94,6 +129,11 @@ if (NOT DISABLE_OPENGL)
     endif ()
 endif ()
 
+if (NOT DISABLE_VULKAN)
+    target_link_libraries(openrct2 Vulkan::Vulkan)
+    add_dependencies(openrct2 openrct2_vulkan_shaders)
+endif ()
+
 # Includes
 target_include_directories(openrct2 PRIVATE "${CMAKE_CURRENT_LIST_DIR}/.."
                                               ${OGG_INCLUDE_DIRS}
@@ -136,6 +176,7 @@ endif ()
 target_compile_definitions(openrct2 PUBLIC
     $<$<BOOL:${DISABLE_FLAC}>:DISABLE_FLAC>
     $<$<BOOL:${DISABLE_VORBIS}>:DISABLE_VORBIS>
+    $<$<BOOL:${DISABLE_VULKAN}>:DISABLE_VULKAN>
     # If OpenGL is enabled then we want to dynamically look up symbols.
     # If its disabled and somehow we magically end up linking to OpenGL we don't want look up the OpenGL symbols????
     $<IF:$<BOOL:${DISABLE_OPENGL}>,DISABLE_OPENGL,OPENGL_NO_LINK>

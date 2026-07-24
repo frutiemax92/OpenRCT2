@@ -484,12 +484,49 @@ namespace OpenRCT2::Ui::Windows
     };
     // clang-format on
 
-    static constexpr StringId kDrawingEngineStringIds[] = {
-        STR_DRAWING_ENGINE_SOFTWARE,
-#ifndef DISABLE_OPENGL
-        STR_DRAWING_ENGINE_OPENGL,
-#endif
+    struct DrawingEngineOption
+    {
+        DrawingEngine engine;
+        StringId stringId;
+        const utf8* fallbackText;
+        bool available;
     };
+
+    static constexpr DrawingEngineOption kDrawingEngineOptions[] = {
+        { DrawingEngine::SoftwareWithHardwareDisplay, STR_DRAWING_ENGINE_SOFTWARE, "Software", true },
+#ifndef DISABLE_OPENGL
+        { DrawingEngine::OpenGL, STR_DRAWING_ENGINE_OPENGL, "OpenGL (experimental)", true },
+    #else
+        { DrawingEngine::OpenGL, STR_DRAWING_ENGINE_OPENGL, "OpenGL (experimental)", false },
+#endif
+    #ifndef DISABLE_VULKAN
+        { DrawingEngine::Vulkan, STR_DRAWING_ENGINE_VULKAN, "Vulkan (experimental)", true },
+    #else
+        { DrawingEngine::Vulkan, STR_DRAWING_ENGINE_VULKAN, "Vulkan (experimental)", false },
+    #endif
+    };
+
+    static int32_t GetDrawingEngineOptionIndex(DrawingEngine engine)
+    {
+        for (size_t i = 0; i < std::size(kDrawingEngineOptions); i++)
+        {
+            if (kDrawingEngineOptions[i].engine == engine)
+            {
+                return static_cast<int32_t>(i);
+            }
+        }
+        return 0;
+    }
+
+    static const utf8* GetDrawingEngineOptionLabel(const DrawingEngineOption& option)
+    {
+        const auto localised = LanguageGetString(option.stringId);
+        if (localised != nullptr && localised[0] != '\0')
+        {
+            return localised;
+        }
+        return option.fallbackText;
+    }
 
 #pragma endregion
 
@@ -867,13 +904,17 @@ namespace OpenRCT2::Ui::Windows
                     break;
                 case WIDX_DRAWING_ENGINE_DROPDOWN:
                 {
-                    const auto numItems = static_cast<int32_t>(std::size(kDrawingEngineStringIds));
+                    const auto numItems = static_cast<int32_t>(std::size(kDrawingEngineOptions));
                     for (int32_t i = 0; i < numItems; i++)
                     {
-                        gDropdown.items[i] = Dropdown::MenuLabel(kDrawingEngineStringIds[i]);
+                        gDropdown.items[i] = Dropdown::MenuLabel(GetDrawingEngineOptionLabel(kDrawingEngineOptions[i]));
+                        if (!kDrawingEngineOptions[i].available)
+                        {
+                            gDropdown.items[i].setDisabled(true);
+                        }
                     }
                     ShowDropdown(widget, numItems);
-                    gDropdown.items[EnumValue(Config::Get().general.drawingEngine)].setChecked(true);
+                    gDropdown.items[GetDrawingEngineOptionIndex(Config::Get().general.drawingEngine)].setChecked(true);
                     break;
                 }
                 case WIDX_SCALE_UP:
@@ -946,9 +987,11 @@ namespace OpenRCT2::Ui::Windows
                     }
                     break;
                 case WIDX_DRAWING_ENGINE_DROPDOWN:
-                    if (dropdownIndex != EnumValue(Config::Get().general.drawingEngine))
+                    if (dropdownIndex >= 0 && dropdownIndex < static_cast<int32_t>(std::size(kDrawingEngineOptions))
+                        && kDrawingEngineOptions[dropdownIndex].available
+                        && kDrawingEngineOptions[dropdownIndex].engine != Config::Get().general.drawingEngine)
                     {
-                        DrawingEngine dstEngine = static_cast<DrawingEngine>(dropdownIndex);
+                        DrawingEngine dstEngine = kDrawingEngineOptions[dropdownIndex].engine;
 
                         Config::Get().general.drawingEngine = dstEngine;
                         RefreshVideo();
@@ -1004,7 +1047,8 @@ namespace OpenRCT2::Ui::Windows
 
             // Dropdown captions for straightforward strings.
             widgets[WIDX_FULLSCREEN].text = FullscreenModeNames[Config::Get().general.fullscreenMode];
-            widgets[WIDX_DRAWING_ENGINE].text = kDrawingEngineStringIds[EnumValue(Config::Get().general.drawingEngine)];
+            widgets[WIDX_DRAWING_ENGINE].setString(
+                GetDrawingEngineOptionLabel(kDrawingEngineOptions[GetDrawingEngineOptionIndex(Config::Get().general.drawingEngine)]));
 
             static constexpr StringId kFrameRateLimitStringIds[] = {
                 STR_FRAME_RATE_LIMIT_DEFAULT,

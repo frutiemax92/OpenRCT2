@@ -5,6 +5,8 @@
 #   WARNING: Do not use this file as a template for your translation! Always use UK English (located here: https://github.com/OpenRCT2/OpenRCT2/blob/develop/data/language/en-GB.txt ).
 #
 # Vanilla strings. Only change strings that differ from UK English!
+STR_7039    :Vulkan (experimental)
+
 STR_0007    :Miniature Railroad
 STR_0015    :Bobsled Coaster
 STR_0027    :Bumper Cars

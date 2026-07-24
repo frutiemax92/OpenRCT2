@@ -3829,3 +3829,5 @@ STR_7029    :Cuarto de hélice hacia abajo
 STR_7030    :{WINDOW_COLOUR_2}Visitantes entretenidos: {BLACK}{COMMA32}
 STR_7031    :Desactivar el crecimiento de la hierba
 STR_7032    :Desactivar el envejecimiento de la hierba para que no crezca.
+
+STR_7039    :Vulkan (experimental)
