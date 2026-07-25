@@ -15,6 +15,7 @@
 #include <cstring>
 #include <functional>
 #include <openrct2/core/EnumUtils.hpp>
+#include <openrct2/drawing/BlendColourMap.h>
 #include <openrct2/drawing/Drawing.Sprite.h>
 #include <openrct2/drawing/Drawing.h>
 #include <openrct2/drawing/FilterPaletteIds.h>
@@ -116,6 +117,7 @@ void VulkanTextureCache::EnsurePaletteTexture()
         return;
 
     GeneratePaletteTexture();
+    GenerateBlendPaletteTexture();
     _initialised = true;
 }
 
@@ -138,12 +140,22 @@ void VulkanTextureCache::Destroy()
     if (_paletteImageMemory != VK_NULL_HANDLE)
         vkFreeMemory(_device, _paletteImageMemory, nullptr);
 
+    if (_blendPaletteImageView != VK_NULL_HANDLE)
+        vkDestroyImageView(_device, _blendPaletteImageView, nullptr);
+    if (_blendPaletteImage != VK_NULL_HANDLE)
+        vkDestroyImage(_device, _blendPaletteImage, nullptr);
+    if (_blendPaletteImageMemory != VK_NULL_HANDLE)
+        vkFreeMemory(_device, _blendPaletteImageMemory, nullptr);
+
     _atlasImageView = VK_NULL_HANDLE;
     _atlasImage = VK_NULL_HANDLE;
     _atlasImageMemory = VK_NULL_HANDLE;
     _paletteImageView = VK_NULL_HANDLE;
     _paletteImage = VK_NULL_HANDLE;
     _paletteImageMemory = VK_NULL_HANDLE;
+    _blendPaletteImageView = VK_NULL_HANDLE;
+    _blendPaletteImage = VK_NULL_HANDLE;
+    _blendPaletteImageMemory = VK_NULL_HANDLE;
     _device = VK_NULL_HANDLE;
 }
 
@@ -447,6 +459,78 @@ void VulkanTextureCache::GeneratePaletteTexture()
     viewInfo.subresourceRange.levelCount = 1;
     viewInfo.subresourceRange.layerCount = 1;
     CheckVk(vkCreateImageView(_device, &viewInfo, nullptr, &_paletteImageView), "vkCreateImageView(palette)");
+}
+
+void VulkanTextureCache::GenerateBlendPaletteTexture()
+{
+    // Precomputed "blend(colourA, colourB)" table used by the depth-peeling transparency
+    // composite pass (applytransparency_vk.frag) for glass/one-way-glass style translucency -
+    // identical data source to the OpenGL renderer's TextureCache::CreateTextures(). Some builds
+    // (DISABLE_TTF) don't have this table available; the composite shader falls back to skipping
+    // the blend-colour path entirely if this image view stays null (checked by the caller before
+    // wiring up the descriptor set).
+    auto* blendMap = GetBlendColourMap();
+    if (blendMap == nullptr)
+        return;
+
+    constexpr int32_t width = kGamePaletteSize;
+    constexpr int32_t height = kGamePaletteSize;
+
+    VkImageCreateInfo imageInfo{};
+    imageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+    imageInfo.imageType = VK_IMAGE_TYPE_2D;
+    imageInfo.format = VK_FORMAT_R8_UINT;
+    imageInfo.extent = { width, height, 1 };
+    imageInfo.mipLevels = 1;
+    imageInfo.arrayLayers = 1;
+    imageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
+    imageInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
+    imageInfo.usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
+    imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+    imageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+    CheckVk(vkCreateImage(_device, &imageInfo, nullptr, &_blendPaletteImage), "vkCreateImage(blendPalette)");
+
+    VkMemoryRequirements memReq{};
+    vkGetImageMemoryRequirements(_device, _blendPaletteImage, &memReq);
+    VkMemoryAllocateInfo alloc{};
+    alloc.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+    alloc.allocationSize = memReq.size;
+    alloc.memoryTypeIndex = FindMemoryType(_physicalDevice, memReq.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+    CheckVk(vkAllocateMemory(_device, &alloc, nullptr, &_blendPaletteImageMemory), "vkAllocateMemory(blendPalette)");
+    CheckVk(vkBindImageMemory(_device, _blendPaletteImage, _blendPaletteImageMemory, 0), "vkBindImageMemory(blendPalette)");
+
+    VkDeviceSize bufferSize = static_cast<VkDeviceSize>(width) * height;
+    VulkanBuffer staging = CreateBuffer(
+        _device, _physicalDevice, bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+    std::memcpy(staging.mapped, blendMap->data(), bufferSize);
+
+    RunOneTimeCommands(_device, _queue, _commandPool, [&](VkCommandBuffer cmd) {
+        TransitionImageLayout(
+            cmd, _blendPaletteImage, VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_LAYOUT_UNDEFINED,
+            VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+
+        VkBufferImageCopy copy{};
+        copy.imageSubresource = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1 };
+        copy.imageExtent = { width, height, 1 };
+        vkCmdCopyBufferToImage(cmd, staging.buffer, _blendPaletteImage, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &copy);
+
+        TransitionImageLayout(
+            cmd, _blendPaletteImage, VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+            VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+    });
+
+    DestroyBuffer(_device, staging);
+
+    VkImageViewCreateInfo viewInfo{};
+    viewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+    viewInfo.image = _blendPaletteImage;
+    viewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
+    viewInfo.format = VK_FORMAT_R8_UINT;
+    viewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    viewInfo.subresourceRange.levelCount = 1;
+    viewInfo.subresourceRange.layerCount = 1;
+    CheckVk(vkCreateImageView(_device, &viewInfo, nullptr, &_blendPaletteImageView), "vkCreateImageView(blendPalette)");
 }
 
 VulkanAtlasTextureInfo VulkanTextureCache::LoadImageTexture(ImageId imageId)

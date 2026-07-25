@@ -13,6 +13,14 @@ const int kMaskRemapCount = 3;
 
 layout(set = 0, binding = 0) uniform usampler2DArray uTexture;
 layout(set = 0, binding = 1) uniform usampler2D uPaletteTex;
+layout(set = 0, binding = 2) uniform sampler2D uPeelingTex;
+
+layout(push_constant) uniform PushConstants
+{
+    vec2 uScreenSize;
+    int uPeeling;
+}
+pc;
 
 layout(location = 0) flat in vec2 fPosition;
 layout(location = 1) flat in int fFlags;
@@ -24,11 +32,21 @@ layout(location = 6) flat in float fZoom;
 layout(location = 7) flat in int fTexColourAtlas;
 layout(location = 8) flat in int fTexMaskAtlas;
 layout(location = 9) flat in int fScreenHeight;
+layout(location = 10) in vec3 fPeelPos;
 
 layout(location = 0) out uint oColour;
 
 void main()
 {
+    if (pc.uPeeling != 0)
+    {
+        float peel = texture(uPeelingTex, fPeelPos.xy).r;
+        if (peel == 0.0 || fPeelPos.z >= peel)
+        {
+            discard;
+        }
+    }
+
     vec2 fragCoord = vec2(floor(gl_FragCoord.x), floor(gl_FragCoord.y));
     vec2 position = (fragCoord - fPosition) * fZoom;
 

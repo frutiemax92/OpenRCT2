@@ -99,6 +99,23 @@ namespace OpenRCT2::Ui
         {
             return _instances.data();
         }
+
+        typename std::vector<T>::iterator begin() // NOLINT(readability-identifier-naming)
+        {
+            return _instances.begin();
+        }
+        typename std::vector<T>::const_iterator begin() const // NOLINT(readability-identifier-naming)
+        {
+            return _instances.cbegin();
+        }
+        typename std::vector<T>::iterator end() // NOLINT(readability-identifier-naming)
+        {
+            return _instances.begin() + _numInstances;
+        }
+        typename std::vector<T>::const_iterator end() const // NOLINT(readability-identifier-naming)
+        {
+            return _instances.cbegin() + _numInstances;
+        }
     };
 
     using LineCommandBatch = CommandBatch<VulkanDrawLineCommand>;

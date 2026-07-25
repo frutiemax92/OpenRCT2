@@ -212,6 +212,14 @@ namespace OpenRCT2::Ui
         VkDeviceMemory _paletteImageMemory = VK_NULL_HANDLE;
         VkImageView _paletteImageView = VK_NULL_HANDLE;
 
+        // Precomputed "what colour does colour A blend to with colour B" lookup (used by the
+        // depth-peeling transparency composite pass for glass/one-way-glass style translucency -
+        // see applytransparency_vk.frag), generated once from the same static
+        // Drawing::GetBlendColourMap() table the OpenGL renderer's TextureCache uses.
+        VkImage _blendPaletteImage = VK_NULL_HANDLE;
+        VkDeviceMemory _blendPaletteImageMemory = VK_NULL_HANDLE;
+        VkImageView _blendPaletteImageView = VK_NULL_HANDLE;
+
         std::vector<VulkanAtlas> _atlases;
         std::unordered_map<VulkanGlyphId, VulkanAtlasTextureInfo, VulkanGlyphId::Hash, VulkanGlyphId::Equal> _glyphTextureMap;
         std::vector<VulkanAtlasTextureInfo> _textureCache;
@@ -241,6 +249,10 @@ namespace OpenRCT2::Ui
         {
             return _paletteImageView;
         }
+        [[nodiscard]] VkImageView GetBlendPaletteImageView() const
+        {
+            return _blendPaletteImageView;
+        }
 
         static int32_t PaletteToY(Drawing::FilterPaletteID palette);
 
@@ -250,6 +262,7 @@ namespace OpenRCT2::Ui
         // must not happen eagerly during Initialise()).
         void EnsurePaletteTexture();
         void GeneratePaletteTexture();
+        void GenerateBlendPaletteTexture();
         VulkanAtlasTextureInfo AllocateImage(int32_t imageWidth, int32_t imageHeight);
         VulkanAtlasTextureInfo LoadImageTexture(ImageId imageId);
         VulkanAtlasTextureInfo LoadGlyphTexture(ImageId imageId, const Drawing::PaletteMap& paletteMap);

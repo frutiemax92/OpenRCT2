@@ -11,6 +11,8 @@
 
 #include "VulkanDrawingContext.h"
 
+#include "VulkanTransparencyDepth.h"
+
 #include <algorithm>
 #include <cstddef>
 #include <cstring>
@@ -107,9 +109,12 @@ void VulkanDrawingContext::Initialise(
 
     _textureCache.Initialise(device, physicalDevice, queue, commandPool);
 
-    // Descriptor set layout used by the rect pipeline: atlas array (binding 0) + palette lookup
+    // Descriptor set layout used by the rect pipeline (shared by both the opaque and the
+    // depth-peeling transparent pipeline variants): atlas array (binding 0) + palette lookup
     // texture (binding 1), both sampled as unsigned-integer textures (no filtering, matching
-    // OpenGL's GL_NEAREST-only R8UI textures).
+    // OpenGL's GL_NEAREST-only R8UI textures), plus a peeling-reference depth texture (binding 2,
+    // only actually sampled when the "uPeeling" push constant is set - always bound to something
+    // valid regardless, see FlushRectangles/HandleTransparency).
     VkDescriptorSetLayoutBinding atlasBinding{};
     atlasBinding.binding = 0;
     atlasBinding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
@@ -122,22 +127,46 @@ void VulkanDrawingContext::Initialise(
     paletteBinding.descriptorCount = 1;
     paletteBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
 
-    VkDescriptorSetLayoutBinding bindings[] = { atlasBinding, paletteBinding };
+    VkDescriptorSetLayoutBinding peelingBinding{};
+    peelingBinding.binding = 2;
+    peelingBinding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    peelingBinding.descriptorCount = 1;
+    peelingBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+
+    VkDescriptorSetLayoutBinding bindings[] = { atlasBinding, paletteBinding, peelingBinding };
     VkDescriptorSetLayoutCreateInfo layoutInfo{};
     layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-    layoutInfo.bindingCount = 2;
+    layoutInfo.bindingCount = 3;
     layoutInfo.pBindings = bindings;
     CheckVk(
         vkCreateDescriptorSetLayout(_device, &layoutInfo, nullptr, &_rectDescriptorSetLayout),
         "vkCreateDescriptorSetLayout(rect)");
 
+    // Descriptor set layout for the apply-transparency composite pass: opaque colour+depth,
+    // transparent colour+depth, palette, blend-palette (6 combined image samplers).
+    VkDescriptorSetLayoutBinding transparencyBindings[6]{};
+    for (uint32_t i = 0; i < 6; i++)
+    {
+        transparencyBindings[i].binding = i;
+        transparencyBindings[i].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+        transparencyBindings[i].descriptorCount = 1;
+        transparencyBindings[i].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+    }
+    VkDescriptorSetLayoutCreateInfo transparencyLayoutInfo{};
+    transparencyLayoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+    transparencyLayoutInfo.bindingCount = 6;
+    transparencyLayoutInfo.pBindings = transparencyBindings;
+    CheckVk(
+        vkCreateDescriptorSetLayout(_device, &transparencyLayoutInfo, nullptr, &_transparencyDescriptorSetLayout),
+        "vkCreateDescriptorSetLayout(transparency)");
+
     VkDescriptorPoolSize poolSize{};
     poolSize.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    poolSize.descriptorCount = kVulkanFramesInFlight * 2;
+    poolSize.descriptorCount = kVulkanFramesInFlight * (3 + 6);
 
     VkDescriptorPoolCreateInfo poolInfo{};
     poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
-    poolInfo.maxSets = kVulkanFramesInFlight;
+    poolInfo.maxSets = kVulkanFramesInFlight * 2;
     poolInfo.poolSizeCount = 1;
     poolInfo.pPoolSizes = &poolSize;
     CheckVk(vkCreateDescriptorPool(_device, &poolInfo, nullptr, &_descriptorPool), "vkCreateDescriptorPool(rect)");
@@ -150,6 +179,17 @@ void VulkanDrawingContext::Initialise(
     allocInfo.descriptorSetCount = kVulkanFramesInFlight;
     allocInfo.pSetLayouts = layouts.data();
     CheckVk(vkAllocateDescriptorSets(_device, &allocInfo, _rectDescriptorSets.data()), "vkAllocateDescriptorSets(rect)");
+
+    std::array<VkDescriptorSetLayout, kVulkanFramesInFlight> transparencyLayouts{};
+    transparencyLayouts.fill(_transparencyDescriptorSetLayout);
+    VkDescriptorSetAllocateInfo transparencyAllocInfo{};
+    transparencyAllocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+    transparencyAllocInfo.descriptorPool = _descriptorPool;
+    transparencyAllocInfo.descriptorSetCount = kVulkanFramesInFlight;
+    transparencyAllocInfo.pSetLayouts = transparencyLayouts.data();
+    CheckVk(
+        vkAllocateDescriptorSets(_device, &transparencyAllocInfo, _transparencyDescriptorSets.data()),
+        "vkAllocateDescriptorSets(transparency)");
 
     VkSamplerCreateInfo samplerInfo{};
     samplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
@@ -174,6 +214,8 @@ void VulkanDrawingContext::Destroy()
 
     for (auto& buf : _rectInstanceBuffers)
         DestroyBuffer(_device, buf);
+    for (auto& buf : _transparentRectInstanceBuffers)
+        DestroyBuffer(_device, buf);
     for (auto& buf : _lineInstanceBuffers)
         DestroyBuffer(_device, buf);
     for (auto& buf : _stagingBuffers)
@@ -187,16 +229,28 @@ void VulkanDrawingContext::Destroy()
         vkDestroyDescriptorPool(_device, _descriptorPool, nullptr);
     if (_rectPipeline != VK_NULL_HANDLE)
         vkDestroyPipeline(_device, _rectPipeline, nullptr);
+    if (_rectPipelineTransparent != VK_NULL_HANDLE)
+        vkDestroyPipeline(_device, _rectPipelineTransparent, nullptr);
     if (_rectPipelineLayout != VK_NULL_HANDLE)
         vkDestroyPipelineLayout(_device, _rectPipelineLayout, nullptr);
     if (_linePipeline != VK_NULL_HANDLE)
         vkDestroyPipeline(_device, _linePipeline, nullptr);
     if (_linePipelineLayout != VK_NULL_HANDLE)
         vkDestroyPipelineLayout(_device, _linePipelineLayout, nullptr);
+    if (_transparencyPipeline != VK_NULL_HANDLE)
+        vkDestroyPipeline(_device, _transparencyPipeline, nullptr);
+    if (_transparencyPipelineLayout != VK_NULL_HANDLE)
+        vkDestroyPipelineLayout(_device, _transparencyPipelineLayout, nullptr);
     if (_rectDescriptorSetLayout != VK_NULL_HANDLE)
         vkDestroyDescriptorSetLayout(_device, _rectDescriptorSetLayout, nullptr);
+    if (_transparencyDescriptorSetLayout != VK_NULL_HANDLE)
+        vkDestroyDescriptorSetLayout(_device, _transparencyDescriptorSetLayout, nullptr);
     if (_offscreenRenderPass != VK_NULL_HANDLE)
         vkDestroyRenderPass(_device, _offscreenRenderPass, nullptr);
+    if (_transparentRenderPass != VK_NULL_HANDLE)
+        vkDestroyRenderPass(_device, _transparentRenderPass, nullptr);
+    if (_mixRenderPass != VK_NULL_HANDLE)
+        vkDestroyRenderPass(_device, _mixRenderPass, nullptr);
 
     _textureCache.Destroy();
 
@@ -219,11 +273,14 @@ void VulkanDrawingContext::CreatePipelines()
     colourAttachment.initialLayout = VK_IMAGE_LAYOUT_GENERAL;
     colourAttachment.finalLayout = VK_IMAGE_LAYOUT_GENERAL;
 
+    // storeOp = STORE (unlike a typical depth buffer that could discard once used) because the
+    // depth-peeling transparency composite pass (applytransparency_vk.frag) samples this depth
+    // buffer after the opaque render pass has ended - see uOpaqueDepth.
     VkAttachmentDescription depthAttachment{};
     depthAttachment.format = _depthFormat;
     depthAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
     depthAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-    depthAttachment.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+    depthAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
     depthAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
     depthAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
     depthAttachment.initialLayout = VK_IMAGE_LAYOUT_GENERAL;
@@ -259,11 +316,67 @@ void VulkanDrawingContext::CreatePipelines()
     renderPassInfo.pDependencies = &dependency;
     CheckVk(vkCreateRenderPass(_device, &renderPassInfo, nullptr, &_offscreenRenderPass), "vkCreateRenderPass(offscreen)");
 
-    // Rect pipeline layout: push constant (screen size) + atlas/palette descriptor set.
+    // Transparent (depth-peeling) render pass: both colour and depth are CLEARED every single
+    // iteration of the peeling loop (unlike the opaque pass's LOAD_OP_LOAD), and both need
+    // storeOp = STORE since the depth is read back as next iteration's peeling reference and
+    // both colour+depth are sampled by the apply-transparency composite pass. Depth clears to
+    // 0.0 (not 1.0 like opaque) to suit the GREATER compare op used for peeling - see
+    // rect_vk.frag/VulkanTransparencyDepth.h for why.
+    VkAttachmentDescription transparentColourAttachment = colourAttachment;
+    transparentColourAttachment.format = VK_FORMAT_R16_UINT;
+    transparentColourAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+
+    VkAttachmentDescription transparentDepthAttachment = depthAttachment;
+
+    VkAttachmentDescription transparentAttachments[] = { transparentColourAttachment, transparentDepthAttachment };
+    VkRenderPassCreateInfo transparentRenderPassInfo{};
+    transparentRenderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
+    transparentRenderPassInfo.attachmentCount = 2;
+    transparentRenderPassInfo.pAttachments = transparentAttachments;
+    transparentRenderPassInfo.subpassCount = 1;
+    transparentRenderPassInfo.pSubpasses = &subpass;
+    transparentRenderPassInfo.dependencyCount = 1;
+    transparentRenderPassInfo.pDependencies = &dependency;
+    CheckVk(
+        vkCreateRenderPass(_device, &transparentRenderPassInfo, nullptr, &_transparentRenderPass),
+        "vkCreateRenderPass(transparent)");
+
+    // Mix render pass: colour-only fullscreen composite target (same R8_UINT format as the
+    // opaque/mix ping-pong colour images) - loadOp DONT_CARE since the apply-transparency
+    // fullscreen triangle unconditionally overwrites every pixel.
+    VkAttachmentDescription mixColourAttachment = colourAttachment;
+    mixColourAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+
+    VkAttachmentReference mixColourRef{ 0, VK_IMAGE_LAYOUT_GENERAL };
+    VkSubpassDescription mixSubpass{};
+    mixSubpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
+    mixSubpass.colorAttachmentCount = 1;
+    mixSubpass.pColorAttachments = &mixColourRef;
+
+    VkSubpassDependency mixDependency{};
+    mixDependency.srcSubpass = VK_SUBPASS_EXTERNAL;
+    mixDependency.dstSubpass = 0;
+    mixDependency.srcStageMask = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT | VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+    mixDependency.srcAccessMask = VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+    mixDependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+    mixDependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+
+    VkRenderPassCreateInfo mixRenderPassInfo{};
+    mixRenderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
+    mixRenderPassInfo.attachmentCount = 1;
+    mixRenderPassInfo.pAttachments = &mixColourAttachment;
+    mixRenderPassInfo.subpassCount = 1;
+    mixRenderPassInfo.pSubpasses = &mixSubpass;
+    mixRenderPassInfo.dependencyCount = 1;
+    mixRenderPassInfo.pDependencies = &mixDependency;
+    CheckVk(vkCreateRenderPass(_device, &mixRenderPassInfo, nullptr, &_mixRenderPass), "vkCreateRenderPass(mix)");
+
+    // Rect pipeline layout: push constant (screen size + peeling flag, used by both the opaque
+    // and transparent pipeline variants) + atlas/palette/peeling descriptor set.
     VkPushConstantRange pushConstant{};
-    pushConstant.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+    pushConstant.stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
     pushConstant.offset = 0;
-    pushConstant.size = sizeof(float) * 2;
+    pushConstant.size = sizeof(float) * 2 + sizeof(int32_t);
 
     VkPipelineLayoutCreateInfo rectLayoutInfo{};
     rectLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
@@ -273,11 +386,26 @@ void VulkanDrawingContext::CreatePipelines()
     rectLayoutInfo.pPushConstantRanges = &pushConstant;
     CheckVk(vkCreatePipelineLayout(_device, &rectLayoutInfo, nullptr, &_rectPipelineLayout), "vkCreatePipelineLayout(rect)");
 
+    VkPushConstantRange linePushConstant{};
+    linePushConstant.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+    linePushConstant.offset = 0;
+    linePushConstant.size = sizeof(float) * 2;
+
     VkPipelineLayoutCreateInfo lineLayoutInfo{};
     lineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
     lineLayoutInfo.pushConstantRangeCount = 1;
-    lineLayoutInfo.pPushConstantRanges = &pushConstant;
+    lineLayoutInfo.pPushConstantRanges = &linePushConstant;
     CheckVk(vkCreatePipelineLayout(_device, &lineLayoutInfo, nullptr, &_linePipelineLayout), "vkCreatePipelineLayout(line)");
+
+    // Apply-transparency composite pipeline layout: no push constants, just the 6-binding
+    // descriptor set.
+    VkPipelineLayoutCreateInfo transparencyLayoutInfo{};
+    transparencyLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+    transparencyLayoutInfo.setLayoutCount = 1;
+    transparencyLayoutInfo.pSetLayouts = &_transparencyDescriptorSetLayout;
+    CheckVk(
+        vkCreatePipelineLayout(_device, &transparencyLayoutInfo, nullptr, &_transparencyPipelineLayout),
+        "vkCreatePipelineLayout(transparency)");
 
     // --- Rect pipeline ---
     {
@@ -384,6 +512,103 @@ void VulkanDrawingContext::CreatePipelines()
         CheckVk(
             vkCreateGraphicsPipelines(_device, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &_rectPipeline),
             "vkCreateGraphicsPipelines(rect)");
+
+        // Transparent (depth-peeling) variant of the same pipeline: identical shaders/vertex
+        // input/layout, just GREATER depth compare (vs opaque's LESS) and targeting the
+        // transparent render pass - see VulkanTransparencyDepth.h / rect_vk.frag's uPeeling
+        // discard test for why.
+        depthStencil.depthCompareOp = VK_COMPARE_OP_GREATER;
+        pipelineInfo.renderPass = _transparentRenderPass;
+        CheckVk(
+            vkCreateGraphicsPipelines(_device, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &_rectPipelineTransparent),
+            "vkCreateGraphicsPipelines(rect transparent)");
+
+        vkDestroyShaderModule(_device, vertModule, nullptr);
+        vkDestroyShaderModule(_device, fragModule, nullptr);
+    }
+
+    // --- Apply-transparency composite pipeline (fullscreen triangle, no vertex input) ---
+    {
+        auto vertCode = ReadSpirV("applytransparency_vk.vert.spv");
+        auto fragCode = ReadSpirV("applytransparency_vk.frag.spv");
+        VkShaderModule vertModule = CreateShaderModule(_device, vertCode);
+        VkShaderModule fragModule = CreateShaderModule(_device, fragCode);
+
+        VkPipelineShaderStageCreateInfo vertStage{};
+        vertStage.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+        vertStage.stage = VK_SHADER_STAGE_VERTEX_BIT;
+        vertStage.module = vertModule;
+        vertStage.pName = "main";
+
+        VkPipelineShaderStageCreateInfo fragStage{};
+        fragStage.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+        fragStage.stage = VK_SHADER_STAGE_FRAGMENT_BIT;
+        fragStage.module = fragModule;
+        fragStage.pName = "main";
+        VkPipelineShaderStageCreateInfo stages[] = { vertStage, fragStage };
+
+        VkPipelineVertexInputStateCreateInfo vertexInput{};
+        vertexInput.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
+
+        VkPipelineInputAssemblyStateCreateInfo inputAssembly{};
+        inputAssembly.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
+        inputAssembly.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+
+        VkPipelineViewportStateCreateInfo viewportState{};
+        viewportState.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
+        viewportState.viewportCount = 1;
+        viewportState.scissorCount = 1;
+
+        VkPipelineRasterizationStateCreateInfo rasterizer{};
+        rasterizer.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
+        rasterizer.polygonMode = VK_POLYGON_MODE_FILL;
+        rasterizer.cullMode = VK_CULL_MODE_NONE;
+        rasterizer.frontFace = VK_FRONT_FACE_CLOCKWISE;
+        rasterizer.lineWidth = 1.0f;
+
+        VkPipelineMultisampleStateCreateInfo multisample{};
+        multisample.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
+        multisample.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
+
+        VkPipelineDepthStencilStateCreateInfo depthStencil{};
+        depthStencil.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
+        depthStencil.depthTestEnable = VK_FALSE;
+        depthStencil.depthWriteEnable = VK_FALSE;
+
+        VkPipelineColorBlendAttachmentState blendAttachment{};
+        blendAttachment.blendEnable = VK_FALSE;
+        blendAttachment.colorWriteMask = VK_COLOR_COMPONENT_R_BIT;
+
+        VkPipelineColorBlendStateCreateInfo colorBlend{};
+        colorBlend.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
+        colorBlend.attachmentCount = 1;
+        colorBlend.pAttachments = &blendAttachment;
+
+        VkDynamicState dynamicStates[] = { VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR };
+        VkPipelineDynamicStateCreateInfo dynamicState{};
+        dynamicState.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
+        dynamicState.dynamicStateCount = 2;
+        dynamicState.pDynamicStates = dynamicStates;
+
+        VkGraphicsPipelineCreateInfo pipelineInfo{};
+        pipelineInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
+        pipelineInfo.stageCount = 2;
+        pipelineInfo.pStages = stages;
+        pipelineInfo.pVertexInputState = &vertexInput;
+        pipelineInfo.pInputAssemblyState = &inputAssembly;
+        pipelineInfo.pViewportState = &viewportState;
+        pipelineInfo.pRasterizationState = &rasterizer;
+        pipelineInfo.pMultisampleState = &multisample;
+        pipelineInfo.pDepthStencilState = &depthStencil;
+        pipelineInfo.pColorBlendState = &colorBlend;
+        pipelineInfo.pDynamicState = &dynamicState;
+        pipelineInfo.layout = _transparencyPipelineLayout;
+        pipelineInfo.renderPass = _mixRenderPass;
+        pipelineInfo.subpass = 0;
+
+        CheckVk(
+            vkCreateGraphicsPipelines(_device, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &_transparencyPipeline),
+            "vkCreateGraphicsPipelines(transparency)");
 
         vkDestroyShaderModule(_device, vertModule, nullptr);
         vkDestroyShaderModule(_device, fragModule, nullptr);
@@ -497,127 +722,144 @@ void VulkanDrawingContext::DestroyOffscreenTargets()
     if (_device == VK_NULL_HANDLE)
         return;
 
-    if (_offscreenFramebuffer != VK_NULL_HANDLE)
-    {
-        vkDestroyFramebuffer(_device, _offscreenFramebuffer, nullptr);
-        _offscreenFramebuffer = VK_NULL_HANDLE;
-    }
-    if (_colourImageView != VK_NULL_HANDLE)
-    {
-        vkDestroyImageView(_device, _colourImageView, nullptr);
-        _colourImageView = VK_NULL_HANDLE;
-    }
-    if (_colourImage != VK_NULL_HANDLE)
-    {
-        vkDestroyImage(_device, _colourImage, nullptr);
-        _colourImage = VK_NULL_HANDLE;
-    }
-    if (_colourImageMemory != VK_NULL_HANDLE)
-    {
-        vkFreeMemory(_device, _colourImageMemory, nullptr);
-        _colourImageMemory = VK_NULL_HANDLE;
-    }
-    if (_depthImageView != VK_NULL_HANDLE)
-    {
-        vkDestroyImageView(_device, _depthImageView, nullptr);
-        _depthImageView = VK_NULL_HANDLE;
-    }
-    if (_depthImage != VK_NULL_HANDLE)
-    {
-        vkDestroyImage(_device, _depthImage, nullptr);
-        _depthImage = VK_NULL_HANDLE;
-    }
-    if (_depthImageMemory != VK_NULL_HANDLE)
-    {
-        vkFreeMemory(_device, _depthImageMemory, nullptr);
-        _depthImageMemory = VK_NULL_HANDLE;
-    }
+    auto destroyFramebuffer = [this](VkFramebuffer& fb) {
+        if (fb != VK_NULL_HANDLE)
+        {
+            vkDestroyFramebuffer(_device, fb, nullptr);
+            fb = VK_NULL_HANDLE;
+        }
+    };
+    auto destroyImageTarget = [this](ImageTarget& target) {
+        if (target.view != VK_NULL_HANDLE)
+        {
+            vkDestroyImageView(_device, target.view, nullptr);
+            target.view = VK_NULL_HANDLE;
+        }
+        if (target.image != VK_NULL_HANDLE)
+        {
+            vkDestroyImage(_device, target.image, nullptr);
+            target.image = VK_NULL_HANDLE;
+        }
+        if (target.memory != VK_NULL_HANDLE)
+        {
+            vkFreeMemory(_device, target.memory, nullptr);
+            target.memory = VK_NULL_HANDLE;
+        }
+    };
+
+    for (auto& fb : _opaqueFramebuffers)
+        destroyFramebuffer(fb);
+    for (auto& fb : _mixFramebuffers)
+        destroyFramebuffer(fb);
+    for (auto& fb : _transparentFramebuffers)
+        destroyFramebuffer(fb);
+
+    for (auto& target : _colourTargets)
+        destroyImageTarget(target);
+    destroyImageTarget(_opaqueDepth);
+    destroyImageTarget(_transparentColour);
+    for (auto& target : _transparentDepthTargets)
+        destroyImageTarget(target);
 }
 
 void VulkanDrawingContext::CreateOffscreenTargets()
 {
-    VkImageCreateInfo colourInfo{};
-    colourInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
-    colourInfo.imageType = VK_IMAGE_TYPE_2D;
-    colourInfo.format = VK_FORMAT_R8_UINT;
-    colourInfo.extent = { _width, _height, 1 };
-    colourInfo.mipLevels = 1;
-    colourInfo.arrayLayers = 1;
-    colourInfo.samples = VK_SAMPLE_COUNT_1_BIT;
-    colourInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
-    colourInfo.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
-    colourInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-    colourInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-    CheckVk(vkCreateImage(_device, &colourInfo, nullptr, &_colourImage), "vkCreateImage(offscreen colour)");
+    auto createImageTarget = [this](VkFormat format, VkImageUsageFlags usage, VkImageAspectFlags aspect) -> ImageTarget {
+        ImageTarget target;
 
-    VkMemoryRequirements colourMemReq{};
-    vkGetImageMemoryRequirements(_device, _colourImage, &colourMemReq);
-    VkMemoryAllocateInfo colourAlloc{};
-    colourAlloc.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-    colourAlloc.allocationSize = colourMemReq.size;
-    colourAlloc.memoryTypeIndex = FindMemoryType(
-        _physicalDevice, colourMemReq.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-    CheckVk(vkAllocateMemory(_device, &colourAlloc, nullptr, &_colourImageMemory), "vkAllocateMemory(offscreen colour)");
-    CheckVk(vkBindImageMemory(_device, _colourImage, _colourImageMemory, 0), "vkBindImageMemory(offscreen colour)");
+        VkImageCreateInfo imageInfo{};
+        imageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+        imageInfo.imageType = VK_IMAGE_TYPE_2D;
+        imageInfo.format = format;
+        imageInfo.extent = { _width, _height, 1 };
+        imageInfo.mipLevels = 1;
+        imageInfo.arrayLayers = 1;
+        imageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
+        imageInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
+        imageInfo.usage = usage;
+        imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+        imageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+        CheckVk(vkCreateImage(_device, &imageInfo, nullptr, &target.image), "vkCreateImage(offscreen)");
 
-    VkImageViewCreateInfo colourViewInfo{};
-    colourViewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-    colourViewInfo.image = _colourImage;
-    colourViewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
-    colourViewInfo.format = VK_FORMAT_R8_UINT;
-    colourViewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-    colourViewInfo.subresourceRange.levelCount = 1;
-    colourViewInfo.subresourceRange.layerCount = 1;
-    CheckVk(vkCreateImageView(_device, &colourViewInfo, nullptr, &_colourImageView), "vkCreateImageView(offscreen colour)");
+        VkMemoryRequirements memReq{};
+        vkGetImageMemoryRequirements(_device, target.image, &memReq);
+        VkMemoryAllocateInfo alloc{};
+        alloc.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+        alloc.allocationSize = memReq.size;
+        alloc.memoryTypeIndex = FindMemoryType(_physicalDevice, memReq.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+        CheckVk(vkAllocateMemory(_device, &alloc, nullptr, &target.memory), "vkAllocateMemory(offscreen)");
+        CheckVk(vkBindImageMemory(_device, target.image, target.memory, 0), "vkBindImageMemory(offscreen)");
 
-    VkImageCreateInfo depthInfo{};
-    depthInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
-    depthInfo.imageType = VK_IMAGE_TYPE_2D;
-    depthInfo.format = _depthFormat;
-    depthInfo.extent = { _width, _height, 1 };
-    depthInfo.mipLevels = 1;
-    depthInfo.arrayLayers = 1;
-    depthInfo.samples = VK_SAMPLE_COUNT_1_BIT;
-    depthInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
-    depthInfo.usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
-    depthInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-    depthInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-    CheckVk(vkCreateImage(_device, &depthInfo, nullptr, &_depthImage), "vkCreateImage(offscreen depth)");
+        VkImageViewCreateInfo viewInfo{};
+        viewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+        viewInfo.image = target.image;
+        viewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
+        viewInfo.format = format;
+        viewInfo.subresourceRange.aspectMask = aspect;
+        viewInfo.subresourceRange.levelCount = 1;
+        viewInfo.subresourceRange.layerCount = 1;
+        CheckVk(vkCreateImageView(_device, &viewInfo, nullptr, &target.view), "vkCreateImageView(offscreen)");
 
-    VkMemoryRequirements depthMemReq{};
-    vkGetImageMemoryRequirements(_device, _depthImage, &depthMemReq);
-    VkMemoryAllocateInfo depthAlloc{};
-    depthAlloc.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-    depthAlloc.allocationSize = depthMemReq.size;
-    depthAlloc.memoryTypeIndex = FindMemoryType(_physicalDevice, depthMemReq.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-    CheckVk(vkAllocateMemory(_device, &depthAlloc, nullptr, &_depthImageMemory), "vkAllocateMemory(offscreen depth)");
-    CheckVk(vkBindImageMemory(_device, _depthImage, _depthImageMemory, 0), "vkBindImageMemory(offscreen depth)");
+        return target;
+    };
 
-    VkImageViewCreateInfo depthViewInfo{};
-    depthViewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-    depthViewInfo.image = _depthImage;
-    depthViewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
-    depthViewInfo.format = _depthFormat;
-    depthViewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
-    depthViewInfo.subresourceRange.levelCount = 1;
-    depthViewInfo.subresourceRange.layerCount = 1;
-    CheckVk(vkCreateImageView(_device, &depthViewInfo, nullptr, &_depthImageView), "vkCreateImageView(offscreen depth)");
+    constexpr VkImageUsageFlags kColourUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
+    constexpr VkImageUsageFlags kDepthUsage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
 
-    VkImageView attachments[] = { _colourImageView, _depthImageView };
-    VkFramebufferCreateInfo fbInfo{};
-    fbInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
-    fbInfo.renderPass = _offscreenRenderPass;
-    fbInfo.attachmentCount = 2;
-    fbInfo.pAttachments = attachments;
-    fbInfo.width = _width;
-    fbInfo.height = _height;
-    fbInfo.layers = 1;
-    CheckVk(vkCreateFramebuffer(_device, &fbInfo, nullptr, &_offscreenFramebuffer), "vkCreateFramebuffer(offscreen)");
+    for (auto& target : _colourTargets)
+        target = createImageTarget(VK_FORMAT_R8_UINT, kColourUsage, VK_IMAGE_ASPECT_COLOR_BIT);
+    _opaqueDepth = createImageTarget(_depthFormat, kDepthUsage, VK_IMAGE_ASPECT_DEPTH_BIT);
+    _transparentColour = createImageTarget(VK_FORMAT_R16_UINT, kColourUsage, VK_IMAGE_ASPECT_COLOR_BIT);
+    for (auto& target : _transparentDepthTargets)
+        target = createImageTarget(_depthFormat, kDepthUsage, VK_IMAGE_ASPECT_DEPTH_BIT);
+
+    for (uint32_t i = 0; i < 2; i++)
+    {
+        VkImageView opaqueAttachments[] = { _colourTargets[i].view, _opaqueDepth.view };
+        VkFramebufferCreateInfo opaqueFbInfo{};
+        opaqueFbInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+        opaqueFbInfo.renderPass = _offscreenRenderPass;
+        opaqueFbInfo.attachmentCount = 2;
+        opaqueFbInfo.pAttachments = opaqueAttachments;
+        opaqueFbInfo.width = _width;
+        opaqueFbInfo.height = _height;
+        opaqueFbInfo.layers = 1;
+        CheckVk(
+            vkCreateFramebuffer(_device, &opaqueFbInfo, nullptr, &_opaqueFramebuffers[i]), "vkCreateFramebuffer(opaque)");
+
+        VkFramebufferCreateInfo mixFbInfo{};
+        mixFbInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+        mixFbInfo.renderPass = _mixRenderPass;
+        mixFbInfo.attachmentCount = 1;
+        mixFbInfo.pAttachments = &_colourTargets[i].view;
+        mixFbInfo.width = _width;
+        mixFbInfo.height = _height;
+        mixFbInfo.layers = 1;
+        CheckVk(vkCreateFramebuffer(_device, &mixFbInfo, nullptr, &_mixFramebuffers[i]), "vkCreateFramebuffer(mix)");
+
+        VkImageView transparentAttachments[] = { _transparentColour.view, _transparentDepthTargets[i].view };
+        VkFramebufferCreateInfo transparentFbInfo{};
+        transparentFbInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+        transparentFbInfo.renderPass = _transparentRenderPass;
+        transparentFbInfo.attachmentCount = 2;
+        transparentFbInfo.pAttachments = transparentAttachments;
+        transparentFbInfo.width = _width;
+        transparentFbInfo.height = _height;
+        transparentFbInfo.layers = 1;
+        CheckVk(
+            vkCreateFramebuffer(_device, &transparentFbInfo, nullptr, &_transparentFramebuffers[i]),
+            "vkCreateFramebuffer(transparent)");
+    }
+
+    _currentColourIndex = 0;
 
     // One-time transition to GENERAL (used permanently, for both attachment writes and later
     // shader sampling - see the class comment in VulkanDrawingContext.h) plus an initial clear
-    // to palette index 0 (transparent), mirroring OpenGLDrawingEngine::Resize()'s explicit
-    // Clear() call - subsequent frames rely on LOAD_OP_LOAD and only redraw dirty regions.
+    // of the colour targets to palette index 0 (transparent), mirroring
+    // OpenGLDrawingEngine::Resize()'s explicit Clear() call - subsequent frames rely on
+    // LOAD_OP_LOAD and only redraw dirty regions. The transparent/peeling-depth targets don't
+    // need an initial clear here since they're always cleared at the start of every use by their
+    // render passes' LOAD_OP_CLEAR.
     VkCommandBufferAllocateInfo cmdAlloc{};
     cmdAlloc.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
     cmdAlloc.commandPool = _commandPool;
@@ -631,13 +873,24 @@ void VulkanDrawingContext::CreateOffscreenTargets()
     beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
     CheckVk(vkBeginCommandBuffer(cmd, &beginInfo), "vkBeginCommandBuffer(offscreen init)");
 
-    TransitionImageLayout(cmd, _colourImage, VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL);
-    TransitionImageLayout(cmd, _depthImage, VK_IMAGE_ASPECT_DEPTH_BIT, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL);
-
     VkClearColorValue clearColour{};
     clearColour.uint32[0] = 0;
     VkImageSubresourceRange colourRange{ VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 };
-    vkCmdClearColorImage(cmd, _colourImage, VK_IMAGE_LAYOUT_GENERAL, &clearColour, 1, &colourRange);
+    VkImageSubresourceRange depthRange{ VK_IMAGE_ASPECT_DEPTH_BIT, 0, 1, 0, 1 };
+
+    for (auto& target : _colourTargets)
+    {
+        TransitionImageLayout(cmd, target.image, VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL);
+        vkCmdClearColorImage(cmd, target.image, VK_IMAGE_LAYOUT_GENERAL, &clearColour, 1, &colourRange);
+    }
+    TransitionImageLayout(cmd, _opaqueDepth.image, VK_IMAGE_ASPECT_DEPTH_BIT, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL);
+    TransitionImageLayout(
+        cmd, _transparentColour.image, VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL);
+    for (auto& target : _transparentDepthTargets)
+    {
+        TransitionImageLayout(cmd, target.image, VK_IMAGE_ASPECT_DEPTH_BIT, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL);
+    }
+    (void)depthRange;
 
     CheckVk(vkEndCommandBuffer(cmd), "vkEndCommandBuffer(offscreen init)");
 
@@ -662,6 +915,7 @@ void VulkanDrawingContext::Resize(uint32_t width, uint32_t height)
     }
 
     _rects.clear();
+    _transparentRects.clear();
     _lines.clear();
 }
 
@@ -694,9 +948,10 @@ void VulkanDrawingContext::FlushCommandBuffers(VkCommandBuffer cmd, uint32_t fra
 {
     Guard::Assert(_inDraw == true);
 
-    if (_offscreenFramebuffer == VK_NULL_HANDLE)
+    if (_opaqueFramebuffers[0] == VK_NULL_HANDLE)
     {
         _rects.clear();
+        _transparentRects.clear();
         _lines.clear();
         return;
     }
@@ -722,7 +977,7 @@ void VulkanDrawingContext::FlushCommandBuffers(VkCommandBuffer cmd, uint32_t fra
     VkRenderPassBeginInfo rpBegin{};
     rpBegin.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
     rpBegin.renderPass = _offscreenRenderPass;
-    rpBegin.framebuffer = _offscreenFramebuffer;
+    rpBegin.framebuffer = _opaqueFramebuffers[_currentColourIndex];
     rpBegin.renderArea.extent = { _width, _height };
     rpBegin.clearValueCount = 2;
     rpBegin.pClearValues = clearValues;
@@ -743,6 +998,12 @@ void VulkanDrawingContext::FlushCommandBuffers(VkCommandBuffer cmd, uint32_t fra
     FlushRectangles(cmd, frameIndex);
 
     vkCmdEndRenderPass(cmd);
+
+    if (_transparentRects.size() > 0)
+    {
+        HandleTransparency(cmd, frameIndex);
+        _transparentRects.clear();
+    }
 }
 
 void VulkanDrawingContext::FlushLines(VkCommandBuffer cmd, uint32_t frameIndex)
@@ -786,7 +1047,15 @@ void VulkanDrawingContext::FlushRectangles(VkCommandBuffer cmd, uint32_t frameIn
     paletteInfo.imageView = _textureCache.GetPaletteImageView();
     paletteInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 
-    VkWriteDescriptorSet writes[2]{};
+    // Binding 2 (peeling-reference depth) is unused by the opaque pipeline (uPeeling=0 causes
+    // rect_vk.frag to skip sampling it entirely) but the descriptor set still needs a valid,
+    // compatible image bound to satisfy validation - the opaque depth view is a harmless filler.
+    VkDescriptorImageInfo peelingInfo{};
+    peelingInfo.sampler = _paletteSampler;
+    peelingInfo.imageView = _opaqueDepth.view;
+    peelingInfo.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
+
+    VkWriteDescriptorSet writes[3]{};
     writes[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
     writes[0].dstSet = _rectDescriptorSets[frameIndex];
     writes[0].dstBinding = 0;
@@ -801,12 +1070,25 @@ void VulkanDrawingContext::FlushRectangles(VkCommandBuffer cmd, uint32_t frameIn
     writes[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
     writes[1].pImageInfo = &paletteInfo;
 
-    vkUpdateDescriptorSets(_device, 2, writes, 0, nullptr);
+    writes[2].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    writes[2].dstSet = _rectDescriptorSets[frameIndex];
+    writes[2].dstBinding = 2;
+    writes[2].descriptorCount = 1;
+    writes[2].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    writes[2].pImageInfo = &peelingInfo;
 
-    float screenSize[2] = { static_cast<float>(_width), static_cast<float>(_height) };
+    vkUpdateDescriptorSets(_device, 3, writes, 0, nullptr);
+
+    struct
+    {
+        float screenSize[2];
+        int32_t peeling;
+    } pushConstants{ { static_cast<float>(_width), static_cast<float>(_height) }, 0 };
 
     vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, _rectPipeline);
-    vkCmdPushConstants(cmd, _rectPipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(screenSize), screenSize);
+    vkCmdPushConstants(
+        cmd, _rectPipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(pushConstants),
+        &pushConstants);
     vkCmdBindDescriptorSets(
         cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, _rectPipelineLayout, 0, 1, &_rectDescriptorSets[frameIndex], 0, nullptr);
 
@@ -816,6 +1098,187 @@ void VulkanDrawingContext::FlushRectangles(VkCommandBuffer cmd, uint32_t frameIn
     vkCmdDraw(cmd, 4, static_cast<uint32_t>(_rects.size()), 0, 0);
 
     _rects.clear();
+}
+
+// Depth-peeling transparency, verbatim port of the OpenGL renderer's
+// SwapFramebuffer/HandleTransparency architecture (see VulkanDrawingContext.h class comment and
+// VulkanTransparencyDepth.h). Called once per frame, after the opaque render pass has ended,
+// only when there is at least one transparent draw call queued.
+void VulkanDrawingContext::HandleTransparency(VkCommandBuffer cmd, uint32_t frameIndex)
+{
+    int32_t maxDepth = MaxTransparencyDepth(_transparentRects);
+    if (maxDepth <= 0)
+        return;
+
+    // The transparent batch is redrawn, unchanged, on every peeling iteration - only the
+    // peeling-reference depth texture and comparison changes which fragments survive each time.
+    VkDeviceSize requiredSize = _transparentRects.size() * sizeof(VulkanDrawRectCommand);
+    EnsureInstanceBufferCapacity(_transparentRectInstanceBuffers[frameIndex], requiredSize);
+    std::memcpy(_transparentRectInstanceBuffers[frameIndex].mapped, _transparentRects.data(), requiredSize);
+
+    VkDescriptorImageInfo atlasInfo{};
+    atlasInfo.sampler = _atlasSampler;
+    atlasInfo.imageView = _textureCache.GetAtlasImageView();
+    atlasInfo.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
+
+    VkDescriptorImageInfo paletteInfo{};
+    paletteInfo.sampler = _paletteSampler;
+    paletteInfo.imageView = _textureCache.GetPaletteImageView();
+    paletteInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+
+    VkViewport viewport{};
+    viewport.width = static_cast<float>(_width);
+    viewport.height = static_cast<float>(_height);
+    viewport.minDepth = 0.0f;
+    viewport.maxDepth = 1.0f;
+
+    VkRect2D scissor{};
+    scissor.extent = { _width, _height };
+
+    VkBuffer vbo = _transparentRectInstanceBuffers[frameIndex].buffer;
+    VkDeviceSize vboOffset = 0;
+
+    for (int32_t i = 0; i < maxDepth; i++)
+    {
+        uint32_t frontDepthIdx = static_cast<uint32_t>(i % 2);
+        uint32_t backDepthIdx = static_cast<uint32_t>((i + 1) % 2);
+
+        // --- Transparent (depth-peeling) pass: draw the transparent batch, discarding any
+        // fragment that isn't strictly farther than the previous iteration's surviving depth
+        // (see rect_vk.frag's uPeeling discard test) - this progressively exposes deeper
+        // overlapping transparent layers on each iteration. ---
+        VkClearValue transparentClearValues[2]{};
+        transparentClearValues[0].color.uint32[0] = 0;
+        transparentClearValues[1].depthStencil = { 0.0f, 0 };
+
+        VkRenderPassBeginInfo transparentBegin{};
+        transparentBegin.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+        transparentBegin.renderPass = _transparentRenderPass;
+        transparentBegin.framebuffer = _transparentFramebuffers[frontDepthIdx];
+        transparentBegin.renderArea.extent = { _width, _height };
+        transparentBegin.clearValueCount = 2;
+        transparentBegin.pClearValues = transparentClearValues;
+        vkCmdBeginRenderPass(cmd, &transparentBegin, VK_SUBPASS_CONTENTS_INLINE);
+
+        vkCmdSetViewport(cmd, 0, 1, &viewport);
+        vkCmdSetScissor(cmd, 0, 1, &scissor);
+
+        VkDescriptorImageInfo peelingInfo{};
+        peelingInfo.sampler = _paletteSampler;
+        peelingInfo.imageView = i > 0 ? _transparentDepthTargets[backDepthIdx].view : _opaqueDepth.view;
+        peelingInfo.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
+
+        VkWriteDescriptorSet writes[3]{};
+        writes[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        writes[0].dstSet = _rectDescriptorSets[frameIndex];
+        writes[0].dstBinding = 0;
+        writes[0].descriptorCount = 1;
+        writes[0].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+        writes[0].pImageInfo = &atlasInfo;
+
+        writes[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        writes[1].dstSet = _rectDescriptorSets[frameIndex];
+        writes[1].dstBinding = 1;
+        writes[1].descriptorCount = 1;
+        writes[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+        writes[1].pImageInfo = &paletteInfo;
+
+        writes[2].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        writes[2].dstSet = _rectDescriptorSets[frameIndex];
+        writes[2].dstBinding = 2;
+        writes[2].descriptorCount = 1;
+        writes[2].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+        writes[2].pImageInfo = &peelingInfo;
+
+        vkUpdateDescriptorSets(_device, 3, writes, 0, nullptr);
+
+        struct
+        {
+            float screenSize[2];
+            int32_t peeling;
+        } pushConstants{ { static_cast<float>(_width), static_cast<float>(_height) }, i > 0 ? 1 : 0 };
+
+        vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, _rectPipelineTransparent);
+        vkCmdPushConstants(
+            cmd, _rectPipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(pushConstants),
+            &pushConstants);
+        vkCmdBindDescriptorSets(
+            cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, _rectPipelineLayout, 0, 1, &_rectDescriptorSets[frameIndex], 0, nullptr);
+
+        vkCmdBindVertexBuffers(cmd, 0, 1, &vbo, &vboOffset);
+        vkCmdDraw(cmd, 4, static_cast<uint32_t>(_transparentRects.size()), 0, 0);
+
+        vkCmdEndRenderPass(cmd);
+
+        // --- Mix composite pass: blend the freshly-peeled transparent layer against the
+        // current opaque image into the "other" colour target, matching
+        // SwapFramebuffer::ApplyTransparency - see applytransparency_vk.frag. ---
+        uint32_t mixIdx = 1 - _currentColourIndex;
+
+        VkRenderPassBeginInfo mixBegin{};
+        mixBegin.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+        mixBegin.renderPass = _mixRenderPass;
+        mixBegin.framebuffer = _mixFramebuffers[mixIdx];
+        mixBegin.renderArea.extent = { _width, _height };
+        vkCmdBeginRenderPass(cmd, &mixBegin, VK_SUBPASS_CONTENTS_INLINE);
+
+        vkCmdSetViewport(cmd, 0, 1, &viewport);
+        vkCmdSetScissor(cmd, 0, 1, &scissor);
+
+        VkDescriptorImageInfo opaqueColourInfo{};
+        opaqueColourInfo.sampler = _paletteSampler;
+        opaqueColourInfo.imageView = _colourTargets[_currentColourIndex].view;
+        opaqueColourInfo.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
+
+        VkDescriptorImageInfo opaqueDepthInfo{};
+        opaqueDepthInfo.sampler = _paletteSampler;
+        opaqueDepthInfo.imageView = _opaqueDepth.view;
+        opaqueDepthInfo.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
+
+        VkDescriptorImageInfo transparentColourInfo{};
+        transparentColourInfo.sampler = _paletteSampler;
+        transparentColourInfo.imageView = _transparentColour.view;
+        transparentColourInfo.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
+
+        VkDescriptorImageInfo transparentDepthInfo{};
+        transparentDepthInfo.sampler = _paletteSampler;
+        transparentDepthInfo.imageView = _transparentDepthTargets[frontDepthIdx].view;
+        transparentDepthInfo.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
+
+        VkDescriptorImageInfo compositePaletteInfo{};
+        compositePaletteInfo.sampler = _paletteSampler;
+        compositePaletteInfo.imageView = _textureCache.GetPaletteImageView();
+        compositePaletteInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+
+        VkDescriptorImageInfo blendPaletteInfo{};
+        blendPaletteInfo.sampler = _paletteSampler;
+        blendPaletteInfo.imageView = _textureCache.GetBlendPaletteImageView();
+        blendPaletteInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+
+        VkDescriptorImageInfo compositeInfos[] = { opaqueColourInfo,     opaqueDepthInfo,   transparentColourInfo,
+                                                    transparentDepthInfo, compositePaletteInfo, blendPaletteInfo };
+        VkWriteDescriptorSet compositeWrites[6]{};
+        for (uint32_t b = 0; b < 6; b++)
+        {
+            compositeWrites[b].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+            compositeWrites[b].dstSet = _transparencyDescriptorSets[frameIndex];
+            compositeWrites[b].dstBinding = b;
+            compositeWrites[b].descriptorCount = 1;
+            compositeWrites[b].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+            compositeWrites[b].pImageInfo = &compositeInfos[b];
+        }
+        vkUpdateDescriptorSets(_device, 6, compositeWrites, 0, nullptr);
+
+        vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, _transparencyPipeline);
+        vkCmdBindDescriptorSets(
+            cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, _transparencyPipelineLayout, 0, 1,
+            &_transparencyDescriptorSets[frameIndex], 0, nullptr);
+        vkCmdDraw(cmd, 3, 1, 0, 0);
+
+        vkCmdEndRenderPass(cmd);
+
+        _currentColourIndex = mixIdx;
+    }
 }
 
 ScreenRect VulkanDrawingContext::CalculateClipping(const RenderTarget& rt) const
@@ -953,10 +1416,9 @@ void VulkanDrawingContext::FilterRect(
     right += clip.GetLeft() - rt.x;
     bottom += clip.GetTop() - rt.y;
 
-    // Phase 1 simplification (agreed): no depth-peeling transparency pass yet, so this is
-    // folded into the same opaque batch as FillRect - a visual-only regression versus OpenGL
-    // for the "see-through" preference, tracked for a later phase.
-    VulkanDrawRectCommand& command = _rects.allocate();
+    // Routed into the depth-peeling transparent batch (matches OpenGL's
+    // OpenGLDrawingContext::FilterRect - see VulkanDrawingContext.h class comment).
+    VulkanDrawRectCommand& command = _transparentRects.allocate();
     command.clip = { clip.GetLeft(), clip.GetTop(), clip.GetRight(), clip.GetBottom() };
     command.texColourAtlas = 0;
     command.texColourBounds = { 0.0f, 0.0f, 0.0f, 0.0f };
@@ -1090,11 +1552,11 @@ void VulkanDrawingContext::DrawSprite(RenderTarget& rt, const ImageId imageId, c
         paletteCount = 0;
     }
 
-    // Phase 1 simplification: blended/water sprites (OpenGL's "transparent" batch) are folded
-    // into the same opaque rects batch - see FilterRect() comment above.
+    // Blended/water sprites are routed into the depth-peeling transparent batch, matching
+    // OpenGL's OpenGLDrawingContext::DrawSprite - see VulkanDrawingContext.h class comment.
     if (special || imageId.IsBlended())
     {
-        VulkanDrawRectCommand& command = _rects.allocate();
+        VulkanDrawRectCommand& command = _transparentRects.allocate();
         command.clip = { clip.GetLeft(), clip.GetTop(), clip.GetRight(), clip.GetBottom() };
         command.texColourAtlas = texture.index;
         command.texColourBounds = texture.coords;

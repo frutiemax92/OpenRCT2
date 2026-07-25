@@ -10,6 +10,7 @@
 layout(push_constant) uniform PushConstants
 {
     vec2 uScreenSize;
+    int uPeeling;
 }
 pc;
 
@@ -35,6 +36,7 @@ layout(location = 6) flat out float fZoom;
 layout(location = 7) flat out int fTexColourAtlas;
 layout(location = 8) flat out int fTexMaskAtlas;
 layout(location = 9) flat out int fScreenHeight;
+layout(location = 10) out vec3 fPeelPos;
 
 const float kDepthIncrement = 1.0 / float(1u << 22u);
 
@@ -63,6 +65,14 @@ void main()
 
     float depth = 1.0 - (float(vDepth) + 1.0) * kDepthIncrement;
     pos = pos / pc.uScreenSize;
+    // Vulkan's NDC z (and thus the value stored in a depth attachment written via
+    // gl_Position.z, given the standard minDepth=0/maxDepth=1 viewport used throughout this
+    // renderer) is already in the [0, 1] range - unlike OpenGL, where the depth buffer stores
+    // (ndc_z + 1) * 0.5 due to its [-1, 1] clip-space convention. So, unlike the OpenGL
+    // renderer's equivalent peeling position (which needs that *0.5+0.5 remap to match what
+    // its depth texture actually contains), fPeelPos.z must be exactly "depth" here to match
+    // what is sampled back from uPeelingTex/uOpaqueDepth/uTransparentDepth.
+    fPeelPos = vec3(pos, depth);
 
     fFlags = vFlags;
     fColour = vColour;

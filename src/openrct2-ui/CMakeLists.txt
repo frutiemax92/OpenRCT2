@@ -56,7 +56,7 @@ endif ()
 if (NOT DISABLE_VULKAN AND NOT EMSCRIPTEN)
     set(VULKAN_SHADER_DIR "${ROOT_DIR}/data/shaders")
     set(VULKAN_SHADER_SPV_FILES)
-    foreach (VULKAN_SHADER_BASENAME applypalette_vk rect_vk line_vk)
+    foreach (VULKAN_SHADER_BASENAME applypalette_vk applytransparency_vk rect_vk line_vk)
         foreach (VULKAN_SHADER_STAGE vert frag)
             set(VULKAN_SHADER_SRC "${VULKAN_SHADER_DIR}/${VULKAN_SHADER_BASENAME}.${VULKAN_SHADER_STAGE}")
             set(VULKAN_SHADER_SPV "${VULKAN_SHADER_SRC}.spv")
@@ -85,7 +85,8 @@ if (APPLE)
 endif ()
 
 # Outputs
-add_executable(openrct2 ${OPENRCT2_UI_SOURCES} ${OPENRCT2_UI_MM_SOURCES})
+add_executable(openrct2 ${OPENRCT2_UI_SOURCES} ${OPENRCT2_UI_MM_SOURCES}
+    src/openrct2-ui/drawing/engines/vulkan/VulkanTransparencyDepth.cpp)
 add_executable(OpenRCT2::openrct2 ALIAS openrct2)
 
 SET_CHECK_CXX_FLAGS(openrct2)
