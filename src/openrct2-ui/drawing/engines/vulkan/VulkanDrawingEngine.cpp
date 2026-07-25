@@ -420,11 +420,20 @@ public:
         // copying from it, matching OpenGLDrawingEngine::CopyRect's FlushCommandBuffers() call.
         RunOneTimeCommands([this](VkCommandBuffer cmd) { _drawingContext.FlushCommandBuffers(cmd, _currentFrame); });
 
-        // Both the drawing context's colour image and this scratch image are kept permanently
-        // in VK_IMAGE_LAYOUT_GENERAL (a valid layout for vkCmdCopyImage source/destination), so
-        // no layout transitions are needed - just two copies through the scratch image (a direct
-        // same-image overlapping-region copy is not portably expressible in Vulkan).
+        // The scratch image is kept permanently in VK_IMAGE_LAYOUT_GENERAL (a valid layout for
+        // vkCmdCopyImage source/destination, and it's never sampled/attached anywhere else so
+        // GENERAL costs nothing extra for it). The drawing context's colour image, however, now
+        // rests in VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL between frames (see
+        // VulkanDrawingContext::CreatePipelines), so it must be transitioned out to
+        // TRANSFER_SRC/DST_OPTIMAL for the two copies below and back again afterwards - a direct
+        // same-image overlapping-region copy is not portably expressible in Vulkan, hence the
+        // round-trip through the scratch image.
         RunOneTimeCommands([&](VkCommandBuffer cmd) {
+            VkImage colourImage = _drawingContext.GetColourImage();
+            TransitionImageLayout(
+                cmd, colourImage, VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+                VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
+
             VkImageCopy toTemp{};
             toTemp.srcSubresource = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1 };
             toTemp.srcOffset = { x - dx, y - dy, 0 };
@@ -432,8 +441,11 @@ public:
             toTemp.dstOffset = { 0, 0, 0 };
             toTemp.extent = { static_cast<uint32_t>(width), static_cast<uint32_t>(height), 1 };
             vkCmdCopyImage(
-                cmd, _drawingContext.GetColourImage(), VK_IMAGE_LAYOUT_GENERAL, _copyTempImage, VK_IMAGE_LAYOUT_GENERAL, 1,
-                &toTemp);
+                cmd, colourImage, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, _copyTempImage, VK_IMAGE_LAYOUT_GENERAL, 1, &toTemp);
+
+            TransitionImageLayout(
+                cmd, colourImage, VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+                VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
 
             VkMemoryBarrier barrier{};
             barrier.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER;
@@ -449,8 +461,11 @@ public:
             toMain.dstOffset = { x, y, 0 };
             toMain.extent = { static_cast<uint32_t>(width), static_cast<uint32_t>(height), 1 };
             vkCmdCopyImage(
-                cmd, _copyTempImage, VK_IMAGE_LAYOUT_GENERAL, _drawingContext.GetColourImage(), VK_IMAGE_LAYOUT_GENERAL, 1,
-                &toMain);
+                cmd, _copyTempImage, VK_IMAGE_LAYOUT_GENERAL, colourImage, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &toMain);
+
+            TransitionImageLayout(
+                cmd, colourImage, VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
         });
     }
 
@@ -1281,7 +1296,7 @@ private:
         VkDescriptorImageInfo imgInfo{};
         imgInfo.sampler = _paletteIndexSampler;
         imgInfo.imageView = _drawingContext.GetColourImageView();
-        imgInfo.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
+        imgInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 
         VkDescriptorBufferInfo bufInfo{};
         bufInfo.buffer = _paletteBuffers[frameIndex];
@@ -1333,7 +1348,7 @@ private:
         VkDescriptorImageInfo imgInfo{};
         imgInfo.sampler = _paletteIndexSampler;
         imgInfo.imageView = colourView;
-        imgInfo.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
+        imgInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 
         VkWriteDescriptorSet write{};
         write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
