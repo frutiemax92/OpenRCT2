@@ -16,6 +16,7 @@
 #include <algorithm>
 #include <cstddef>
 #include <cstring>
+#include <limits>
 #include <openrct2/Context.h>
 #include <openrct2/PlatformEnvironment.h>
 #include <openrct2/core/EnumUtils.hpp>
@@ -201,6 +202,11 @@ void VulkanDrawingContext::Initialise(
     samplerInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
     CheckVk(vkCreateSampler(_device, &samplerInfo, nullptr, &_atlasSampler), "vkCreateSampler(atlas)");
     CheckVk(vkCreateSampler(_device, &samplerInfo, nullptr, &_paletteSampler), "vkCreateSampler(palette)");
+
+    // UINT64_MAX never matches a real VulkanTextureCache::GetAtlasVersion() value (which starts
+    // at 0 and only ever increments), so this forces the first FlushRectangles/HandleTransparency
+    // call for each frame-in-flight to always (re)write its atlas binding at least once.
+    _rectAtlasBoundVersion.fill(std::numeric_limits<uint64_t>::max());
 
     CreatePipelines();
 }
@@ -914,6 +920,17 @@ void VulkanDrawingContext::Resize(uint32_t width, uint32_t height)
         CreateOffscreenTargets();
     }
 
+    // The offscreen colour/depth targets these caches reference are all destroyed and recreated
+    // (new VkImageView handles) above - reset to the "unwritten" sentinel so the next
+    // FlushRectangles/HandleTransparency call always rewrites them instead of potentially (if a
+    // freed handle happened to be reused) skipping a write that's actually needed. The atlas and
+    // palette/blend-palette bindings are unaffected by resize and don't need resetting here.
+    _rectPeelingBoundView.fill(VK_NULL_HANDLE);
+    _compositeOpaqueColourBoundView.fill(VK_NULL_HANDLE);
+    _compositeOpaqueDepthBoundView.fill(VK_NULL_HANDLE);
+    _compositeTransparentColourBoundView.fill(VK_NULL_HANDLE);
+    _compositeTransparentDepthBoundView.fill(VK_NULL_HANDLE);
+
     _rects.clear();
     _transparentRects.clear();
     _lines.clear();
@@ -938,7 +955,12 @@ void VulkanDrawingContext::EnsureInstanceBufferCapacity(VulkanBuffer& buffer, Vk
         return;
 
     DestroyBuffer(_device, buffer);
-    VkDeviceSize newSize = std::max<VkDeviceSize>(requiredSize, 1 << 14);
+    // Grow to 1.5x the requested size (like a typical vector growth policy), not an exact fit -
+    // an exact-fit policy would otherwise force a full buffer destroy+recreate+remap on every
+    // single frame whenever the draw-call count keeps slowly climbing (e.g. while panning across
+    // an increasingly busy part of the park), instead of only occasionally as the buffer grows
+    // in front of demand.
+    VkDeviceSize newSize = std::max<VkDeviceSize>(requiredSize + requiredSize / 2, 1 << 14);
     buffer = CreateBuffer(
         _device, _physicalDevice, newSize, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
         VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
@@ -956,19 +978,12 @@ void VulkanDrawingContext::FlushCommandBuffers(VkCommandBuffer cmd, uint32_t fra
         return;
     }
 
-    // Upload any newly-seen sprite/glyph/text texture data before the render pass begins, then
-    // make those writes visible to the fragment shader that will sample the atlas texture
-    // during this same render pass (the atlas image stays permanently in GENERAL layout, so a
-    // plain execution/memory barrier is sufficient here - no layout transition needed).
+    // Upload any newly-seen sprite/glyph/text texture data before the render pass begins.
+    // FlushPendingUploads() is a no-op (issues no commands at all) on the very common case of a
+    // frame with no newly-seen textures; when it does have uploads, it already transitions the
+    // atlas to/from VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL around them with proper barriers, so no
+    // additional barrier is needed here.
     _textureCache.FlushPendingUploads(cmd, _stagingBuffers[frameIndex]);
-
-    VkMemoryBarrier uploadBarrier{};
-    uploadBarrier.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER;
-    uploadBarrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-    uploadBarrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
-    vkCmdPipelineBarrier(
-        cmd, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 1, &uploadBarrier, 0, nullptr, 0,
-        nullptr);
 
     VkClearValue depthClear{};
     depthClear.depthStencil = { 1.0f, 0 };
@@ -1028,6 +1043,70 @@ void VulkanDrawingContext::FlushLines(VkCommandBuffer cmd, uint32_t frameIndex)
     _lines.clear();
 }
 
+void VulkanDrawingContext::UpdateRectDescriptorSetIfChanged(uint32_t frameIndex, VkImageView peelingView)
+{
+    VkDescriptorImageInfo atlasInfo{};
+    atlasInfo.sampler = _atlasSampler;
+    atlasInfo.imageView = _textureCache.GetAtlasImageView();
+    atlasInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+
+    VkDescriptorImageInfo paletteInfo{};
+    paletteInfo.sampler = _paletteSampler;
+    paletteInfo.imageView = _textureCache.GetPaletteImageView();
+    paletteInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+
+    VkDescriptorImageInfo peelingInfo{};
+    peelingInfo.sampler = _paletteSampler;
+    peelingInfo.imageView = peelingView;
+    peelingInfo.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
+
+    VkWriteDescriptorSet writes[3]{};
+    uint32_t writeCount = 0;
+
+    uint64_t atlasVersion = _textureCache.GetAtlasVersion();
+    if (_rectAtlasBoundVersion[frameIndex] != atlasVersion)
+    {
+        writes[writeCount] = {};
+        writes[writeCount].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        writes[writeCount].dstSet = _rectDescriptorSets[frameIndex];
+        writes[writeCount].dstBinding = 0;
+        writes[writeCount].descriptorCount = 1;
+        writes[writeCount].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+        writes[writeCount].pImageInfo = &atlasInfo;
+        writeCount++;
+        _rectAtlasBoundVersion[frameIndex] = atlasVersion;
+    }
+
+    if (_rectPaletteBoundView[frameIndex] != paletteInfo.imageView)
+    {
+        writes[writeCount] = {};
+        writes[writeCount].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        writes[writeCount].dstSet = _rectDescriptorSets[frameIndex];
+        writes[writeCount].dstBinding = 1;
+        writes[writeCount].descriptorCount = 1;
+        writes[writeCount].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+        writes[writeCount].pImageInfo = &paletteInfo;
+        writeCount++;
+        _rectPaletteBoundView[frameIndex] = paletteInfo.imageView;
+    }
+
+    if (_rectPeelingBoundView[frameIndex] != peelingView)
+    {
+        writes[writeCount] = {};
+        writes[writeCount].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        writes[writeCount].dstSet = _rectDescriptorSets[frameIndex];
+        writes[writeCount].dstBinding = 2;
+        writes[writeCount].descriptorCount = 1;
+        writes[writeCount].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+        writes[writeCount].pImageInfo = &peelingInfo;
+        writeCount++;
+        _rectPeelingBoundView[frameIndex] = peelingView;
+    }
+
+    if (writeCount > 0)
+        vkUpdateDescriptorSets(_device, writeCount, writes, 0, nullptr);
+}
+
 void VulkanDrawingContext::FlushRectangles(VkCommandBuffer cmd, uint32_t frameIndex)
 {
     if (_rects.size() == 0)
@@ -1037,47 +1116,10 @@ void VulkanDrawingContext::FlushRectangles(VkCommandBuffer cmd, uint32_t frameIn
     EnsureInstanceBufferCapacity(_rectInstanceBuffers[frameIndex], requiredSize);
     std::memcpy(_rectInstanceBuffers[frameIndex].mapped, _rects.data(), requiredSize);
 
-    VkDescriptorImageInfo atlasInfo{};
-    atlasInfo.sampler = _atlasSampler;
-    atlasInfo.imageView = _textureCache.GetAtlasImageView();
-    atlasInfo.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
-
-    VkDescriptorImageInfo paletteInfo{};
-    paletteInfo.sampler = _paletteSampler;
-    paletteInfo.imageView = _textureCache.GetPaletteImageView();
-    paletteInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-
     // Binding 2 (peeling-reference depth) is unused by the opaque pipeline (uPeeling=0 causes
     // rect_vk.frag to skip sampling it entirely) but the descriptor set still needs a valid,
     // compatible image bound to satisfy validation - the opaque depth view is a harmless filler.
-    VkDescriptorImageInfo peelingInfo{};
-    peelingInfo.sampler = _paletteSampler;
-    peelingInfo.imageView = _opaqueDepth.view;
-    peelingInfo.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
-
-    VkWriteDescriptorSet writes[3]{};
-    writes[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-    writes[0].dstSet = _rectDescriptorSets[frameIndex];
-    writes[0].dstBinding = 0;
-    writes[0].descriptorCount = 1;
-    writes[0].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    writes[0].pImageInfo = &atlasInfo;
-
-    writes[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-    writes[1].dstSet = _rectDescriptorSets[frameIndex];
-    writes[1].dstBinding = 1;
-    writes[1].descriptorCount = 1;
-    writes[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    writes[1].pImageInfo = &paletteInfo;
-
-    writes[2].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-    writes[2].dstSet = _rectDescriptorSets[frameIndex];
-    writes[2].dstBinding = 2;
-    writes[2].descriptorCount = 1;
-    writes[2].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    writes[2].pImageInfo = &peelingInfo;
-
-    vkUpdateDescriptorSets(_device, 3, writes, 0, nullptr);
+    UpdateRectDescriptorSetIfChanged(frameIndex, _opaqueDepth.view);
 
     struct
     {
@@ -1100,6 +1142,60 @@ void VulkanDrawingContext::FlushRectangles(VkCommandBuffer cmd, uint32_t frameIn
     _rects.clear();
 }
 
+void VulkanDrawingContext::UpdateCompositeDescriptorSetIfChanged(
+    uint32_t frameIndex, VkImageView opaqueColourView, VkImageView opaqueDepthView, VkImageView transparentColourView,
+    VkImageView transparentDepthView)
+{
+    VkImageView views[6] = {
+        opaqueColourView,
+        opaqueDepthView,
+        transparentColourView,
+        transparentDepthView,
+        _textureCache.GetPaletteImageView(),
+        _textureCache.GetBlendPaletteImageView(),
+    };
+    std::array<VkImageView, kVulkanFramesInFlight>* caches[6] = {
+        &_compositeOpaqueColourBoundView,     &_compositeOpaqueDepthBoundView, &_compositeTransparentColourBoundView,
+        &_compositeTransparentDepthBoundView, &_compositePaletteBoundView,     &_compositeBlendPaletteBoundView,
+    };
+    // Bindings 0-3 sample the ping-ponged offscreen colour/depth targets (always GENERAL layout,
+    // written to by earlier passes this same frame); bindings 4-5 are the palette/blend-palette
+    // lookup textures (SHADER_READ_ONLY_OPTIMAL, immutable after their one-time creation).
+    VkImageLayout layouts[6] = { VK_IMAGE_LAYOUT_GENERAL,
+                                 VK_IMAGE_LAYOUT_GENERAL,
+                                 VK_IMAGE_LAYOUT_GENERAL,
+                                 VK_IMAGE_LAYOUT_GENERAL,
+                                 VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+                                 VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL };
+
+    VkDescriptorImageInfo infos[6]{};
+    VkWriteDescriptorSet writes[6]{};
+    uint32_t writeCount = 0;
+
+    for (uint32_t b = 0; b < 6; b++)
+    {
+        if ((*caches[b])[frameIndex] == views[b])
+            continue;
+
+        infos[writeCount].sampler = _paletteSampler;
+        infos[writeCount].imageView = views[b];
+        infos[writeCount].imageLayout = layouts[b];
+
+        writes[writeCount].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        writes[writeCount].dstSet = _transparencyDescriptorSets[frameIndex];
+        writes[writeCount].dstBinding = b;
+        writes[writeCount].descriptorCount = 1;
+        writes[writeCount].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+        writes[writeCount].pImageInfo = &infos[writeCount];
+        writeCount++;
+
+        (*caches[b])[frameIndex] = views[b];
+    }
+
+    if (writeCount > 0)
+        vkUpdateDescriptorSets(_device, writeCount, writes, 0, nullptr);
+}
+
 // Depth-peeling transparency, verbatim port of the OpenGL renderer's
 // SwapFramebuffer/HandleTransparency architecture (see VulkanDrawingContext.h class comment and
 // VulkanTransparencyDepth.h). Called once per frame, after the opaque render pass has ended,
@@ -1115,16 +1211,6 @@ void VulkanDrawingContext::HandleTransparency(VkCommandBuffer cmd, uint32_t fram
     VkDeviceSize requiredSize = _transparentRects.size() * sizeof(VulkanDrawRectCommand);
     EnsureInstanceBufferCapacity(_transparentRectInstanceBuffers[frameIndex], requiredSize);
     std::memcpy(_transparentRectInstanceBuffers[frameIndex].mapped, _transparentRects.data(), requiredSize);
-
-    VkDescriptorImageInfo atlasInfo{};
-    atlasInfo.sampler = _atlasSampler;
-    atlasInfo.imageView = _textureCache.GetAtlasImageView();
-    atlasInfo.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
-
-    VkDescriptorImageInfo paletteInfo{};
-    paletteInfo.sampler = _paletteSampler;
-    paletteInfo.imageView = _textureCache.GetPaletteImageView();
-    paletteInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 
     VkViewport viewport{};
     viewport.width = static_cast<float>(_width);
@@ -1163,34 +1249,8 @@ void VulkanDrawingContext::HandleTransparency(VkCommandBuffer cmd, uint32_t fram
         vkCmdSetViewport(cmd, 0, 1, &viewport);
         vkCmdSetScissor(cmd, 0, 1, &scissor);
 
-        VkDescriptorImageInfo peelingInfo{};
-        peelingInfo.sampler = _paletteSampler;
-        peelingInfo.imageView = i > 0 ? _transparentDepthTargets[backDepthIdx].view : _opaqueDepth.view;
-        peelingInfo.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
-
-        VkWriteDescriptorSet writes[3]{};
-        writes[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-        writes[0].dstSet = _rectDescriptorSets[frameIndex];
-        writes[0].dstBinding = 0;
-        writes[0].descriptorCount = 1;
-        writes[0].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-        writes[0].pImageInfo = &atlasInfo;
-
-        writes[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-        writes[1].dstSet = _rectDescriptorSets[frameIndex];
-        writes[1].dstBinding = 1;
-        writes[1].descriptorCount = 1;
-        writes[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-        writes[1].pImageInfo = &paletteInfo;
-
-        writes[2].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-        writes[2].dstSet = _rectDescriptorSets[frameIndex];
-        writes[2].dstBinding = 2;
-        writes[2].descriptorCount = 1;
-        writes[2].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-        writes[2].pImageInfo = &peelingInfo;
-
-        vkUpdateDescriptorSets(_device, 3, writes, 0, nullptr);
+        VkImageView peelingView = i > 0 ? _transparentDepthTargets[backDepthIdx].view : _opaqueDepth.view;
+        UpdateRectDescriptorSetIfChanged(frameIndex, peelingView);
 
         struct
         {
@@ -1225,49 +1285,9 @@ void VulkanDrawingContext::HandleTransparency(VkCommandBuffer cmd, uint32_t fram
         vkCmdSetViewport(cmd, 0, 1, &viewport);
         vkCmdSetScissor(cmd, 0, 1, &scissor);
 
-        VkDescriptorImageInfo opaqueColourInfo{};
-        opaqueColourInfo.sampler = _paletteSampler;
-        opaqueColourInfo.imageView = _colourTargets[_currentColourIndex].view;
-        opaqueColourInfo.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
-
-        VkDescriptorImageInfo opaqueDepthInfo{};
-        opaqueDepthInfo.sampler = _paletteSampler;
-        opaqueDepthInfo.imageView = _opaqueDepth.view;
-        opaqueDepthInfo.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
-
-        VkDescriptorImageInfo transparentColourInfo{};
-        transparentColourInfo.sampler = _paletteSampler;
-        transparentColourInfo.imageView = _transparentColour.view;
-        transparentColourInfo.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
-
-        VkDescriptorImageInfo transparentDepthInfo{};
-        transparentDepthInfo.sampler = _paletteSampler;
-        transparentDepthInfo.imageView = _transparentDepthTargets[frontDepthIdx].view;
-        transparentDepthInfo.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
-
-        VkDescriptorImageInfo compositePaletteInfo{};
-        compositePaletteInfo.sampler = _paletteSampler;
-        compositePaletteInfo.imageView = _textureCache.GetPaletteImageView();
-        compositePaletteInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-
-        VkDescriptorImageInfo blendPaletteInfo{};
-        blendPaletteInfo.sampler = _paletteSampler;
-        blendPaletteInfo.imageView = _textureCache.GetBlendPaletteImageView();
-        blendPaletteInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-
-        VkDescriptorImageInfo compositeInfos[] = { opaqueColourInfo,     opaqueDepthInfo,   transparentColourInfo,
-                                                    transparentDepthInfo, compositePaletteInfo, blendPaletteInfo };
-        VkWriteDescriptorSet compositeWrites[6]{};
-        for (uint32_t b = 0; b < 6; b++)
-        {
-            compositeWrites[b].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-            compositeWrites[b].dstSet = _transparencyDescriptorSets[frameIndex];
-            compositeWrites[b].dstBinding = b;
-            compositeWrites[b].descriptorCount = 1;
-            compositeWrites[b].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-            compositeWrites[b].pImageInfo = &compositeInfos[b];
-        }
-        vkUpdateDescriptorSets(_device, 6, compositeWrites, 0, nullptr);
+        UpdateCompositeDescriptorSetIfChanged(
+            frameIndex, _colourTargets[_currentColourIndex].view, _opaqueDepth.view, _transparentColour.view,
+            _transparentDepthTargets[frontDepthIdx].view);
 
         vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, _transparencyPipeline);
         vkCmdBindDescriptorSets(

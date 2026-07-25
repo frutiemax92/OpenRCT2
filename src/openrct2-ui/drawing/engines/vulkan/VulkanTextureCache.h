@@ -179,10 +179,12 @@ namespace OpenRCT2::Ui
     // are queued and flushed once per frame by the owning VulkanDrawingContext via
     // FlushPendingUploads(), before the frame's render pass begins.
     //
-    // The atlas image is kept permanently in VK_IMAGE_LAYOUT_GENERAL (valid for both transfer
-    // writes and shader sampling) to avoid needing per-frame layout transitions for a texture
-    // that can be written to at unpredictable times - a deliberate simplification versus a
-    // stricter TRANSFER_DST/SHADER_READ_ONLY_OPTIMAL transition scheme.
+    // The atlas image's steady-state layout is VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL (it is
+    // sampled by every single rect draw call, every frame) - FlushPendingUploads() and
+    // EnlargeAtlasesImage() both transition it to VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL only for
+    // the duration of their (comparatively rare) writes, then transition it straight back.
+    // GENERAL is deliberately avoided here since it disables compression/optimization some
+    // drivers apply to images only ever used as attachments/samples, not both simultaneously.
     class VulkanTextureCache final
     {
     private:
@@ -207,6 +209,11 @@ namespace OpenRCT2::Ui
         VkImage _atlasImage = VK_NULL_HANDLE;
         VkDeviceMemory _atlasImageMemory = VK_NULL_HANDLE;
         VkImageView _atlasImageView = VK_NULL_HANDLE;
+        // Incremented every time _atlasImageView is recreated (i.e. only on atlas growth, via
+        // EnlargeAtlasesImage) - lets callers that cache a descriptor binding to this view (see
+        // VulkanDrawingContext) cheaply detect real changes instead of comparing raw VkImageView
+        // handles (which could theoretically be reused after being destroyed).
+        uint64_t _atlasVersion = 0;
 
         VkImage _paletteImage = VK_NULL_HANDLE;
         VkDeviceMemory _paletteImageMemory = VK_NULL_HANDLE;
@@ -244,6 +251,10 @@ namespace OpenRCT2::Ui
         [[nodiscard]] VkImageView GetAtlasImageView() const
         {
             return _atlasImageView;
+        }
+        [[nodiscard]] uint64_t GetAtlasVersion() const
+        {
+            return _atlasVersion;
         }
         [[nodiscard]] VkImageView GetPaletteImageView() const
         {

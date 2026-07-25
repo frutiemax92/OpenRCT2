@@ -318,12 +318,13 @@ void VulkanTextureCache::EnlargeAtlasesImage(uint32_t newLayers)
 
         if (_atlasImage != VK_NULL_HANDLE && _atlasLayers > 0)
         {
-            // Old image is already sitting in GENERAL (used for both transfer + sampling once
-            // initialised); transition a copy-source-compatible view of it and copy existing
-            // layers across into the new, larger image.
+            // Old image is normally sitting in SHADER_READ_ONLY_OPTIMAL (its steady-state layout
+            // - see the end of this function and FlushPendingUploads); transition a
+            // copy-source-compatible view of it and copy existing layers across into the new,
+            // larger image.
             TransitionImageLayout(
-                cmd, _atlasImage, VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-                _atlasCapacity);
+                cmd, _atlasImage, VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+                VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, _atlasCapacity);
 
             VkImageCopy region{};
             region.srcSubresource = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, _atlasLayers };
@@ -335,8 +336,8 @@ void VulkanTextureCache::EnlargeAtlasesImage(uint32_t newLayers)
         }
 
         TransitionImageLayout(
-            cmd, newImage, VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_GENERAL,
-            newCapacity);
+            cmd, newImage, VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+            VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, newCapacity);
     });
 
     // The old atlas image's view is bound into each frame-in-flight's descriptor set, and only
@@ -373,6 +374,7 @@ void VulkanTextureCache::EnlargeAtlasesImage(uint32_t newLayers)
     viewInfo.subresourceRange.levelCount = 1;
     viewInfo.subresourceRange.layerCount = _atlasCapacity;
     CheckVk(vkCreateImageView(_device, &viewInfo, nullptr, &_atlasImageView), "vkCreateImageView(atlas)");
+    _atlasVersion++;
 }
 
 void VulkanTextureCache::GeneratePaletteTexture()
@@ -621,10 +623,15 @@ void VulkanTextureCache::FlushPendingUploads(VkCommandBuffer cmd, VulkanBuffer& 
             VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
     }
 
-    // First frame ever: the atlas image doesn't exist as a "previous" resource in GENERAL yet
-    // (EnlargeAtlasesImage already left it in GENERAL after creation/growth), so no extra
-    // transition is required here - GENERAL is valid for both vkCmdCopyBufferToImage and
-    // subsequent shader sampling.
+    // First frame ever: the atlas image doesn't exist as a "previous" resource in
+    // SHADER_READ_ONLY_OPTIMAL yet (EnlargeAtlasesImage already left it there after
+    // creation/growth), so this transitions it away from and back to that steady-state layout
+    // around the copy, keeping it sampling-ready (and eligible for whatever compression/caching
+    // the driver can apply to a real SAMPLED-only layout) the rest of the time.
+    TransitionImageLayout(
+        cmd, _atlasImage, VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+        VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, _atlasCapacity);
+
     VkDeviceSize offset = 0;
     auto* mappedBytes = static_cast<uint8_t*>(stagingBuffer.mapped);
     for (const auto& upload : _pendingUploads)
@@ -639,10 +646,14 @@ void VulkanTextureCache::FlushPendingUploads(VkCommandBuffer cmd, VulkanBuffer& 
         copy.imageSubresource = { VK_IMAGE_ASPECT_COLOR_BIT, 0, static_cast<uint32_t>(upload.atlasLayer), 1 };
         copy.imageOffset = { upload.bounds.x, upload.bounds.y, 0 };
         copy.imageExtent = { static_cast<uint32_t>(width), static_cast<uint32_t>(height), 1 };
-        vkCmdCopyBufferToImage(cmd, stagingBuffer.buffer, _atlasImage, VK_IMAGE_LAYOUT_GENERAL, 1, &copy);
+        vkCmdCopyBufferToImage(cmd, stagingBuffer.buffer, _atlasImage, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &copy);
 
         offset += upload.pixels.size();
     }
+
+    TransitionImageLayout(
+        cmd, _atlasImage, VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+        VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, _atlasCapacity);
 
     _pendingUploads.clear();
 }

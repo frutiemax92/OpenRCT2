@@ -143,6 +143,12 @@ private:
     VkSampler _paletteIndexSampler = VK_NULL_HANDLE;
     VkDescriptorPool _descriptorPool = VK_NULL_HANDLE;
     std::array<VkDescriptorSet, kFramesInFlight> _descriptorSets{};
+    // Last VkImageView written into each frame-in-flight's binding 0 (offscreen colour image) -
+    // lets the per-frame Present() path skip rewriting that binding when it hasn't actually
+    // changed since last frame (see UpdateCompositeColourBinding()), instead of unconditionally
+    // rewriting both bindings (including the palette uniform buffer, which never changes for a
+    // given frame-in-flight slot) every single frame.
+    std::array<VkImageView, kFramesInFlight> _compositeColourBoundView{};
 
     // Offscreen scale/smooth-scale path, mirroring OpenGL's _scaleFramebuffer/
     // _smoothScaleFramebuffer (see OpenGLDrawingEngine::ConfigureCanvas/EndDraw). When the UI
@@ -1298,6 +1304,7 @@ private:
         writes[1].pBufferInfo = &bufInfo;
 
         vkUpdateDescriptorSets(_device, 2, writes, 0, nullptr);
+        _compositeColourBoundView[frameIndex] = imgInfo.imageView;
     }
 
     // Called once after every _drawingContext.Resize() to (re)bind every frame-in-flight's
@@ -1308,6 +1315,36 @@ private:
         {
             UpdateCompositeDescriptorSet(i);
         }
+    }
+
+    // Lightweight per-frame counterpart to UpdateCompositeDescriptorSet(), called from the
+    // Present() hot path instead of the full version: only rewrites binding 0 (the offscreen
+    // colour image view, which pingpongs whenever depth-peeling transparency ran last frame),
+    // and skips the vkUpdateDescriptorSets call entirely when it's unchanged. Binding 1 (the
+    // palette uniform buffer) is never touched here since it's the same VkBuffer for the
+    // lifetime of this frame-in-flight slot - it only needs (re)writing once, which
+    // UpdateCompositeDescriptorSet() already did at startup/resize.
+    void UpdateCompositeColourBinding(uint32_t frameIndex)
+    {
+        VkImageView colourView = _drawingContext.GetColourImageView();
+        if (_compositeColourBoundView[frameIndex] == colourView)
+            return;
+
+        VkDescriptorImageInfo imgInfo{};
+        imgInfo.sampler = _paletteIndexSampler;
+        imgInfo.imageView = colourView;
+        imgInfo.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
+
+        VkWriteDescriptorSet write{};
+        write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        write.dstSet = _descriptorSets[frameIndex];
+        write.dstBinding = 0;
+        write.descriptorCount = 1;
+        write.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+        write.pImageInfo = &imgInfo;
+
+        vkUpdateDescriptorSets(_device, 1, &write, 0, nullptr);
+        _compositeColourBoundView[frameIndex] = colourView;
     }
 
     std::vector<uint32_t> ReadSpirV(const std::string& fileName)
@@ -1476,7 +1513,7 @@ private:
         // than it did last frame, so this frame-in-flight's composite descriptor set must be
         // refreshed every frame, not just after a resize (its previous use, if any, is guaranteed
         // finished by the vkWaitForFences call above, so it's safe to update here).
-        UpdateCompositeDescriptorSet(_currentFrame);
+        UpdateCompositeColourBinding(_currentFrame);
 
         // Scale quality mirrors OpenGL's ConfigureCanvas()/EndDraw(): nearestNeighbour (used
         // whenever the UI scale factor is a whole number) draws the composite fullscreen

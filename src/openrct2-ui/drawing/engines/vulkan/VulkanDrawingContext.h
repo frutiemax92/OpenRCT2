@@ -125,6 +125,30 @@ namespace OpenRCT2::Ui
         VkSampler _atlasSampler = VK_NULL_HANDLE;
         VkSampler _paletteSampler = VK_NULL_HANDLE;
 
+        // Tracks what's currently actually written into each cached binding of
+        // _rectDescriptorSets[frameIndex]/_transparencyDescriptorSets[frameIndex], so
+        // FlushRectangles/HandleTransparency can skip a vkUpdateDescriptorSets call for any
+        // binding whose bound resource hasn't changed since it was last written - the atlas,
+        // palette and blend-palette textures are stable for the vast majority of frames (they
+        // only change on texture-atlas growth, a rare event), and even the offscreen colour/
+        // depth targets often end up referencing the same view as last time. Without this,
+        // every single rendered frame (and every depth-peeling iteration within it) would pay
+        // for 3-9 redundant descriptor writes for no visual benefit. VkImageView caches use
+        // VK_NULL_HANDLE as an "unwritten" sentinel (real views are never null); the atlas cache
+        // instead compares VulkanTextureCache::GetAtlasVersion(), since the atlas view's
+        // VkImageView handle is recreated by a different class and, in principle, could be
+        // reused by the driver after being destroyed. Reset to their sentinel values in Resize()
+        // for the bindings that reference resize-lifetime resources.
+        std::array<uint64_t, kVulkanFramesInFlight> _rectAtlasBoundVersion{};
+        std::array<VkImageView, kVulkanFramesInFlight> _rectPaletteBoundView{};
+        std::array<VkImageView, kVulkanFramesInFlight> _rectPeelingBoundView{};
+        std::array<VkImageView, kVulkanFramesInFlight> _compositeOpaqueColourBoundView{};
+        std::array<VkImageView, kVulkanFramesInFlight> _compositeOpaqueDepthBoundView{};
+        std::array<VkImageView, kVulkanFramesInFlight> _compositeTransparentColourBoundView{};
+        std::array<VkImageView, kVulkanFramesInFlight> _compositeTransparentDepthBoundView{};
+        std::array<VkImageView, kVulkanFramesInFlight> _compositePaletteBoundView{};
+        std::array<VkImageView, kVulkanFramesInFlight> _compositeBlendPaletteBoundView{};
+
         std::array<VulkanBuffer, kVulkanFramesInFlight> _rectInstanceBuffers{};
         std::array<VulkanBuffer, kVulkanFramesInFlight> _transparentRectInstanceBuffers{};
         std::array<VulkanBuffer, kVulkanFramesInFlight> _lineInstanceBuffers{};
@@ -206,5 +230,16 @@ namespace OpenRCT2::Ui
         void FlushRectangles(VkCommandBuffer cmd, uint32_t frameIndex);
         void FlushLines(VkCommandBuffer cmd, uint32_t frameIndex);
         void HandleTransparency(VkCommandBuffer cmd, uint32_t frameIndex);
+
+        // Writes _rectDescriptorSets[frameIndex]'s bindings (atlas, palette, peeling), skipping
+        // any of the three whose bound view/version already matches what's currently written -
+        // see the *BoundView/_rectAtlasBoundVersion member comment.
+        void UpdateRectDescriptorSetIfChanged(uint32_t frameIndex, VkImageView peelingView);
+
+        // Writes _transparencyDescriptorSets[frameIndex]'s 6 bindings, skipping any that already
+        // match what's currently written.
+        void UpdateCompositeDescriptorSetIfChanged(
+            uint32_t frameIndex, VkImageView opaqueColourView, VkImageView opaqueDepthView,
+            VkImageView transparentColourView, VkImageView transparentDepthView);
     };
 } // namespace OpenRCT2::Ui
