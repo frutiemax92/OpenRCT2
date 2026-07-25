@@ -18,6 +18,7 @@
 
 #include <algorithm>
 #include <array>
+#include <cmath>
 #include <cstring>
 #include <functional>
 #include <limits>
@@ -29,6 +30,7 @@
 #include <openrct2/Context.h>
 #include <openrct2/Diagnostic.h>
 #include <openrct2/PlatformEnvironment.h>
+#include <openrct2/config/Config.h>
 #include <openrct2/core/EnumUtils.hpp>
 #include <openrct2/core/FileStream.h>
 #include <openrct2/core/Guard.hpp>
@@ -141,6 +143,28 @@ private:
     VkSampler _paletteIndexSampler = VK_NULL_HANDLE;
     VkDescriptorPool _descriptorPool = VK_NULL_HANDLE;
     std::array<VkDescriptorSet, kFramesInFlight> _descriptorSets{};
+
+    // Offscreen scale/smooth-scale path, mirroring OpenGL's _scaleFramebuffer/
+    // _smoothScaleFramebuffer (see OpenGLDrawingEngine::ConfigureCanvas/EndDraw). When the UI
+    // scale factor (Config::Get().general.windowScale) is not a whole number, GetScaleQuality()
+    // returns something other than nearestNeighbour, and the direct-into-swapchain composite
+    // (which necessarily uses nearest-neighbour sampling, since palette indices can't be
+    // linearly interpolated) would look blocky/jagged - most noticeably on text. Instead, the
+    // composite pass renders into _scaleImage at the drawing context's native (unscaled)
+    // resolution, which is then upscaled to the swapchain's actual resolution via a filtered
+    // vkCmdBlitImage (VK_FILTER_LINEAR), exactly like OpenGL's GL_LINEAR framebuffer blit. For
+    // the smoothNearestNeighbour case, an extra intermediate blit through _smoothScaleImage
+    // (nearest-upscaled to an integer multiple first, then linear-blitted to the swapchain)
+    // reproduces OpenGL's two-step smoothing trick.
+    VkRenderPass _scaleRenderPass = VK_NULL_HANDLE;
+    VkImage _scaleImage = VK_NULL_HANDLE;
+    VkDeviceMemory _scaleImageMemory = VK_NULL_HANDLE;
+    VkImageView _scaleImageView = VK_NULL_HANDLE;
+    VkFramebuffer _scaleFramebuffer = VK_NULL_HANDLE;
+    VkImage _smoothScaleImage = VK_NULL_HANDLE;
+    VkDeviceMemory _smoothScaleImageMemory = VK_NULL_HANDLE;
+    uint32_t _smoothScaleWidth = 0;
+    uint32_t _smoothScaleHeight = 0;
 
     // Palette colour lookup table, uploaded to a uniform buffer read by the composite fragment
     // shader. One per frame-in-flight so an update while a previous frame is still in flight
@@ -483,6 +507,8 @@ private:
             vkDestroyPipelineLayout(_device, _pipelineLayout, nullptr);
         if (_renderPass != VK_NULL_HANDLE)
             vkDestroyRenderPass(_device, _renderPass, nullptr);
+        if (_scaleRenderPass != VK_NULL_HANDLE)
+            vkDestroyRenderPass(_device, _scaleRenderPass, nullptr);
         if (_paletteIndexSampler != VK_NULL_HANDLE)
             vkDestroySampler(_device, _paletteIndexSampler, nullptr);
         if (_descriptorSetLayout != VK_NULL_HANDLE)
@@ -644,6 +670,8 @@ private:
         if (_device == VK_NULL_HANDLE)
             return;
 
+        DestroyScaleResources();
+
         if (_copyTempImage != VK_NULL_HANDLE)
         {
             vkDestroyImage(_device, _copyTempImage, nullptr);
@@ -699,9 +727,11 @@ private:
             // only known once the swapchain has been created for the first time. They don't
             // depend on its extent though, so they only need to be created once, ever.
             CreateRenderPass();
+            CreateScaleRenderPass();
             CreateGraphicsPipeline();
         }
         CreateFramebuffers();
+        CreateScaleResources();
         CreateCopyTempImage();
         CreateCommandBuffers();
 
@@ -822,7 +852,10 @@ private:
         createInfo.imageColorSpace = chosenFormat.colorSpace;
         createInfo.imageExtent = _swapchainExtent;
         createInfo.imageArrayLayers = 1;
-        createInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+        // COLOR_ATTACHMENT for the direct (nearestNeighbour scale quality) composite render
+        // pass, TRANSFER_DST for the filtered-blit path used by linear/smoothNearestNeighbour
+        // scale quality (see CreateScaleResources()/Present()).
+        createInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
         createInfo.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
         createInfo.preTransform = caps.currentTransform;
         createInfo.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
@@ -902,6 +935,51 @@ private:
         CheckVk(vkCreateRenderPass(_device, &info, nullptr, &_renderPass), "vkCreateRenderPass");
     }
 
+    // Render pass used to draw the fullscreen palette-lookup triangle into the offscreen
+    // _scaleImage (native, unscaled resolution) instead of directly into a swapchain image - see
+    // the _scaleRenderPass member comment. finalLayout is TRANSFER_SRC_OPTIMAL since the very
+    // next thing that happens to this image is always a vkCmdBlitImage read.
+    void CreateScaleRenderPass()
+    {
+        VkAttachmentDescription colorAttachment{};
+        colorAttachment.format = _swapchainFormat;
+        colorAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
+        colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+        colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+        colorAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+        colorAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+        colorAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+        colorAttachment.finalLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
+
+        VkAttachmentReference colorRef{};
+        colorRef.attachment = 0;
+        colorRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+
+        VkSubpassDescription subpass{};
+        subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
+        subpass.colorAttachmentCount = 1;
+        subpass.pColorAttachments = &colorRef;
+
+        VkSubpassDependency dependency{};
+        dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
+        dependency.dstSubpass = 0;
+        dependency.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_TRANSFER_BIT;
+        dependency.srcAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
+        dependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+        dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+
+        VkRenderPassCreateInfo info{};
+        info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
+        info.attachmentCount = 1;
+        info.pAttachments = &colorAttachment;
+        info.subpassCount = 1;
+        info.pSubpasses = &subpass;
+        info.dependencyCount = 1;
+        info.pDependencies = &dependency;
+
+        CheckVk(vkCreateRenderPass(_device, &info, nullptr, &_scaleRenderPass), "vkCreateRenderPass(scale)");
+    }
+
     void CreateFramebuffers()
     {
         _framebuffers.resize(_swapchainImageViews.size());
@@ -919,6 +997,136 @@ private:
             info.layers = 1;
             CheckVk(vkCreateFramebuffer(_device, &info, nullptr, &_framebuffers[i]), "vkCreateFramebuffer");
         }
+    }
+
+    // (Re)creates the offscreen images used by the linear/smoothNearestNeighbour scale-quality
+    // composite path (see the _scaleRenderPass member comment) - sized to the drawing context's
+    // native resolution (_scaleImage) and, for smoothNearestNeighbour, an integer-multiple
+    // intermediate (_smoothScaleImage), matching OpenGL's ConfigureCanvas(). Called on every
+    // resize since these sizes depend on _width/_height; a prior call's images are destroyed
+    // first via DestroyScaleResources(). Does nothing (leaves both images null) for
+    // nearestNeighbour scale quality, since that path renders straight into the swapchain.
+    void CreateScaleResources()
+    {
+        ScaleQuality scaleQuality = GetContext()->GetUiContext().GetScaleQuality();
+        if (scaleQuality == ScaleQuality::nearestNeighbour)
+            return;
+
+        VkImageCreateInfo imageInfo{};
+        imageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+        imageInfo.imageType = VK_IMAGE_TYPE_2D;
+        imageInfo.format = _swapchainFormat;
+        imageInfo.extent = { _width, _height, 1 };
+        imageInfo.mipLevels = 1;
+        imageInfo.arrayLayers = 1;
+        imageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
+        imageInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
+        imageInfo.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
+        imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+        imageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+        CheckVk(vkCreateImage(_device, &imageInfo, nullptr, &_scaleImage), "vkCreateImage(scale)");
+
+        VkMemoryRequirements memReq{};
+        vkGetImageMemoryRequirements(_device, _scaleImage, &memReq);
+        VkMemoryAllocateInfo alloc{};
+        alloc.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+        alloc.allocationSize = memReq.size;
+        alloc.memoryTypeIndex = FindMemoryType(_physicalDevice, memReq.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+        CheckVk(vkAllocateMemory(_device, &alloc, nullptr, &_scaleImageMemory), "vkAllocateMemory(scale)");
+        CheckVk(vkBindImageMemory(_device, _scaleImage, _scaleImageMemory, 0), "vkBindImageMemory(scale)");
+
+        VkImageViewCreateInfo viewInfo{};
+        viewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+        viewInfo.image = _scaleImage;
+        viewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
+        viewInfo.format = _swapchainFormat;
+        viewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+        viewInfo.subresourceRange.levelCount = 1;
+        viewInfo.subresourceRange.layerCount = 1;
+        CheckVk(vkCreateImageView(_device, &viewInfo, nullptr, &_scaleImageView), "vkCreateImageView(scale)");
+
+        VkFramebufferCreateInfo fbInfo{};
+        fbInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+        fbInfo.renderPass = _scaleRenderPass;
+        fbInfo.attachmentCount = 1;
+        fbInfo.pAttachments = &_scaleImageView;
+        fbInfo.width = _width;
+        fbInfo.height = _height;
+        fbInfo.layers = 1;
+        CheckVk(vkCreateFramebuffer(_device, &fbInfo, nullptr, &_scaleFramebuffer), "vkCreateFramebuffer(scale)");
+
+        if (scaleQuality == ScaleQuality::smoothNearestNeighbour)
+        {
+            uint32_t scale = static_cast<uint32_t>(std::ceil(Config::Get().general.windowScale));
+            _smoothScaleWidth = _width * scale;
+            _smoothScaleHeight = _height * scale;
+
+            VkImageCreateInfo smoothInfo = imageInfo;
+            smoothInfo.extent = { _smoothScaleWidth, _smoothScaleHeight, 1 };
+            smoothInfo.usage = VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+            CheckVk(vkCreateImage(_device, &smoothInfo, nullptr, &_smoothScaleImage), "vkCreateImage(smoothScale)");
+
+            VkMemoryRequirements smoothMemReq{};
+            vkGetImageMemoryRequirements(_device, _smoothScaleImage, &smoothMemReq);
+            VkMemoryAllocateInfo smoothAlloc{};
+            smoothAlloc.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+            smoothAlloc.allocationSize = smoothMemReq.size;
+            smoothAlloc.memoryTypeIndex = FindMemoryType(
+                _physicalDevice, smoothMemReq.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+            CheckVk(vkAllocateMemory(_device, &smoothAlloc, nullptr, &_smoothScaleImageMemory), "vkAllocateMemory(smoothScale)");
+            CheckVk(
+                vkBindImageMemory(_device, _smoothScaleImage, _smoothScaleImageMemory, 0), "vkBindImageMemory(smoothScale)");
+
+            // Transition once here (mirroring CreateCopyTempImage()) so that Present() can always
+            // assume _smoothScaleImage starts each frame in TRANSFER_SRC_OPTIMAL - it ends every
+            // frame's use back in that same layout (after the nearest-neighbour blit into it and
+            // before the following linear blit out of it), so this initial transition need only
+            // ever happen once, right after creation.
+            RunOneTimeCommands([this](VkCommandBuffer cmd) {
+                TransitionImageLayout(
+                    cmd, _smoothScaleImage, VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_LAYOUT_UNDEFINED,
+                    VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
+            });
+        }
+    }
+
+    void DestroyScaleResources()
+    {
+        if (_device == VK_NULL_HANDLE)
+            return;
+
+        if (_scaleFramebuffer != VK_NULL_HANDLE)
+        {
+            vkDestroyFramebuffer(_device, _scaleFramebuffer, nullptr);
+            _scaleFramebuffer = VK_NULL_HANDLE;
+        }
+        if (_scaleImageView != VK_NULL_HANDLE)
+        {
+            vkDestroyImageView(_device, _scaleImageView, nullptr);
+            _scaleImageView = VK_NULL_HANDLE;
+        }
+        if (_scaleImage != VK_NULL_HANDLE)
+        {
+            vkDestroyImage(_device, _scaleImage, nullptr);
+            _scaleImage = VK_NULL_HANDLE;
+        }
+        if (_scaleImageMemory != VK_NULL_HANDLE)
+        {
+            vkFreeMemory(_device, _scaleImageMemory, nullptr);
+            _scaleImageMemory = VK_NULL_HANDLE;
+        }
+        if (_smoothScaleImage != VK_NULL_HANDLE)
+        {
+            vkDestroyImage(_device, _smoothScaleImage, nullptr);
+            _smoothScaleImage = VK_NULL_HANDLE;
+        }
+        if (_smoothScaleImageMemory != VK_NULL_HANDLE)
+        {
+            vkFreeMemory(_device, _smoothScaleImageMemory, nullptr);
+            _smoothScaleImageMemory = VK_NULL_HANDLE;
+        }
+        _smoothScaleWidth = 0;
+        _smoothScaleHeight = 0;
     }
 
     void CreateCopyTempImage()
@@ -1270,11 +1478,21 @@ private:
         // finished by the vkWaitForFences call above, so it's safe to update here).
         UpdateCompositeDescriptorSet(_currentFrame);
 
+        // Scale quality mirrors OpenGL's ConfigureCanvas()/EndDraw(): nearestNeighbour (used
+        // whenever the UI scale factor is a whole number) draws the composite fullscreen
+        // triangle directly into the swapchain image at its full (scaled) resolution - since
+        // that necessarily samples the offscreen index texture with nearest-neighbour
+        // filtering (palette indices can't be linearly interpolated), any fractional scale
+        // factor would look blocky, hence the separate render-at-native-resolution-then-
+        // filtered-blit path below for linear/smoothNearestNeighbour.
+        ScaleQuality scaleQuality = GetContext()->GetUiContext().GetScaleQuality();
+        bool useScalePath = scaleQuality != ScaleQuality::nearestNeighbour && _scaleImage != VK_NULL_HANDLE;
+
         VkRenderPassBeginInfo rpBegin{};
         rpBegin.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-        rpBegin.renderPass = _renderPass;
-        rpBegin.framebuffer = _framebuffers[imageIndex];
-        rpBegin.renderArea.extent = _swapchainExtent;
+        rpBegin.renderPass = useScalePath ? _scaleRenderPass : _renderPass;
+        rpBegin.framebuffer = useScalePath ? _scaleFramebuffer : _framebuffers[imageIndex];
+        rpBegin.renderArea.extent = useScalePath ? VkExtent2D{ _width, _height } : _swapchainExtent;
         vkCmdBeginRenderPass(cmd, &rpBegin, VK_SUBPASS_CONTENTS_INLINE);
 
         vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, _pipeline);
@@ -1282,14 +1500,14 @@ private:
             cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, _pipelineLayout, 0, 1, &_descriptorSets[_currentFrame], 0, nullptr);
 
         VkViewport viewport{};
-        viewport.width = static_cast<float>(_swapchainExtent.width);
-        viewport.height = static_cast<float>(_swapchainExtent.height);
+        viewport.width = static_cast<float>(useScalePath ? _width : _swapchainExtent.width);
+        viewport.height = static_cast<float>(useScalePath ? _height : _swapchainExtent.height);
         viewport.minDepth = 0.0f;
         viewport.maxDepth = 1.0f;
         vkCmdSetViewport(cmd, 0, 1, &viewport);
 
         VkRect2D scissor{};
-        scissor.extent = _swapchainExtent;
+        scissor.extent = useScalePath ? VkExtent2D{ _width, _height } : _swapchainExtent;
         vkCmdSetScissor(cmd, 0, 1, &scissor);
 
         // Fullscreen triangle: 3 vertices, no vertex/index buffers (see applypalette_vk.vert).
@@ -1297,9 +1515,71 @@ private:
 
         vkCmdEndRenderPass(cmd);
 
+        if (useScalePath)
+        {
+            TransitionImageLayout(
+                cmd, _swapchainImages[imageIndex], VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_LAYOUT_UNDEFINED,
+                VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+
+            VkImageBlit swapchainBlit{};
+            swapchainBlit.srcSubresource = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1 };
+            swapchainBlit.srcOffsets[1] = { static_cast<int32_t>(_width), static_cast<int32_t>(_height), 1 };
+            swapchainBlit.dstSubresource = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1 };
+            swapchainBlit.dstOffsets[1] = {
+                static_cast<int32_t>(_swapchainExtent.width), static_cast<int32_t>(_swapchainExtent.height), 1
+            };
+
+            if (scaleQuality == ScaleQuality::smoothNearestNeighbour && _smoothScaleImage != VK_NULL_HANDLE)
+            {
+                // Two-step smoothing, matching OpenGL's smoothNearestNeighbour: first
+                // nearest-upscale to an integer multiple of the native resolution (keeps pixel
+                // art crisp), then a final linear blit to the (possibly non-integer-scaled)
+                // swapchain resolution to soften the remaining fractional scale factor.
+                TransitionImageLayout(
+                    cmd, _smoothScaleImage, VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+                    VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+
+                VkImageBlit nearestBlit = swapchainBlit;
+                nearestBlit.dstOffsets[1] = {
+                    static_cast<int32_t>(_smoothScaleWidth), static_cast<int32_t>(_smoothScaleHeight), 1
+                };
+                vkCmdBlitImage(
+                    cmd, _scaleImage, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, _smoothScaleImage,
+                    VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &nearestBlit, VK_FILTER_NEAREST);
+
+                TransitionImageLayout(
+                    cmd, _smoothScaleImage, VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                    VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
+
+                VkImageBlit linearBlit = swapchainBlit;
+                linearBlit.srcOffsets[1] = {
+                    static_cast<int32_t>(_smoothScaleWidth), static_cast<int32_t>(_smoothScaleHeight), 1
+                };
+                vkCmdBlitImage(
+                    cmd, _smoothScaleImage, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, _swapchainImages[imageIndex],
+                    VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &linearBlit, VK_FILTER_LINEAR);
+            }
+            else
+            {
+                // Plain linear upscale straight from the native-resolution composite.
+                vkCmdBlitImage(
+                    cmd, _scaleImage, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, _swapchainImages[imageIndex],
+                    VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &swapchainBlit, VK_FILTER_LINEAR);
+            }
+
+            TransitionImageLayout(
+                cmd, _swapchainImages[imageIndex], VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
+        }
+
         CheckVk(vkEndCommandBuffer(cmd), "vkEndCommandBuffer");
 
-        VkPipelineStageFlags waitStage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+        // TRANSFER_BIT is included alongside COLOR_ATTACHMENT_OUTPUT_BIT because the
+        // linear/smoothNearestNeighbour scale path (see above) blits into the swapchain image
+        // via vkCmdBlitImage, which executes in the TRANSFER stage - a stage that isn't ordered
+        // relative to COLOR_ATTACHMENT_OUTPUT_BIT, so it must be named explicitly here to ensure
+        // the blit(s) don't start before the swapchain image is actually available.
+        VkPipelineStageFlags waitStage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_TRANSFER_BIT;
         VkSubmitInfo submit{};
         submit.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
         submit.waitSemaphoreCount = 1;
