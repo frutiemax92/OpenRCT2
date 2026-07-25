@@ -1057,40 +1057,48 @@ private:
         }
     }
 
-    // Binds each frame-in-flight's descriptor set to the drawing context's offscreen colour
-    // image view (which changes handle every resize) and its own palette uniform buffer. Called
-    // once after every _drawingContext.Resize() rather than every frame, since the view is
-    // otherwise stable between resizes.
+    // Binds a single frame-in-flight's descriptor set to the drawing context's CURRENT offscreen
+    // colour image view and its own palette uniform buffer. The image view must be refreshed
+    // every frame (not just after a resize) because it is one of a ping-ponged pair whose
+    // "current" index changes whenever the depth-peeling transparency compositor runs (see
+    // VulkanDrawingContext::HandleTransparency / GetColourImageView()).
+    void UpdateCompositeDescriptorSet(uint32_t frameIndex)
+    {
+        VkDescriptorImageInfo imgInfo{};
+        imgInfo.sampler = _paletteIndexSampler;
+        imgInfo.imageView = _drawingContext.GetColourImageView();
+        imgInfo.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
+
+        VkDescriptorBufferInfo bufInfo{};
+        bufInfo.buffer = _paletteBuffers[frameIndex];
+        bufInfo.offset = 0;
+        bufInfo.range = VK_WHOLE_SIZE;
+
+        VkWriteDescriptorSet writes[2]{};
+        writes[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        writes[0].dstSet = _descriptorSets[frameIndex];
+        writes[0].dstBinding = 0;
+        writes[0].descriptorCount = 1;
+        writes[0].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+        writes[0].pImageInfo = &imgInfo;
+
+        writes[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        writes[1].dstSet = _descriptorSets[frameIndex];
+        writes[1].dstBinding = 1;
+        writes[1].descriptorCount = 1;
+        writes[1].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+        writes[1].pBufferInfo = &bufInfo;
+
+        vkUpdateDescriptorSets(_device, 2, writes, 0, nullptr);
+    }
+
+    // Called once after every _drawingContext.Resize() to (re)bind every frame-in-flight's
+    // descriptor set, since the underlying images/views are recreated by a resize.
     void UpdateCompositeDescriptorSets()
     {
         for (uint32_t i = 0; i < kFramesInFlight; i++)
         {
-            VkDescriptorImageInfo imgInfo{};
-            imgInfo.sampler = _paletteIndexSampler;
-            imgInfo.imageView = _drawingContext.GetColourImageView();
-            imgInfo.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
-
-            VkDescriptorBufferInfo bufInfo{};
-            bufInfo.buffer = _paletteBuffers[i];
-            bufInfo.offset = 0;
-            bufInfo.range = VK_WHOLE_SIZE;
-
-            VkWriteDescriptorSet writes[2]{};
-            writes[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-            writes[0].dstSet = _descriptorSets[i];
-            writes[0].dstBinding = 0;
-            writes[0].descriptorCount = 1;
-            writes[0].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-            writes[0].pImageInfo = &imgInfo;
-
-            writes[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-            writes[1].dstSet = _descriptorSets[i];
-            writes[1].dstBinding = 1;
-            writes[1].descriptorCount = 1;
-            writes[1].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-            writes[1].pBufferInfo = &bufInfo;
-
-            vkUpdateDescriptorSets(_device, 2, writes, 0, nullptr);
+            UpdateCompositeDescriptorSet(i);
         }
     }
 
@@ -1254,6 +1262,13 @@ private:
         CheckVk(vkBeginCommandBuffer(cmd, &beginInfo), "vkBeginCommandBuffer");
 
         _drawingContext.FlushCommandBuffers(cmd, _currentFrame);
+
+        // The offscreen colour image is one of a ping-ponged pair (see HandleTransparency's
+        // depth-peeling compositing) - GetColourImageView() may now point at a different image
+        // than it did last frame, so this frame-in-flight's composite descriptor set must be
+        // refreshed every frame, not just after a resize (its previous use, if any, is guaranteed
+        // finished by the vkWaitForFences call above, so it's safe to update here).
+        UpdateCompositeDescriptorSet(_currentFrame);
 
         VkRenderPassBeginInfo rpBegin{};
         rpBegin.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
