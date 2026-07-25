@@ -288,9 +288,13 @@ void VulkanDrawingContext::CreatePipelines()
 
     // storeOp = STORE (unlike a typical depth buffer that could discard once used) because the
     // depth-peeling transparency composite pass (applytransparency_vk.frag) samples this depth
-    // buffer after the opaque render pass has ended - see uOpaqueDepth. initialLayout = UNDEFINED
-    // is safe here (unlike colour) since loadOp = CLEAR means existing contents are always
-    // discarded anyway - this attachment is rewritten fresh at the start of every single frame.
+    // buffer after the opaque render pass has ended - see uOpaqueDepth.
+    // EXPERIMENT: kept at permanent GENERAL (unlike colour) instead of round-tripping through
+    // DEPTH_STENCIL_ATTACHMENT_OPTIMAL/SHADER_READ_ONLY_OPTIMAL - profiling showed the opaque
+    // pass costing ~8.5x more per-instance in Vulkan than the equivalent OpenGL draw for the same
+    // scene, and depth compression metadata (Hi-Z/HTILE-style) tied to attachment-optimal layouts
+    // requiring a decompress on every transition to SHADER_READ_ONLY_OPTIMAL is the leading
+    // suspect - testing whether reverting just this part closes the gap.
     VkAttachmentDescription depthAttachment{};
     depthAttachment.format = _depthFormat;
     depthAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
@@ -298,11 +302,11 @@ void VulkanDrawingContext::CreatePipelines()
     depthAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
     depthAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
     depthAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-    depthAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-    depthAttachment.finalLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+    depthAttachment.initialLayout = VK_IMAGE_LAYOUT_GENERAL;
+    depthAttachment.finalLayout = VK_IMAGE_LAYOUT_GENERAL;
 
     VkAttachmentReference colourRef{ 0, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL };
-    VkAttachmentReference depthRef{ 1, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL };
+    VkAttachmentReference depthRef{ 1, VK_IMAGE_LAYOUT_GENERAL };
 
     VkSubpassDescription subpass{};
     subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
@@ -877,10 +881,10 @@ void VulkanDrawingContext::CreateOffscreenTargets()
     // LOAD_OP_LOAD and only redraw dirty regions. This also establishes the colour targets'
     // steady-state resting layout (SHADER_READ_ONLY_OPTIMAL, matching every render pass's
     // initialLayout/finalLayout for these attachments - see CreatePipelines) before the first
-    // frame runs. The depth/transparent-colour targets need no initial transition at all: their
-    // render passes always declare initialLayout = UNDEFINED (safe because they're unconditionally
-    // cleared - LOAD_OP_CLEAR - on every single use), so whatever layout they happen to be in
-    // after creation is irrelevant.
+    // frame runs. The depth/transparent-colour targets (EXPERIMENT: depth kept at permanent
+    // GENERAL, see CreatePipelines) are transitioned below too; _transparentColour needs no
+    // initial transition since its render pass always declares initialLayout = UNDEFINED (safe
+    // because it's unconditionally cleared - LOAD_OP_CLEAR - on every single use).
     VkCommandBufferAllocateInfo cmdAlloc{};
     cmdAlloc.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
     cmdAlloc.commandPool = _commandPool;
@@ -909,6 +913,15 @@ void VulkanDrawingContext::CreateOffscreenTargets()
         TransitionImageLayout(
             cmd, target.image, VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
             VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+    }
+
+    // EXPERIMENT: opaque/transparent depth targets kept at permanent GENERAL (see
+    // CreatePipelines) rather than relying on initialLayout = UNDEFINED, so they need an explicit
+    // one-time transition here too.
+    TransitionImageLayout(cmd, _opaqueDepth.image, VK_IMAGE_ASPECT_DEPTH_BIT, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL);
+    for (auto& target : _transparentDepthTargets)
+    {
+        TransitionImageLayout(cmd, target.image, VK_IMAGE_ASPECT_DEPTH_BIT, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL);
     }
 
     CheckVk(vkEndCommandBuffer(cmd), "vkEndCommandBuffer(offscreen init)");
@@ -1071,7 +1084,9 @@ void VulkanDrawingContext::UpdateRectDescriptorSetIfChanged(uint32_t frameIndex,
     VkDescriptorImageInfo peelingInfo{};
     peelingInfo.sampler = _paletteSampler;
     peelingInfo.imageView = peelingView;
-    peelingInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+    // EXPERIMENT: peelingView is always one of _opaqueDepth/_transparentDepthTargets, which are
+    // being kept at permanent GENERAL for this test (see CreatePipelines).
+    peelingInfo.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
 
     VkWriteDescriptorSet writes[3]{};
     uint32_t writeCount = 0;
@@ -1171,15 +1186,17 @@ void VulkanDrawingContext::UpdateCompositeDescriptorSetIfChanged(
         &_compositeOpaqueColourBoundView,     &_compositeOpaqueDepthBoundView, &_compositeTransparentColourBoundView,
         &_compositeTransparentDepthBoundView, &_compositePaletteBoundView,     &_compositeBlendPaletteBoundView,
     };
-    // Bindings 0-3 sample the ping-ponged offscreen colour/depth targets (always
-    // SHADER_READ_ONLY_OPTIMAL by the time they're read here - each render pass transitions its
-    // attachments to that layout via finalLayout once writing is done, see CreatePipelines);
-    // bindings 4-5 are the palette/blend-palette lookup textures (also SHADER_READ_ONLY_OPTIMAL,
-    // immutable after their one-time creation).
+    // Bindings 0-3 sample the ping-ponged offscreen colour/depth targets. Binding 0 (opaque
+    // colour) and 2 (transparent colour) are SHADER_READ_ONLY_OPTIMAL (see CreatePipelines);
+    // bindings 1/3 (opaque/transparent depth) are EXPERIMENTALLY kept at permanent GENERAL (see
+    // CreatePipelines) rather than SHADER_READ_ONLY_OPTIMAL, to test whether depth compression
+    // decompress overhead explains the measured Vulkan-vs-OpenGL opaque-pass gap. Bindings 4-5
+    // are the palette/blend-palette lookup textures (also SHADER_READ_ONLY_OPTIMAL, immutable
+    // after their one-time creation).
     VkImageLayout layouts[6] = { VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+                                 VK_IMAGE_LAYOUT_GENERAL,
                                  VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-                                 VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-                                 VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+                                 VK_IMAGE_LAYOUT_GENERAL,
                                  VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
                                  VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL };
 
