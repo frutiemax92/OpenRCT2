@@ -42,6 +42,7 @@ namespace OpenRCT2::Config
         bool uncapFPS;
         bool useVSync;
         bool showFPS;
+        bool showFPSAverage;
         std::atomic_uint8_t multiThreading;
         bool minimizeFullscreenFocusLoss;
         bool disableScreensaver;

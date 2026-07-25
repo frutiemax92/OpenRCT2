@@ -1424,15 +1424,17 @@ bool VulkanDrawingContext::CohenSutherlandLineClip(ScreenLine& line, const Rende
 
 void VulkanDrawingContext::Clear(RenderTarget& rt, PaletteIndex paletteIndex)
 {
-    Guard::Assert(_inDraw == true);
+    // No per-call Guard::Assert(_inDraw) here (or in any of the DrawXxx/FillRect/FilterRect
+    // functions below) - the invariant is already enforced once per frame in StartNewDraw/
+    // FinishDraw/FlushCommandBuffers, and re-checking it on every single sprite/rect (tens of
+    // thousands of times per busy frame) is a real non-inlined function call cost that
+    // OpenGLDrawingContext's equivalents don't pay at all.
     FillRect(rt, paletteIndex, rt.x, rt.y, rt.x + rt.width, rt.y + rt.height);
 }
 
 void VulkanDrawingContext::FillRect(
     RenderTarget& rt, PaletteIndex paletteIndex, int32_t left, int32_t top, int32_t right, int32_t bottom, bool crossHatch)
 {
-    Guard::Assert(_inDraw == true);
-
     const ScreenRect clip = CalculateClipping(rt);
     left += clip.GetLeft() - rt.x;
     top += clip.GetTop() - rt.y;
@@ -1461,8 +1463,6 @@ void VulkanDrawingContext::FillRect(
 void VulkanDrawingContext::FilterRect(
     RenderTarget& rt, FilterPaletteID palette, int32_t left, int32_t top, int32_t right, int32_t bottom)
 {
-    Guard::Assert(_inDraw == true);
-
     const ScreenRect clip = CalculateClipping(rt);
     left += clip.GetLeft() - rt.x;
     top += clip.GetTop() - rt.y;
@@ -1487,8 +1487,6 @@ void VulkanDrawingContext::FilterRect(
 
 void VulkanDrawingContext::DrawLine(RenderTarget& rt, PaletteIndex colour, const ScreenLine& line)
 {
-    Guard::Assert(_inDraw == true);
-
     const ZoomLevel zoom = rt.zoom_level;
     ScreenLine trimmedLine = { { zoom.ApplyInversedTo(line.GetX1()), zoom.ApplyInversedTo(line.GetY1()) },
                                { zoom.ApplyInversedTo(line.GetX2()), zoom.ApplyInversedTo(line.GetY2()) } };
@@ -1509,8 +1507,6 @@ void VulkanDrawingContext::DrawLine(RenderTarget& rt, PaletteIndex colour, const
 
 void VulkanDrawingContext::DrawSprite(RenderTarget& rt, const ImageId imageId, const int32_t x, const int32_t y)
 {
-    Guard::Assert(_inDraw == true);
-
     auto g1Element = GfxGetG1Element(imageId);
     if (g1Element == nullptr)
         return;
@@ -1642,8 +1638,6 @@ void VulkanDrawingContext::DrawSprite(RenderTarget& rt, const ImageId imageId, c
 void VulkanDrawingContext::DrawSpriteRawMasked(
     RenderTarget& rt, int32_t x, int32_t y, const ImageId maskImage, const ImageId colourImage)
 {
-    Guard::Assert(_inDraw == true);
-
     auto g1ElementMask = GfxGetG1Element(maskImage);
     auto g1ElementColour = GfxGetG1Element(colourImage);
     if (g1ElementMask == nullptr || g1ElementColour == nullptr)
@@ -1697,8 +1691,6 @@ void VulkanDrawingContext::DrawSpriteRawMasked(
 
 void VulkanDrawingContext::DrawSpriteSolid(RenderTarget& rt, const ImageId image, int32_t x, int32_t y, PaletteIndex colour)
 {
-    Guard::Assert(_inDraw == true);
-
     auto g1Element = GfxGetG1Element(image);
     if (g1Element == nullptr)
         return;
@@ -1742,8 +1734,6 @@ void VulkanDrawingContext::DrawSpriteSolid(RenderTarget& rt, const ImageId image
 
 void VulkanDrawingContext::DrawGlyph(RenderTarget& rt, const ImageId image, int32_t x, int32_t y, const PaletteMap& palette)
 {
-    Guard::Assert(_inDraw == true);
-
     auto g1Element = GfxGetG1Element(image);
     if (g1Element == nullptr)
         return;
@@ -1791,8 +1781,6 @@ void VulkanDrawingContext::DrawGlyph(RenderTarget& rt, const ImageId image, int3
 void VulkanDrawingContext::DrawTTFBitmap(
     RenderTarget& rt, const TextDrawInfo& info, TTFSurface* surface, int32_t x, int32_t y, uint8_t hintingThreshold)
 {
-    Guard::Assert(_inDraw == true);
-
 #ifndef DISABLE_TTF
     auto baseId = static_cast<uint32_t>(0x7FFFF) - 1024;
     auto imageId = baseId + _ttfGlId;

@@ -119,7 +119,15 @@ void Painter::PaintFPS(RenderTarget& rt)
     MeasureFPS();
 
     char buffer[64]{};
-    FormatStringToBuffer(buffer, sizeof(buffer), "{OUTLINE}{WHITE}{INT32}", _currentFPS);
+    if (Config::Get().general.showFPSAverage)
+    {
+        FormatStringToBuffer(
+            buffer, sizeof(buffer), "{OUTLINE}{WHITE}{INT32} {OUTLINE}{GREY}({INT32})", _currentFPS, _averageFPS);
+    }
+    else
+    {
+        FormatStringToBuffer(buffer, sizeof(buffer), "{OUTLINE}{WHITE}{INT32}", _currentFPS);
+    }
     const int32_t stringWidth = getStringWidth(buffer, FontStyle::medium);
 
     // Figure out where counter should be rendered
@@ -148,6 +156,20 @@ void Painter::MeasureFPS()
     {
         _currentFPS = _frames;
         _frames = 0;
+
+        _fpsHistory[_fpsHistoryIndex] = _currentFPS;
+        _fpsHistoryIndex = (_fpsHistoryIndex + 1) % kFPSHistorySize;
+        if (_fpsHistoryCount < kFPSHistorySize)
+        {
+            _fpsHistoryCount++;
+        }
+
+        int32_t sum = 0;
+        for (size_t i = 0; i < _fpsHistoryCount; i++)
+        {
+            sum += _fpsHistory[i];
+        }
+        _averageFPS = (_fpsHistoryCount != 0) ? (sum / static_cast<int32_t>(_fpsHistoryCount)) : 0;
     }
     _lastSecond = currentTime;
 }

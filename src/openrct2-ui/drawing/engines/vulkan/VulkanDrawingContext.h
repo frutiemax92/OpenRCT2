@@ -26,7 +26,14 @@ namespace OpenRCT2::Drawing
 
 namespace OpenRCT2::Ui
 {
-    constexpr uint32_t kVulkanFramesInFlight = 2;
+    // 3 (triple-buffering) instead of 2 - Present()'s vkWaitForFences(..., UINT64_MAX) blocks the
+    // CPU until the GPU finishes the frame that most recently used this same _currentFrame slot;
+    // with only 2 frames in flight the CPU can get at most 1 frame ahead of the GPU before
+    // stalling, which (being a real block/wait, not CPU work) doesn't show up as a hot function in
+    // CPU profiling but does cap throughput at very high frame rates. 3 lets the CPU race further
+    // ahead, trading one extra frame of input latency (imperceptible for this game) for less
+    // CPU-side stalling.
+    constexpr uint32_t kVulkanFramesInFlight = 3;
 
     // Vulkan equivalent of the OpenGL renderer's OpenGLDrawingContext: batches draw calls into
     // CPU-side VulkanDrawRectCommand/VulkanDrawLineCommand instance buffers (see VulkanDrawCommands.h) and

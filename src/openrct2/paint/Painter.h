@@ -11,6 +11,7 @@
 
 #include "Paint.h"
 
+#include <array>
 #include <ctime>
 #include <memory>
 #include <sfl/segmented_vector.hpp>
@@ -40,6 +41,13 @@ namespace OpenRCT2
             time_t _lastSecond = 0;
             int32_t _currentFPS = 0;
             int32_t _frames = 0;
+
+            // Rolling average FPS (over the last kFPSHistorySize whole-second samples)
+            static constexpr size_t kFPSHistorySize = 10;
+            std::array<int32_t, kFPSHistorySize> _fpsHistory{};
+            size_t _fpsHistoryCount = 0;
+            size_t _fpsHistoryIndex = 0;
+            int32_t _averageFPS = 0;
 
         public:
             explicit Painter(Ui::IUiContext& uiContext);
