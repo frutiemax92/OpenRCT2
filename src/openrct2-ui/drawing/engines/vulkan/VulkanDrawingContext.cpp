@@ -1256,6 +1256,13 @@ void VulkanDrawingContext::HandleTransparency(VkCommandBuffer cmd, uint32_t fram
     VkBuffer vbo = _transparentRectInstanceBuffers[frameIndex].buffer;
     VkDeviceSize vboOffset = 0;
 
+    // Viewport/scissor are identical for every iteration and every pass below (always the full
+    // offscreen target extent) - dynamic state set via vkCmdSetViewport/vkCmdSetScissor persists
+    // across render pass boundaries within the same command buffer, so set them once here instead
+    // of redundantly inside the loop.
+    vkCmdSetViewport(cmd, 0, 1, &viewport);
+    vkCmdSetScissor(cmd, 0, 1, &scissor);
+
     for (int32_t i = 0; i < maxDepth; i++)
     {
         uint32_t frontDepthIdx = static_cast<uint32_t>(i % 2);
@@ -1277,9 +1284,6 @@ void VulkanDrawingContext::HandleTransparency(VkCommandBuffer cmd, uint32_t fram
         transparentBegin.clearValueCount = 2;
         transparentBegin.pClearValues = transparentClearValues;
         vkCmdBeginRenderPass(cmd, &transparentBegin, VK_SUBPASS_CONTENTS_INLINE);
-
-        vkCmdSetViewport(cmd, 0, 1, &viewport);
-        vkCmdSetScissor(cmd, 0, 1, &scissor);
 
         VkImageView peelingView = i > 0 ? _transparentDepthTargets[backDepthIdx].view : _opaqueDepth.view;
         UpdateRectDescriptorSetIfChanged(frameIndex, peelingView);
@@ -1313,9 +1317,6 @@ void VulkanDrawingContext::HandleTransparency(VkCommandBuffer cmd, uint32_t fram
         mixBegin.framebuffer = _mixFramebuffers[mixIdx];
         mixBegin.renderArea.extent = { _width, _height };
         vkCmdBeginRenderPass(cmd, &mixBegin, VK_SUBPASS_CONTENTS_INLINE);
-
-        vkCmdSetViewport(cmd, 0, 1, &viewport);
-        vkCmdSetScissor(cmd, 0, 1, &scissor);
 
         UpdateCompositeDescriptorSetIfChanged(
             frameIndex, _colourTargets[_currentColourIndex].view, _opaqueDepth.view, _transparentColour.view,
