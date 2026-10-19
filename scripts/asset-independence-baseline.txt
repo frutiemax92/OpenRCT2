@@ -2,7 +2,6 @@
 # pack (AST-002, AST-006). This list may only shrink: regenerate it with
 #   scripts/check-asset-independence.py --update-baseline
 # after removing references. The goal is an empty list.
-CMakeLists.txt 2
 data/language/ar-EG.txt 1
 data/language/ca-ES.txt 1
 data/language/cs-CZ.txt 1
@@ -28,12 +27,10 @@ data/language/uk-UA.txt 1
 data/language/vi-VN.txt 1
 data/language/zh-CN.txt 1
 data/language/zh-TW.txt 1
-src/openrct2-ui/CMakeLists.txt 2
 src/openrct2/PlatformEnvironment.h 1
 src/openrct2/SpriteIds.h 2
 src/openrct2/command_line/RootCommands.cpp 5
-src/openrct2/config/Config.cpp 1
-src/openrct2/drawing/Drawing.Sprite.cpp 12
+src/openrct2/drawing/Drawing.Sprite.cpp 2
 src/openrct2/object/ResourceTable.cpp 2
 src/openrct2/platform/Platform.Android.cpp 1
 src/openrct2/platform/Platform.Common.cpp 4

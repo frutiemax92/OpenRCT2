@@ -214,8 +214,8 @@ namespace OpenRCT2
 
             GfxObjectCheckAllImagesFreed();
             GfxUnloadCsg();
-            GfxUnloadG2PalettesFontsTracks();
-            GfxUnloadG1();
+            GfxUnloadPalettesFontsTracks();
+            GfxUnloadBaseGraphics();
             Audio::Close();
 
             Instance = nullptr;
@@ -397,15 +397,7 @@ namespace OpenRCT2
             //  return false;
             // } //This comment was relocated so it would stay where it was in relation to the following lines of code.
 
-            if (!gOpenRCT2Headless)
-            {
-                auto rct2InstallPath = GetOrPromptRCT2Path();
-                if (rct2InstallPath.empty())
-                {
-                    return false;
-                }
-                _env->SetBasePath(DirBase::rct2, rct2InstallPath);
-            }
+            // AST-001: the game needs no RollerCoaster Tycoon installation, so it never asks for one.
 
             // The repositories are all dependent on the RCT2 path being set,
             // so they cannot be set in the constructor.
@@ -967,42 +959,14 @@ namespace OpenRCT2
             return false;
         }
 
-        std::string GetOrPromptRCT2Path()
-        {
-            auto result = std::string();
-            if (gCustomRCT2DataPath.empty())
-            {
-                // Check install directory
-                if (Config::Get().general.rct2Path.empty() || !Platform::OriginalGameDataExists(Config::Get().general.rct2Path))
-                {
-                    LOG_VERBOSE(
-                        "install directory does not exist or invalid directory selected, %s",
-                        Config::Get().general.rct2Path.c_str());
-                    if (!Config::FindOrBrowseInstallDirectory())
-                    {
-                        auto path = Config::GetDefaultPath();
-                        Console::Error::WriteLine(
-                            "An RCT2 install directory must be specified! Please edit \"game_path\" in %s.\n", path.c_str());
-                        return std::string();
-                    }
-                }
-                result = Config::Get().general.rct2Path;
-            }
-            else
-            {
-                result = gCustomRCT2DataPath;
-            }
-            return result;
-        }
-
         // TODO: move function elsewhere?
         bool LoadBaseGraphics()
         {
-            if (!GfxLoadG1(*_env))
+            if (!GfxLoadBaseGraphics(*_env))
             {
                 return false;
             }
-            GfxLoadG2PalettesFontsTracks();
+            GfxLoadPalettesFontsTracks();
             GfxLoadCsg();
             FontSpriteInitialiseCharacters();
             return true;

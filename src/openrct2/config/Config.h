@@ -259,5 +259,4 @@ namespace OpenRCT2::Config
     u8string GetDefaultPath();
     bool SetDefaults();
     bool Save();
-    bool FindOrBrowseInstallDirectory();
 } // namespace OpenRCT2::Config

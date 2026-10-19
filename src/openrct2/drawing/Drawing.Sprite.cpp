@@ -83,236 +83,7 @@ static thread_local uint8_t kTertiaryRemapPalette[256] = {
     0xF0, 0xF1, 0xF2, 0xF3, 0xF4, 0xF5, 0xF6, 0xF7, 0xF8, 0xF9, 0xFA, 0xFB, 0xFC, 0xFD, 0xFE, 0xFF,
 };
 
-constexpr struct
-{
-    int start;
-    int32_t x_offset;
-    int32_t y_offset;
-}
-sprite_peep_pickup_starts[15] =
-{
-    {SPR_PEEP_PICKUP_GUEST_START, 0, 15},
-    {SPR_PEEP_PICKUP_HANDYMAN_START, 1, 18},
-    {SPR_PEEP_PICKUP_MECHANIC_START, 3, 22},
-    {SPR_PEEP_PICKUP_GUARD_START, 3, 15},
-    {SPR_PEEP_PICKUP_PANDA_START, -1, 19},
-    {SPR_PEEP_PICKUP_TIGER_START, -1, 17},
-    {SPR_PEEP_PICKUP_ELEPHANT_START, -1, 17},
-    {SPR_PEEP_PICKUP_GORILLA_START, 0, 17},
-    {SPR_PEEP_PICKUP_SNOWMAN_START, -1, 16},
-    {SPR_PEEP_PICKUP_KNIGHT_START, -2, 17},
-    {SPR_PEEP_PICKUP_BANDIT_START, 0, 16},
-    {SPR_PEEP_PICKUP_PIRATE_START, 0, 16},
-    {SPR_PEEP_PICKUP_SHERIFF_START, 0, 16},
-    {SPR_PEEP_PICKUP_ASTRONAUT_START, 0, 16},
-    {SPR_PEEP_PICKUP_ROMAN_START, -1, 17},
-};
-
-static inline uint32_t rctc_to_rct2_index(uint32_t image)
-{
-    if (                  image <  1542) return image;
-    if (image >=  1574 && image <  4983) return image - 32;
-    if (image >=  4986 && image < 17189) return image - 35;
-    if (image >= 17191 && image < 18121) return image - 37;
-    if (image >= 18123 && image < 23800) return image - 39;
-    if (image >= 23804 && image < 24670) return image - 43;
-    if (image >= 24674 && image < 28244) return image - 47;
-    if (image >= 28246                 ) return image - 49;
-    throw std::runtime_error("Invalid RCTC g1.dat file");
-}
 // clang-format on
-
-static void OverrideElementOffsets(size_t index, G1Element& element)
-{
-    switch (index)
-    {
-        case 25285:
-            element.xOffset -= 1;
-            break;
-        case 25286:
-        case 25317:
-        case 25318:
-        case 25323:
-        case 25324:
-        case 25325:
-        case 25326:
-        case 25455:
-        case 25456:
-        case 25457:
-        case 25458:
-        case 25459:
-        case 25460:
-        case 25461:
-        case 25462:
-        case 25463:
-        case 25464:
-        case 25465:
-        case 25466:
-        case 25467:
-        case 25468:
-        case 25469:
-        case 25470:
-        case 25471:
-        case 25472:
-        case 25473:
-        case 25474:
-        case 25475:
-        case 25476:
-        case 25521:
-        case 25522:
-        case 25523:
-        case 25524:
-        case 25525:
-        case 25526:
-        case 25527:
-        case 25528:
-        case 25529:
-        case 25530:
-        case 25531:
-        case 25532:
-        case 25533:
-        case 25534:
-        case 25659:
-        case 25660:
-        case 25661:
-        case 25662:
-        case 25663:
-        case 25664:
-        case 25665:
-        case 25666:
-        case 25667:
-        case 25668:
-        case 25669:
-        case 25670:
-        case 25671:
-        case 25672:
-        case 25673:
-        case 25674:
-        case 25675:
-        case 25676:
-        case 25677:
-        case 25678:
-        case 25679:
-        case 25680:
-        case 25681:
-        case 25682:
-        case 25683:
-        case 25684:
-        case 25685:
-        case 25686:
-        case 25687:
-        case 25688:
-        case 25689:
-        case 25690:
-        case 25719:
-        case 25721:
-        case 25723:
-        case 25725:
-        case 25727:
-        case 25728:
-        case 25730:
-        case 25732:
-        case 25733:
-        case 25735:
-        case 25737:
-        case 25738:
-        case 25740:
-        case 25742:
-        case 25743:
-        case 25745:
-        case 25747:
-        case 25748:
-        case 25781:
-        case 25782:
-        case 25783:
-        case 25784:
-        case 25785:
-        case 25786:
-        case 25787:
-        case 25788:
-        case 25789:
-        case 25790:
-        case 25791:
-        case 25792:
-        case 25793:
-        case 25794:
-        case 25795:
-        case 25796:
-        case 25797:
-        case 25798:
-        case 25799:
-        case 25800:
-        case 25801:
-        case 25803:
-        case 25804:
-        case 25805:
-        case 25806:
-        case 25807:
-        case 25808:
-        case 25809:
-        case 25810:
-        case 25811:
-        case 25812:
-        case 25813:
-        case 25814:
-        case 25815:
-        case 25816:
-        case 25817:
-        case 25818:
-        case 25819:
-        case 25820:
-        case 25821:
-        case 25822:
-        case 25823:
-        case 25824:
-        case 25825:
-        case 25826:
-        case 25827:
-        case 25828:
-        case 25829:
-        case 25830:
-        case 25831:
-        case 25832:
-        case 25833:
-        case 25834:
-        case 25835:
-        case 25836:
-        case 25837:
-        case 25838:
-        case 25839:
-        case 25840:
-        case 25841:
-        case 25842:
-        case 25843:
-        case 25844:
-        case 25845:
-        case 25846:
-        case 25847:
-        case 25848:
-        case 25849:
-        case 25850:
-        case 25851:
-        case 25852:
-            element.yOffset += 1;
-            break;
-        case 25307:
-        case 25315:
-        case 25319:
-            element.xOffset -= 1;
-            element.yOffset += 1;
-            break;
-        case 25802:
-            element.yOffset += 2;
-            break;
-        case 28733:
-        case 28734:
-        case 28735:
-        case 28736:
-            element.xOffset -= 1; // Steeplechase leftEighthToDiag angle 2
-            break;
-    }
-}
-
 static auto GetMaskFunction()
 {
     if (Platform::AVX2Available())
@@ -341,89 +112,23 @@ void MaskFn(
     MaskFunc(width, height, maskSrc, colourSrc, dst, maskWrap, colourWrap, dstWrap);
 }
 
-static void ReadAndConvertGxDat(IStream* stream, size_t count, bool is_rctc, G1Element* elements)
+static void ReadAndConvertGxDat(IStream* stream, size_t count, G1Element* elements)
 {
     auto g1Elements32 = std::make_unique<StoredG1Element[]>(count);
     stream->Read(g1Elements32.get(), count * sizeof(StoredG1Element));
-    if (is_rctc)
+    for (size_t i = 0; i < count; i++)
     {
-        // Process RCTC's g1.dat file
-        uint32_t rctc = 0;
-        for (size_t i = 0; i < SPR_G1_END; ++i)
-        {
-            // RCTC's g1.dat has a number of additional elements
-            // added between the RCT2 elements. This switch
-            // statement skips over the elements we don't want.
-            switch (i)
-            {
-                case 1542:
-                    rctc += 32;
-                    break;
-                case 23761:
-                case 24627:
-                    rctc += 4;
-                    break;
-                case 4951:
-                    rctc += 3;
-                    break;
-                case 17154:
-                case 18084:
-                case 28197:
-                    rctc += 2;
-                    break;
-            }
+        const StoredG1Element& src = g1Elements32[i];
 
-            const StoredG1Element& src = g1Elements32[rctc];
-
-            // Double cast to silence compiler warning about casting to
-            // pointer from integer of mismatched length.
-            elements[i].offset = reinterpret_cast<uint8_t*>(static_cast<uintptr_t>(src.offset));
-            elements[i].width = src.width;
-            elements[i].height = src.height;
-            elements[i].xOffset = src.xOffset;
-            elements[i].yOffset = src.yOffset;
-            elements[i].flags = src.flags;
-
-            if (src.flags.has(G1Flag::hasZoomSprite))
-            {
-                elements[i].zoomedOffset = static_cast<int32_t>(i - rctc_to_rct2_index(rctc - src.zoomedOffset));
-            }
-            else
-            {
-                elements[i].zoomedOffset = src.zoomedOffset;
-            }
-
-            ++rctc;
-        }
-
-        // The pincer graphic for picking up peeps is different in
-        // RCTC, and the sprites have different offsets to accommodate
-        // the change. This reverts the offsets to their RCT2 values.
-        for (const auto& animation : sprite_peep_pickup_starts)
-        {
-            for (auto i = 0u; i < SPR_PEEP_PICKUP_COUNT; ++i)
-            {
-                elements[animation.start + i].xOffset -= animation.x_offset;
-                elements[animation.start + i].yOffset -= animation.y_offset;
-            }
-        }
-    }
-    else
-    {
-        for (size_t i = 0; i < count; i++)
-        {
-            const StoredG1Element& src = g1Elements32[i];
-
-            // Double cast to silence compiler warning about casting to
-            // pointer from integer of mismatched length.
-            elements[i].offset = reinterpret_cast<uint8_t*>(static_cast<uintptr_t>(src.offset));
-            elements[i].width = src.width;
-            elements[i].height = src.height;
-            elements[i].xOffset = src.xOffset;
-            elements[i].yOffset = src.yOffset;
-            elements[i].flags = src.flags;
-            elements[i].zoomedOffset = src.zoomedOffset;
-        }
+        // Double cast to silence compiler warning about casting to
+        // pointer from integer of mismatched length.
+        elements[i].offset = reinterpret_cast<uint8_t*>(static_cast<uintptr_t>(src.offset));
+        elements[i].width = src.width;
+        elements[i].height = src.height;
+        elements[i].xOffset = src.xOffset;
+        elements[i].yOffset = src.yOffset;
+        elements[i].flags = src.flags;
+        elements[i].zoomedOffset = src.zoomedOffset;
     }
 }
 
@@ -472,8 +177,8 @@ static void MaskMagnify(
     }
 }
 
-static Gx _g1 = {};
-static Gx _g2 = {};
+// Base graphics pack: images of the g1 and g2 index ranges (AST-002).
+static Gx _base = {};
 static Gx _fonts = {};
 static Gx _palettes = {};
 static Gx _tracks = {};
@@ -484,77 +189,66 @@ static bool _csgLoaded = false;
 static G1Element _g1Temp[kTempSpriteCount] = {};
 static std::vector<G1Element> _imageListElements;
 
-/**
- *
- *  rct2: 0x00678998
- */
-bool GfxLoadG1(const IPlatformEnvironment& env)
+bool GfxLoadBaseGraphics(const IPlatformEnvironment& env)
 {
-    LOG_VERBOSE("GfxLoadG1(...)");
+    LOG_VERBOSE("GfxLoadBaseGraphics(...)");
+    auto path = Path::Combine(env.GetDirectoryPath(DirBase::openrct2), kBaseGraphicsFileName);
     try
     {
-        auto path = env.FindFile(DirBase::rct2, DirId::data, u8"g1.dat");
         auto fs = FileStream(path, FileMode::open);
-        _g1.header = fs.ReadValue<G1Header>();
-
-        LOG_VERBOSE("g1.dat, number of entries: %u", _g1.header.numEntries);
-
-        if (_g1.header.numEntries < SPR_G1_END)
+        _base.header = fs.ReadValue<G1Header>();
+        if (_base.header.numEntries > SPR_G2_END)
         {
-            throw std::runtime_error("Not enough elements in g1.dat");
+            throw std::runtime_error("too many entries");
         }
 
-        // Read element headers
-        bool is_rctc = _g1.header.numEntries == SPR_RCTC_G1_END;
-        _g1.elements.resize(_g1.header.numEntries);
-        ReadAndConvertGxDat(&fs, _g1.header.numEntries, is_rctc, _g1.elements.data());
+        // Read element headers, then pad to the end of the range: slots the pack does not provide are empty images.
+        _base.elements.resize(SPR_G2_END);
+        ReadAndConvertGxDat(&fs, _base.header.numEntries, _base.elements.data());
+        _base.data = fs.ReadArray<uint8_t>(_base.header.totalSize);
 
-        // Read element data
-        _g1.data = fs.ReadArray<uint8_t>(_g1.header.totalSize);
-
-        // Fix entry data offsets
-        for (uint32_t i = 0; i < _g1.header.numEntries; i++)
+        for (uint32_t i = 0; i < _base.header.numEntries; i++)
         {
-            if (_g1.elements[i].offset == nullptr)
+            if (_base.elements[i].offset == nullptr)
             {
-                _g1.elements[i].offset = _g1.data.get();
+                _base.elements[i].offset = _base.data.get();
             }
             else
             {
-                _g1.elements[i].offset += reinterpret_cast<uintptr_t>(_g1.data.get());
+                _base.elements[i].offset += reinterpret_cast<uintptr_t>(_base.data.get());
             }
-            OverrideElementOffsets(i, _g1.elements[i]);
+        }
+        for (size_t i = _base.header.numEntries; i < _base.elements.size(); i++)
+        {
+            _base.elements[i].offset = _base.data.get();
         }
         return true;
     }
-    catch (const std::exception&)
+    catch (const std::exception& e)
     {
-        _g1.elements.clear();
-        _g1.elements.shrink_to_fit();
+        GfxUnloadBaseGraphics();
 
-        LOG_FATAL("Unable to load g1 graphics");
+        LOG_FATAL("Unable to load base graphics %s: %s", path.c_str(), e.what());
         if (!gOpenRCT2Headless)
         {
             auto& uiContext = GetContext()->GetUiContext();
-            uiContext.ShowMessageBox("Unable to load g1.dat. Your RollerCoaster Tycoon 2 path may be incorrectly set.");
+            uiContext.ShowMessageBox(
+                std::string("Unable to load ") + kBaseGraphicsFileName + ". Your installation may be damaged.");
         }
         return false;
     }
 }
 
-void GfxUnloadG1()
+void GfxUnloadBaseGraphics()
 {
-    _g1.data.reset();
-    _g1.elements.clear();
-    _g1.elements.shrink_to_fit();
+    _base.data.reset();
+    _base.elements.clear();
+    _base.elements.shrink_to_fit();
+    _base.header = {};
 }
 
-void GfxUnloadG2PalettesFontsTracks()
+void GfxUnloadPalettesFontsTracks()
 {
-    _g2.data.reset();
-    _g2.elements.clear();
-    _g2.elements.shrink_to_fit();
-
     _palettes.data.reset();
     _palettes.elements.clear();
     _palettes.elements.shrink_to_fit();
@@ -590,7 +284,7 @@ static bool GfxLoadOpenRCT2Gx(std::string filename, Gx& target, size_t expectedN
 
         // Read element headers
         target.elements.resize(target.header.numEntries);
-        ReadAndConvertGxDat(&fs, target.header.numEntries, false, target.elements.data());
+        ReadAndConvertGxDat(&fs, target.header.numEntries, target.elements.data());
 
         // Read element data
         target.data = fs.ReadArray<uint8_t>(target.header.totalSize);
@@ -643,9 +337,8 @@ static bool GfxLoadOpenRCT2Gx(std::string filename, Gx& target, size_t expectedN
     return false;
 }
 
-void GfxLoadG2PalettesFontsTracks()
+void GfxLoadPalettesFontsTracks()
 {
-    GfxLoadOpenRCT2Gx("g2.dat", _g2, kG2SpriteCount);
     GfxLoadOpenRCT2Gx("palettes.dat", _palettes, kPalettesDatSpriteCount);
     GfxLoadOpenRCT2Gx("fonts.dat", _fonts, kFontsDatSpriteCount);
     GfxLoadOpenRCT2Gx("tracks.dat", _tracks, kTracksDatSpriteCount);
@@ -681,7 +374,7 @@ bool GfxLoadCsg()
 
         // Read element headers
         _csg.elements.resize(_csg.header.numEntries);
-        ReadAndConvertGxDat(&fileHeader, _csg.header.numEntries, false, _csg.elements.data());
+        ReadAndConvertGxDat(&fileHeader, _csg.header.numEntries, _csg.elements.data());
 
         // Read element data
         _csg.data = fileData.ReadArray<uint8_t>(_csg.header.totalSize);
@@ -727,7 +420,7 @@ std::optional<Gx> GfxLoadGx(const std::vector<uint8_t>& buffer)
 
         // Read element headers
         gx.elements.resize(gx.header.numEntries);
-        ReadAndConvertGxDat(&istream, gx.header.numEntries, false, gx.elements.data());
+        ReadAndConvertGxDat(&istream, gx.header.numEntries, gx.elements.data());
 
         // Read element data
         gx.data = istream.ReadArray<uint8_t>(gx.header.totalSize);
@@ -1085,22 +778,12 @@ const G1Element* GfxGetG1Element(ImageIndex image_id)
         return &_g1Temp[offset - SPR_TEMP_BEGIN];
     }
 
-    if (offset < SPR_RCTC_G1_END)
+    if (offset < SPR_G2_END)
     {
-        if (offset < _g1.elements.size())
+        if (offset < _base.elements.size())
         {
-            return &_g1.elements[offset];
+            return &_base.elements[offset];
         }
-    }
-    else if (offset < SPR_G2_END)
-    {
-        size_t idx = offset - SPR_G2_BEGIN;
-        if (idx < _g2.header.numEntries)
-        {
-            return &_g2.elements[idx];
-        }
-
-        LOG_WARNING("Invalid entry in g2.dat requested, idx = %u. You may have to update your g2.dat.", idx);
     }
     else if (offset < SPR_PALETTE_END)
     {
@@ -1193,14 +876,7 @@ void GfxSetG1Element(ImageIndex imageId, const G1Element* g1)
         }
         else if (isValid)
         {
-            if (imageId < SPR_RCTC_G1_END)
-            {
-                if (imageId < static_cast<ImageIndex>(_g1.elements.size()))
-                {
-                    _g1.elements[imageId] = *g1;
-                }
-            }
-            else if (imageId < SPR_SCROLLING_TEXT_END)
+            if (imageId < SPR_SCROLLING_TEXT_END)
             {
                 size_t idx = static_cast<size_t>(imageId) - SPR_SCROLLING_TEXT_START;
                 if (idx < std::size(_scrollingText))

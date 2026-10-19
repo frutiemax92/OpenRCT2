@@ -8,6 +8,7 @@ install(CODE "execute_process(COMMAND \"${CMAKE_COMMAND}\" -E create_symlink \"\
 
 set(test_files
    "${CMAKE_CURRENT_SOURCE_DIR}/AssertHelpers.hpp"
+   "${CMAKE_CURRENT_SOURCE_DIR}/BaseGraphicsTests.cpp"
    "${CMAKE_CURRENT_SOURCE_DIR}/BitSetTests.cpp"
    "${CMAKE_CURRENT_SOURCE_DIR}/CircularBuffer.cpp"
    "${CMAKE_CURRENT_SOURCE_DIR}/CLITests.cpp"
@@ -57,6 +58,9 @@ find_package(Python3 COMPONENTS Interpreter)
 if (Python3_Interpreter_FOUND)
     add_test(NAME AssetIndependenceScriptTests
         COMMAND ${Python3_EXECUTABLE} -I "${CMAKE_CURRENT_SOURCE_DIR}/../scripts/test_check_asset_independence.py"
+        WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/../..")
+    add_test(NAME BasePackScriptTests
+        COMMAND ${Python3_EXECUTABLE} -I "${CMAKE_CURRENT_SOURCE_DIR}/../scripts/test_base_pack.py"
         WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/../..")
     add_test(NAME PlaceholderGeneratorTests
         COMMAND ${Python3_EXECUTABLE} -I "${CMAKE_CURRENT_SOURCE_DIR}/../scripts/test_placeholders.py"

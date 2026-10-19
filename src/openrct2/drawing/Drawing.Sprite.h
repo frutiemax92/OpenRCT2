@@ -156,11 +156,13 @@ void FASTCALL
 }
 
 // sprite catalogues
-bool GfxLoadG1(const OpenRCT2::IPlatformEnvironment& env);
-void GfxLoadG2PalettesFontsTracks();
+// Base graphics pack (AST-002): the images of the g1 and g2 index ranges of SpriteIds.h, built from resources/base.
+constexpr const char* kBaseGraphicsFileName = "base.gx";
+bool GfxLoadBaseGraphics(const OpenRCT2::IPlatformEnvironment& env);
+void GfxLoadPalettesFontsTracks();
 bool GfxLoadCsg();
-void GfxUnloadG1();
-void GfxUnloadG2PalettesFontsTracks();
+void GfxUnloadBaseGraphics();
+void GfxUnloadPalettesFontsTracks();
 void GfxUnloadCsg();
 const OpenRCT2::G1Element* GfxGetG1Element(ImageId imageId);
 const OpenRCT2::G1Element* GfxGetG1Element(ImageIndex image_id);
