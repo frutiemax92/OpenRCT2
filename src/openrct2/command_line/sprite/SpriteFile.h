@@ -29,6 +29,8 @@ namespace OpenRCT2::CommandLine::Sprite
         std::vector<G1Element> Entries;
         std::vector<uint8_t> Data;
         void AddImage(Drawing::ImageImportResult& image);
+        // Appends an element without image data (zero width and height), used to keep later entries at fixed slots.
+        void addEmpty();
         void addPalette(Drawing::PaletteImportResult& image);
         bool Save(const utf8* path);
         static std::optional<SpriteFile> Open(const utf8* path);

@@ -90,6 +90,12 @@ namespace OpenRCT2::CommandLine::Sprite
         }
     }
 
+    void SpriteFile::addEmpty()
+    {
+        Drawing::ImageImportResult empty{};
+        AddImage(empty);
+    }
+
     void SpriteFile::addPalette(Drawing::PaletteImportResult& palette)
     {
         AddImage(*reinterpret_cast<Drawing::ImageImportResult*>(&palette));

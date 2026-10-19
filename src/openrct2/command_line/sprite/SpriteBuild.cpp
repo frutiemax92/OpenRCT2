@@ -12,6 +12,7 @@
 #include "SpriteCommands.h"
 #include "SpriteFile.h"
 
+#include <cinttypes>
 #include <cstdint>
 
 using namespace OpenRCT2::Drawing;
@@ -71,6 +72,30 @@ namespace OpenRCT2::CommandLine::Sprite
             {
                 fprintf(stderr, "Error: expected object for sprite %s\n", jsonKey.c_str());
                 return ExitCode::fail;
+            }
+
+            // Optional "slot": the entry's index in the file. Earlier unused slots are filled with empty entries, so
+            // sparse files (e.g. the base graphics pack) keep stable image indices.
+            json_t slot = jsonSprite["slot"];
+            if (!slot.is_null())
+            {
+                if (!slot.is_number_integer() || slot.get<int64_t>() < 0)
+                {
+                    fprintf(stderr, "Error: slot of sprite %s must be a non-negative integer\n", jsonKey.c_str());
+                    return ExitCode::fail;
+                }
+                auto target = slot.get<int64_t>();
+                if (target < static_cast<int64_t>(spriteFile.Header.numEntries))
+                {
+                    fprintf(
+                        stderr, "Error: slot %" PRId64 " of sprite %s is already used; slots must increase\n", target,
+                        jsonKey.c_str());
+                    return ExitCode::fail;
+                }
+                while (static_cast<int64_t>(spriteFile.Header.numEntries) < target)
+                {
+                    spriteFile.addEmpty();
+                }
             }
 
             json_t colours = jsonSprite["colours"];
