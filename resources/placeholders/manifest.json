@@ -1,0 +1,303 @@
+{
+  "generator": "scripts/placeholders/generate.py",
+  "images": [
+    {
+      "colour": "#7fae4a",
+      "description": "Grass: unmanaged land",
+      "kind": "terrain_surface",
+      "label": "GRS",
+      "path": "terrain/grass.png",
+      "size": [
+        64,
+        64
+      ]
+    },
+    {
+      "colour": "#7fae4a",
+      "description": "Grass: unmanaged land",
+      "kind": "terrain_surface_icon",
+      "label": "GRS",
+      "path": "terrain/grass_icon.png",
+      "size": [
+        32,
+        32
+      ]
+    },
+    {
+      "colour": "#2f8f5b",
+      "description": "Tee box",
+      "kind": "terrain_surface",
+      "label": "TEE",
+      "path": "terrain/tee.png",
+      "size": [
+        64,
+        64
+      ]
+    },
+    {
+      "colour": "#2f8f5b",
+      "description": "Tee box",
+      "kind": "terrain_surface_icon",
+      "label": "TEE",
+      "path": "terrain/tee_icon.png",
+      "size": [
+        32,
+        32
+      ]
+    },
+    {
+      "colour": "#3fa34d",
+      "description": "Fairway",
+      "kind": "terrain_surface",
+      "label": "FWY",
+      "path": "terrain/fairway.png",
+      "size": [
+        64,
+        64
+      ]
+    },
+    {
+      "colour": "#3fa34d",
+      "description": "Fairway",
+      "kind": "terrain_surface_icon",
+      "label": "FWY",
+      "path": "terrain/fairway_icon.png",
+      "size": [
+        32,
+        32
+      ]
+    },
+    {
+      "colour": "#6fd36a",
+      "description": "Green (puttable)",
+      "kind": "terrain_surface",
+      "label": "GRN",
+      "path": "terrain/green.png",
+      "size": [
+        64,
+        64
+      ]
+    },
+    {
+      "colour": "#6fd36a",
+      "description": "Green (puttable)",
+      "kind": "terrain_surface_icon",
+      "label": "GRN",
+      "path": "terrain/green_icon.png",
+      "size": [
+        32,
+        32
+      ]
+    },
+    {
+      "colour": "#4f7f2f",
+      "description": "Rough",
+      "kind": "terrain_surface",
+      "label": "RGH",
+      "path": "terrain/rough.png",
+      "size": [
+        64,
+        64
+      ]
+    },
+    {
+      "colour": "#4f7f2f",
+      "description": "Rough",
+      "kind": "terrain_surface_icon",
+      "label": "RGH",
+      "path": "terrain/rough_icon.png",
+      "size": [
+        32,
+        32
+      ]
+    },
+    {
+      "colour": "#2f5a20",
+      "description": "Deep rough",
+      "kind": "terrain_surface",
+      "label": "DRG",
+      "path": "terrain/deep_rough.png",
+      "size": [
+        64,
+        64
+      ]
+    },
+    {
+      "colour": "#2f5a20",
+      "description": "Deep rough",
+      "kind": "terrain_surface_icon",
+      "label": "DRG",
+      "path": "terrain/deep_rough_icon.png",
+      "size": [
+        32,
+        32
+      ]
+    },
+    {
+      "colour": "#e3cf8a",
+      "description": "Sand (bunker, hazard)",
+      "kind": "terrain_surface",
+      "label": "SND",
+      "path": "terrain/sand.png",
+      "size": [
+        64,
+        64
+      ]
+    },
+    {
+      "colour": "#e3cf8a",
+      "description": "Sand (bunker, hazard)",
+      "kind": "terrain_surface_icon",
+      "label": "SND",
+      "path": "terrain/sand_icon.png",
+      "size": [
+        32,
+        32
+      ]
+    },
+    {
+      "colour": "#28462a",
+      "description": "Woods",
+      "kind": "terrain_surface",
+      "label": "WDS",
+      "path": "terrain/woods.png",
+      "size": [
+        64,
+        64
+      ]
+    },
+    {
+      "colour": "#28462a",
+      "description": "Woods",
+      "kind": "terrain_surface_icon",
+      "label": "WDS",
+      "path": "terrain/woods_icon.png",
+      "size": [
+        32,
+        32
+      ]
+    },
+    {
+      "colour": "#8a8a8a",
+      "description": "Rocks",
+      "kind": "terrain_surface",
+      "label": "RCK",
+      "path": "terrain/rocks.png",
+      "size": [
+        64,
+        64
+      ]
+    },
+    {
+      "colour": "#8a8a8a",
+      "description": "Rocks",
+      "kind": "terrain_surface_icon",
+      "label": "RCK",
+      "path": "terrain/rocks_icon.png",
+      "size": [
+        32,
+        32
+      ]
+    },
+    {
+      "colour": "#2e7fd0",
+      "description": "Mini-putt carpet (puttable)",
+      "kind": "terrain_surface",
+      "label": "MPT",
+      "path": "terrain/mini_putt_carpet.png",
+      "size": [
+        64,
+        64
+      ]
+    },
+    {
+      "colour": "#2e7fd0",
+      "description": "Mini-putt carpet (puttable)",
+      "kind": "terrain_surface_icon",
+      "label": "MPT",
+      "path": "terrain/mini_putt_carpet_icon.png",
+      "size": [
+        32,
+        32
+      ]
+    },
+    {
+      "colour": "#8c6e50",
+      "description": "Rock cliff",
+      "kind": "terrain_edge",
+      "label": "EDGE",
+      "path": "terrain_edge/rock_cliff.png",
+      "size": [
+        64,
+        64
+      ]
+    },
+    {
+      "colour": "#808080",
+      "description": "Tile quadrants -X, +Y, +X, -Y (TER-020, tile_texture.png)",
+      "kind": "debug_quadrants",
+      "label": "-X +Y +X -Y",
+      "path": "debug/quadrants.png",
+      "size": [
+        64,
+        64
+      ]
+    },
+    {
+      "colour": "#f0f0f0",
+      "description": "Slope level 0Q (quarter steps, \u00a76.2)",
+      "kind": "debug_slope_level",
+      "label": "0Q",
+      "path": "debug/slope_0q.png",
+      "size": [
+        64,
+        64
+      ]
+    },
+    {
+      "colour": "#5bc0eb",
+      "description": "Slope level 1Q (quarter steps, \u00a76.2)",
+      "kind": "debug_slope_level",
+      "label": "1Q",
+      "path": "debug/slope_1q.png",
+      "size": [
+        64,
+        64
+      ]
+    },
+    {
+      "colour": "#9bc53d",
+      "description": "Slope level 2Q (quarter steps, \u00a76.2)",
+      "kind": "debug_slope_level",
+      "label": "2Q",
+      "path": "debug/slope_2q.png",
+      "size": [
+        64,
+        64
+      ]
+    },
+    {
+      "colour": "#faa43a",
+      "description": "Slope level 3Q (quarter steps, \u00a76.2)",
+      "kind": "debug_slope_level",
+      "label": "3Q",
+      "path": "debug/slope_3q.png",
+      "size": [
+        64,
+        64
+      ]
+    },
+    {
+      "colour": "#e55934",
+      "description": "Slope level 4Q (quarter steps, \u00a76.2)",
+      "kind": "debug_slope_level",
+      "label": "4Q",
+      "path": "debug/slope_4q.png",
+      "size": [
+        64,
+        64
+      ]
+    }
+  ],
+  "licence": "CC0-1.0"
+}

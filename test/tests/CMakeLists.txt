@@ -58,6 +58,9 @@ if (Python3_Interpreter_FOUND)
     add_test(NAME AssetIndependenceScriptTests
         COMMAND ${Python3_EXECUTABLE} -I "${CMAKE_CURRENT_SOURCE_DIR}/../scripts/test_check_asset_independence.py"
         WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/../..")
+    add_test(NAME PlaceholderGeneratorTests
+        COMMAND ${Python3_EXECUTABLE} -I "${CMAKE_CURRENT_SOURCE_DIR}/../scripts/test_placeholders.py"
+        WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/../..")
 else ()
     message(WARNING "Python 3 not found: script tests are not registered")
 endif ()
