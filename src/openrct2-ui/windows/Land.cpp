@@ -417,6 +417,32 @@ namespace OpenRCT2::Ui::Windows
             return shift ? 1 : 2;
         }
 
+        // Quadrants to paint (TER-022): the whole tile by default; with Alt only the quadrant under the cursor, and with
+        // Alt and Shift the half tile on the side of the diagonal the cursor is clearly on.
+        static uint8_t GetPaintQuadrantMask(const ScreenCoordsXY& screenPos)
+        {
+            auto& im = GetInputManager();
+            if (!im.isModifierKeyPressed(ModifierKey::alt))
+                return 0xF;
+            const auto mapCoords = ScreenGetMapXY(screenPos, nullptr);
+            if (!mapCoords.has_value())
+                return 0xF;
+
+            const int32_t xl = mapCoords->x & 31, yl = mapCoords->y & 31;
+            using Terrain::Quadrant;
+            auto bit = [](Quadrant q) { return static_cast<uint8_t>(1 << static_cast<int>(q)); };
+            if (!im.isModifierKeyPressed(ModifierKey::shift))
+                return bit(Terrain::GetQuadrantAt(xl, yl));
+
+            const int32_t acrossNorthSouth = xl - yl;      // > 0: north-east and south-east side
+            const int32_t acrossEastWest = xl + yl - 32;   // > 0: north-east and north-west side
+            if (std::abs(acrossNorthSouth) >= std::abs(acrossEastWest))
+                return acrossNorthSouth >= 0 ? (bit(Quadrant::northEast) | bit(Quadrant::southEast))
+                                             : (bit(Quadrant::northWest) | bit(Quadrant::southWest));
+            return acrossEastWest >= 0 ? (bit(Quadrant::northEast) | bit(Quadrant::northWest))
+                                       : (bit(Quadrant::southEast) | bit(Quadrant::southWest));
+        }
+
         /**
          *
          *  rct2: 0x006644DD
@@ -610,7 +636,8 @@ namespace OpenRCT2::Ui::Windows
                     {
                         auto surfaceSetStyleAction = GameActions::SurfaceSetStyleAction(
                             { gMapSelectPositionA.x, gMapSelectPositionA.y, gMapSelectPositionB.x, gMapSelectPositionB.y },
-                            gLandToolTerrainSurface, gLandToolTerrainEdge, _surfaceColour1, _edgeColour1);
+                            gLandToolTerrainSurface, gLandToolTerrainEdge, _surfaceColour1, _edgeColour1,
+                            GetPaintQuadrantMask(screenCoords));
 
                         GameActions::Execute(&surfaceSetStyleAction, getGameState());
 
@@ -637,7 +664,8 @@ namespace OpenRCT2::Ui::Windows
                         {
                             auto surfaceSetStyleAction = GameActions::SurfaceSetStyleAction(
                                 { gMapSelectPositionA.x, gMapSelectPositionA.y, gMapSelectPositionB.x, gMapSelectPositionB.y },
-                                gLandToolTerrainSurface, gLandToolTerrainEdge, _surfaceColour1, _edgeColour1);
+                                gLandToolTerrainSurface, gLandToolTerrainEdge, _surfaceColour1, _edgeColour1,
+                            GetPaintQuadrantMask(screenCoords));
 
                             GameActions::Execute(&surfaceSetStyleAction, getGameState());
 

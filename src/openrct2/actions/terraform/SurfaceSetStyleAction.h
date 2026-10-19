@@ -27,6 +27,9 @@ namespace OpenRCT2::GameActions
         ObjectEntryIndex _edgeStyle{};
         Drawing::Colour _surfaceColour1{};
         Drawing::Colour _edgeColour1{};
+        uint8_t _quadrantMask{ 0xF }; // quadrants painted, bit per Terrain::Quadrant (TER-022)
+
+        bool surfaceNeedsChange(const SurfaceElement& surfaceElement) const;
 
         bool surfaceColour1NeedsRecolour(const SurfaceElement& surfaceElement, const TerrainSurfaceObject& surfaceObject) const;
         bool edgeColour1NeedsRecolour(const SurfaceElement& surfaceElement, const TerrainEdgeObject& surfaceObject) const;
@@ -35,7 +38,7 @@ namespace OpenRCT2::GameActions
         SurfaceSetStyleAction() = default;
         SurfaceSetStyleAction(
             MapRange range, ObjectEntryIndex surfaceStyle, ObjectEntryIndex edgeStyle, Drawing::Colour surfaceColour1,
-            Drawing::Colour edgeColour1);
+            Drawing::Colour edgeColour1, uint8_t quadrantMask = 0xF);
 
         void AcceptParameters(GameActionParameterVisitor&) final;
 

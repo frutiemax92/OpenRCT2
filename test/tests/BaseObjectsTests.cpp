@@ -16,6 +16,7 @@
 #include <openrct2/actions/terraform/LandLowerAction.h>
 #include <openrct2/actions/terraform/LandRaiseAction.h>
 #include <openrct2/actions/terraform/LandSetHeightAction.h>
+#include <openrct2/actions/terraform/SurfaceSetStyleAction.h>
 #include <openrct2/world/MapSelection.h>
 #include <openrct2/GameState.h>
 #include <openrct2/OpenRCT2.h>
@@ -356,4 +357,49 @@ TEST_F(LandTools, InvalidStepsAndLimitsAreRefused)
     for (int i = 0; i < 3; i++)
         GameActions::ExecuteNested(&tooLow, getGameState());
     EXPECT_GE(MapGetSurfaceElementAt(TileCoordsXY{ 10, 10 })->baseHeight, kMinimumLandHeight);
+}
+
+TEST_F(LandTools, PaintingQuadrantsAndWholeTiles)
+{
+    SetUpMap();
+    auto* surface = MapGetSurfaceElementAt(TileCoordsXY{ 4, 4 });
+    ASSERT_NE(nullptr, surface);
+    const auto original = surface->getSurfaceObjectIndex();
+    for (auto identifier : kCommonScenarioAndTrackDesignerObjects)
+        GetContext()->GetObjectManager().LoadObject(identifier);
+    ObjectEntryIndex other = original;
+    for (ObjectEntryIndex i = 0; i < 20 && other == original; i++)
+    {
+        if (i != original && TerrainSurfaceObject::GetById(i) != nullptr)
+            other = i;
+    }
+    ASSERT_NE(original, other);
+
+    // Only the south-east quadrant.
+    GameActions::SurfaceSetStyleAction half(
+        Tile(4, 4), other, kObjectEntryIndexNull, Drawing::Colour::black, Drawing::Colour::black,
+        1 << static_cast<int>(Terrain::Quadrant::southEast));
+    ASSERT_EQ(GameActions::Status::ok, GameActions::ExecuteNested(&half, getGameState()).error);
+    EXPECT_EQ(other, surface->getQuadrantSurfaceIndex(Terrain::Quadrant::southEast));
+    EXPECT_EQ(original, surface->getQuadrantSurfaceIndex(Terrain::Quadrant::northEast));
+    EXPECT_EQ(original, surface->getQuadrantSurfaceIndex(Terrain::Quadrant::southWest));
+    EXPECT_EQ(original, surface->getQuadrantSurfaceIndex(Terrain::Quadrant::northWest));
+
+    // Two quadrants on one side of a diagonal (half-tile brush).
+    GameActions::SurfaceSetStyleAction side(
+        Tile(4, 4), other, kObjectEntryIndexNull, Drawing::Colour::black, Drawing::Colour::black,
+        (1 << static_cast<int>(Terrain::Quadrant::northEast)) | (1 << static_cast<int>(Terrain::Quadrant::northWest)));
+    ASSERT_EQ(GameActions::Status::ok, GameActions::ExecuteNested(&side, getGameState()).error);
+    EXPECT_EQ(other, surface->getQuadrantSurfaceIndex(Terrain::Quadrant::northWest));
+    EXPECT_EQ(original, surface->getQuadrantSurfaceIndex(Terrain::Quadrant::southWest));
+
+    // The default paints the whole tile.
+    GameActions::SurfaceSetStyleAction whole(Tile(4, 4), original, kObjectEntryIndexNull, Drawing::Colour::black, Drawing::Colour::black);
+    ASSERT_EQ(GameActions::Status::ok, GameActions::ExecuteNested(&whole, getGameState()).error);
+    for (uint8_t q = 0; q < 4; q++)
+        EXPECT_EQ(original, surface->getQuadrantSurfaceIndex(static_cast<Terrain::Quadrant>(q)));
+
+    // Painting what is already there costs nothing.
+    GameActions::SurfaceSetStyleAction same(Tile(4, 4), original, kObjectEntryIndexNull, Drawing::Colour::black, Drawing::Colour::black);
+    EXPECT_EQ(0, GameActions::Query(&same, getGameState()).cost);
 }

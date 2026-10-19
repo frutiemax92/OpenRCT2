@@ -25,13 +25,24 @@ namespace OpenRCT2::GameActions
 {
     SurfaceSetStyleAction::SurfaceSetStyleAction(
         MapRange range, ObjectEntryIndex surfaceStyle, ObjectEntryIndex edgeStyle, Drawing::Colour surfaceColour1,
-        Drawing::Colour edgeColour1)
+        Drawing::Colour edgeColour1, uint8_t quadrantMask)
         : _range(range)
         , _surfaceStyle(surfaceStyle)
         , _edgeStyle(edgeStyle)
         , _surfaceColour1(surfaceColour1)
         , _edgeColour1(edgeColour1)
+        , _quadrantMask(quadrantMask & 0xF)
     {
+    }
+
+    bool SurfaceSetStyleAction::surfaceNeedsChange(const SurfaceElement& surfaceElement) const
+    {
+        for (uint8_t q = 0; q < 4; q++)
+        {
+            if ((_quadrantMask & (1 << q)) && surfaceElement.getQuadrantSurfaceIndex(static_cast<Terrain::Quadrant>(q)) != _surfaceStyle)
+                return true;
+        }
+        return false;
     }
 
     void SurfaceSetStyleAction::AcceptParameters(GameActionParameterVisitor& visitor)
@@ -41,6 +52,7 @@ namespace OpenRCT2::GameActions
         visitor.Visit("edgeStyle", _edgeStyle);
         visitor.Visit("surfaceColour1", _surfaceColour1);
         visitor.Visit("edgeColour1", _edgeColour1);
+        visitor.Visit("quadrantMask", _quadrantMask);
     }
 
     void SurfaceSetStyleAction::Serialise(DataSerialiser& stream)
@@ -48,7 +60,7 @@ namespace OpenRCT2::GameActions
         GameAction::Serialise(stream);
 
         stream << DS_TAG(_range) << DS_TAG(_surfaceStyle) << DS_TAG(_edgeStyle) << DS_TAG(_surfaceColour1)
-               << DS_TAG(_edgeColour1);
+               << DS_TAG(_edgeColour1) << DS_TAG(_quadrantMask);
     }
 
     bool SurfaceSetStyleAction::surfaceColour1NeedsRecolour(
@@ -141,8 +153,7 @@ namespace OpenRCT2::GameActions
                     const auto* surfaceObject = objManager.GetLoadedObject<TerrainSurfaceObject>(_surfaceStyle);
                     if (surfaceObject != nullptr)
                     {
-                        auto curSurfaceStyle = surfaceElement->getSurfaceObjectIndex();
-                        if (_surfaceStyle != curSurfaceStyle || surfaceColour1NeedsRecolour(*surfaceElement, *surfaceObject))
+                        if (surfaceNeedsChange(*surfaceElement) || surfaceColour1NeedsRecolour(*surfaceElement, *surfaceObject))
                         {
                             surfaceCost += surfaceObject->Price;
                         }
@@ -211,12 +222,15 @@ namespace OpenRCT2::GameActions
                     const auto* surfaceObject = objManager.GetLoadedObject<TerrainSurfaceObject>(_surfaceStyle);
                     if (surfaceObject != nullptr)
                     {
-                        auto curSurfaceStyle = surfaceElement->getSurfaceObjectIndex();
-                        if (_surfaceStyle != curSurfaceStyle || surfaceColour1NeedsRecolour(*surfaceElement, *surfaceObject))
+                        if (surfaceNeedsChange(*surfaceElement) || surfaceColour1NeedsRecolour(*surfaceElement, *surfaceObject))
                         {
                             surfaceCost += surfaceObject->Price;
 
-                            surfaceElement->setSurfaceObjectIndex(_surfaceStyle);
+                            for (uint8_t q = 0; q < 4; q++)
+                            {
+                                if (_quadrantMask & (1 << q))
+                                    surfaceElement->setQuadrantSurfaceIndex(static_cast<Terrain::Quadrant>(q), _surfaceStyle);
+                            }
                             if (surfaceObject->Flags.has(TerrainSurfaceFlag::hasPrimaryColour))
                                 surfaceElement->setPrimarySurfaceColour(surfaceObject->getPrimaryColour(_surfaceColour1));
                             else
