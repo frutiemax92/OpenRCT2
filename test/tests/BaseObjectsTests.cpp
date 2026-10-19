@@ -410,3 +410,21 @@ TEST_F(LandTools, PaintingQuadrantsAndWholeTiles)
     GameActions::SurfaceSetStyleAction same(Tile(4, 4), original, kObjectEntryIndexNull, Drawing::Colour::black, Drawing::Colour::black);
     EXPECT_EQ(0, GameActions::Query(&same, getGameState()).cost);
 }
+
+TEST_F(LandTools, TileElementHeightFollowsTheTriangleSplit)
+{
+    SetUpMap();
+    auto* surface = MapGetSurfaceElementAt(TileCoordsXY{ 6, 7 });
+    const Terrain::TerrainShape shape{ 1, 3, 0, 4 };
+    surface->setTerrainShape(shape);
+    const int32_t baseZ = surface->getBaseZ();
+    for (int y = 0; y < 32; y += 5)
+        for (int x = 0; x < 32; x += 3)
+        {
+            const CoordsXY pos{ 6 * 32 + x, 7 * 32 + y };
+            EXPECT_EQ(Terrain::GetSurfaceZAt(baseZ, shape, x, y), TileElementHeight(pos)) << x << "," << y;
+        }
+    // A flat tile is flat everywhere, and off the map is the minimum land height.
+    EXPECT_EQ(MapGetSurfaceElementAt(TileCoordsXY{ 2, 2 })->getBaseZ(), TileElementHeight(CoordsXY{ 2 * 32 + 17, 2 * 32 + 3 }));
+    EXPECT_EQ(kMinimumLandZ, TileElementHeight(CoordsXY{ -5, -5 }));
+}

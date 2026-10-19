@@ -100,7 +100,6 @@ namespace OpenRCT2
     void MapGetBoundingBox(const MapRange& _range, int32_t* left, int32_t* top, int32_t* right, int32_t* bottom);
     bool MapCheckCapacityAndReorganise(const CoordsXY& loc, size_t numElements = 1);
     int16_t TileElementHeight(const CoordsXY& loc);
-    int16_t TileElementHeight(const CoordsXYZ& loc, uint8_t slope);
     int16_t TileElementWaterHeight(const CoordsXY& loc);
     void TileElementRemove(TileElement* tileElement);
     TileElement* TileElementInsert(const CoordsXYZ& loc, int32_t occupiedQuadrants, TileElementType type);

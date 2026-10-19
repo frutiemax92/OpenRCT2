@@ -858,6 +858,14 @@ static void PaintPatrolArea(PaintSession& session, const SurfaceElement& element
     }
 }
 
+// Height of the centre of a tile given its base height and legacy slope flags.
+static int32_t SurfaceCentreHeight(int32_t baseZ, uint8_t legacySlope)
+{
+    uint8_t raiseQ = 0;
+    const auto shape = Terrain::ShapeFromLegacySlope(legacySlope, &raiseQ);
+    return Terrain::GetSurfaceZAt(baseZ + raiseQ * Terrain::kQuarterStepZ, shape, kCoordsXYStep / 2, kCoordsXYStep / 2);
+}
+
 static void PaintSurfaceLandOwnership(
     PaintSession& session, const SurfaceElement& tileElement, uint16_t height, uint8_t surfaceShape)
 {
@@ -885,7 +893,7 @@ static void PaintSurfaceLandOwnership(
     else if (tileElement.hasOwnership(OwnershipFlag::landForSale))
     {
         const auto pos = CoordsXYZ(session.MapPosition.x + 16, session.MapPosition.y + 16, aboveWaterHeight);
-        const auto height2 = TileElementHeight(pos, aboveWaterSurfaceShape) + ForSaleSignZOffset;
+        const auto height2 = SurfaceCentreHeight(pos.z, aboveWaterSurfaceShape) + ForSaleSignZOffset;
 
         PaintStruct* backup = session.LastPS;
         PaintAddImageAsParent(session, ImageId(SPR_LAND_OWNERSHIP_AVAILABLE), { 16, 16, height2 }, { 1, 1, 0 });
@@ -919,7 +927,7 @@ static void PaintSurfaceConstructionRights(
     else if (tileElement.hasOwnership(OwnershipFlag::constructionRightsForSale))
     {
         const auto pos = CoordsXYZ(session.MapPosition.x + 16, session.MapPosition.y + 16, aboveWaterHeight);
-        const auto height2 = TileElementHeight(pos, aboveWaterSurfaceShape) + ForSaleSignZOffset;
+        const auto height2 = SurfaceCentreHeight(pos.z, aboveWaterSurfaceShape) + ForSaleSignZOffset;
 
         PaintStruct* backup = session.LastPS;
         PaintAddImageAsParent(session, ImageId(SPR_LAND_CONSTRUCTION_RIGHTS_AVAILABLE), { 16, 16, height2 }, { 1, 1, 0 });
