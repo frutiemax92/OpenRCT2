@@ -1178,6 +1178,22 @@ namespace OpenRCT2::Ui::Windows
             ft.Add<uint32_t>(surfaceEl.getWaterHeight());
             drawText(rt, screenCoords + ScreenCoordsXY{ 0, 33 }, STR_TILE_INSPECTOR_SURFACE_WATER_LEVEL, ft, { colours[1] });
 
+            // Debug: quarter-step shape index and the surface of each quadrant (TER-035)
+            {
+                const auto shape = surfaceEl.getTerrainShape();
+                char debugText[96];
+                snprintf(
+                    debugText, sizeof(debugText), "Shape %u (%u %u %u %u) Q %u %u %u %u", Terrain::GetShapeIndex(shape),
+                    shape.north, shape.east, shape.south, shape.west,
+                    surfaceEl.getQuadrantSurfaceIndex(Terrain::Quadrant::northEast),
+                    surfaceEl.getQuadrantSurfaceIndex(Terrain::Quadrant::southEast),
+                    surfaceEl.getQuadrantSurfaceIndex(Terrain::Quadrant::southWest),
+                    surfaceEl.getQuadrantSurfaceIndex(Terrain::Quadrant::northWest));
+                ft = Formatter();
+                ft.Add<const char*>(debugText);
+                drawText(rt, screenCoords + ScreenCoordsXY{ 0, 44 }, STR_STRING, ft, { colours[1] });
+            }
+
             // Properties
             // Raise / lower label
             screenCoords = windowPos
