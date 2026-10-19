@@ -18,7 +18,11 @@
     #include FT_FREETYPE_H
     #pragma clang diagnostic pop
 
+    #include "../Context.h"
     #include "../OpenRCT2.h"
+    #include "../PlatformEnvironment.h"
+    #include "../core/File.h"
+    #include "../core/Path.hpp"
     #include "../core/EnumUtils.hpp"
     #include "../core/Numerics.hpp"
     #include "../core/String.hpp"
@@ -92,6 +96,27 @@ static void TTFToggleHinting(bool)
     }
 }
 
+u8string TTFFindBundledFont(u8string_view dataDirectory, const TTFFontDescriptor& font)
+{
+    if (dataDirectory.empty() || font.filename == nullptr)
+        return {};
+
+    auto path = Path::Combine(dataDirectory, u8"fonts", font.filename);
+    return File::Exists(path) ? path : u8string();
+}
+
+static u8string TTFGetFontPath(const TTFFontDescriptor& font)
+{
+    auto* context = GetContext();
+    if (context != nullptr)
+    {
+        auto bundled = TTFFindBundledFont(context->GetPlatformEnvironment().GetDirectoryPath(DirBase::openrct2), font);
+        if (!bundled.empty())
+            return bundled;
+    }
+    return Platform::GetFontPath(font);
+}
+
 bool TTFInitialise()
 {
     DrawingUniqueLock<std::mutex> lock(_mutex);
@@ -109,7 +134,7 @@ bool TTFInitialise()
     {
         TTFFontDescriptor* fontDesc = &(gCurrentTTFFontSet->size[i]);
 
-        auto fontPath = Platform::GetFontPath(*fontDesc);
+        auto fontPath = TTFGetFontPath(*fontDesc);
         if (fontPath.empty())
         {
             LOG_VERBOSE("Unable to load font '%s'", fontDesc->font_name);

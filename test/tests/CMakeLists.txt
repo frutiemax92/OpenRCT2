@@ -10,6 +10,7 @@ set(test_files
    "${CMAKE_CURRENT_SOURCE_DIR}/AssertHelpers.hpp"
    "${CMAKE_CURRENT_SOURCE_DIR}/BaseGraphicsTests.cpp"
    "${CMAKE_CURRENT_SOURCE_DIR}/BitSetTests.cpp"
+   "${CMAKE_CURRENT_SOURCE_DIR}/BundledFontTests.cpp"
    "${CMAKE_CURRENT_SOURCE_DIR}/CircularBuffer.cpp"
    "${CMAKE_CURRENT_SOURCE_DIR}/CLITests.cpp"
    "${CMAKE_CURRENT_SOURCE_DIR}/CryptTests.cpp"

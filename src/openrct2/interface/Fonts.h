@@ -17,6 +17,7 @@ namespace OpenRCT2::Localisation
 #include "../drawing/Font.h"
 
 #ifndef DISABLE_TTF
+extern TTFFontSetDescriptor TTFFontGame;
 extern TTFFontSetDescriptor TTFFontMSGothic;
 extern TTFFontSetDescriptor TTFFontNotoSansMono;
 extern TTFFontSetDescriptor TTFFontHiragano;

@@ -11,12 +11,18 @@
 
 #include "Font.h"
 
+#include "../core/StringTypes.h"
+
 #include <string_view>
 
 bool TTFInitialise();
 void TTFDispose();
 
 #ifndef DISABLE_TTF
+
+// AST-003: fonts shipped with the game live in <data>/fonts. Returns the path of the descriptor's font file there,
+// or an empty string when the file is not bundled.
+u8string TTFFindBundledFont(u8string_view dataDirectory, const TTFFontDescriptor& font);
 
 struct TTFSurface
 {

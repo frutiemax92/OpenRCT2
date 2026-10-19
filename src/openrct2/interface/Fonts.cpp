@@ -26,6 +26,13 @@ uint8_t const HINTING_THRESHOLD_LOW = 40;
 uint8_t const HINTING_THRESHOLD_MEDIUM = 60;
 
 // clang-format off
+// AST-003: the game's own fonts, shipped in data/fonts. Replaces the sprite font for every language that used it.
+TTFFontSetDescriptor TTFFontGame = { {
+    { "Jersey10-Regular.ttf", "Jersey 10", 13, 0, -2, 12, HINTING_DISABLED, nullptr }, // small
+    { "Jersey10-Regular.ttf", "Jersey 10", 13, 0, -2, 12, HINTING_DISABLED, nullptr }, // medium
+    { "Micro5-Regular.ttf",   "Micro 5",   11, 0, -2,  9, HINTING_DISABLED, nullptr }, // tiny
+} };
+
 TTFFontSetDescriptor TTFFontMSGothic = { {
     { "msgothic.ttc", "MS PGothic", 12, 1,  0, 14, HINTING_THRESHOLD_MEDIUM, nullptr },
     { "msgothic.ttc", "MS PGothic", 12, 1,  0, 14, HINTING_THRESHOLD_MEDIUM, nullptr },
@@ -174,7 +181,15 @@ void TryLoadFonts(LocalisationService& localisationService)
     auto currentLanguage = localisationService.GetCurrentLanguage();
     TTFontFamily const* fontFamily = LanguagesDescriptors[currentLanguage].font_family;
 
-    if (fontFamily != kFamilyOpenRCT2Sprite)
+    if (fontFamily == kFamilyOpenRCT2Sprite)
+    {
+        if (LoadFont(localisationService, &TTFFontGame))
+        {
+            return;
+        }
+        LOG_WARNING("Unable to load the bundled fonts (data/fonts) -- falling back to the sprite font.");
+    }
+    else
     {
         if (!Config::Get().fonts.fileName.empty())
         {
