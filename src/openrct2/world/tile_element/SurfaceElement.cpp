@@ -249,6 +249,23 @@ namespace OpenRCT2
         ownership |= (newParkFences & kTileElementSurfaceParkFenceMask);
     }
 
+    bool SurfaceElement::isFlat() const
+    {
+        return getHighestCornerOffset() == 0;
+    }
+
+    uint8_t SurfaceElement::getHighestCornerOffset() const
+    {
+        const auto shape = getTerrainShape();
+        return std::max({ shape.north, shape.east, shape.south, shape.west });
+    }
+
+    int32_t SurfaceElement::getHighestCornerZ(int32_t roundTo) const
+    {
+        const int32_t z = getBaseZ() + getHighestCornerOffset() * Terrain::kQuarterStepZ;
+        return (z + roundTo - 1) / roundTo * roundTo;
+    }
+
     uint8_t SurfaceElement::getSlope() const
     {
         return Terrain::LegacySlopeFromShape(getTerrainShape());

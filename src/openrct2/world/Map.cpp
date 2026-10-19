@@ -802,9 +802,10 @@ namespace OpenRCT2
 
     int32_t TileElementGetCornerHeight(const SurfaceElement* surfaceElement, int32_t direction)
     {
-        int32_t z = surfaceElement->baseHeight;
-        int32_t slope = surfaceElement->getSlope();
-        return MapGetCornerHeight(z, slope, direction);
+        // Corner heights in Q: direction 0 is the north corner, then east, south and west.
+        const auto shape = surfaceElement->getTerrainShape();
+        const uint8_t offsets[4] = { shape.north, shape.east, shape.south, shape.west };
+        return surfaceElement->baseHeight + offsets[direction & 3];
     }
 
     uint8_t MapGetLowestLandHeight(const MapRange& range)
@@ -842,11 +843,7 @@ namespace OpenRCT2
                     continue;
             }
 
-            uint8_t height = surfaceElement->baseHeight;
-            if (surfaceElement->getSlope() & kTileSlopeRaisedCornersMask)
-                height += 2;
-            if (surfaceElement->getSlope() & kTileSlopeDiagonalFlag)
-                height += 2;
+            const uint8_t height = surfaceElement->baseHeight + surfaceElement->getHighestCornerOffset();
 
             if (maxHeight < height)
                 maxHeight = height;
@@ -1381,13 +1378,8 @@ namespace OpenRCT2
         if (surfaceElement == nullptr)
             return -1;
 
-        auto z = surfaceElement->getBaseZ();
-
-        // Raise z so that is above highest point of land and water on tile
-        if ((surfaceElement->getSlope() & kTileSlopeRaisedCornersMask) != kTileSlopeFlat)
-            z += kLandHeightStep;
-        if ((surfaceElement->getSlope() & kTileSlopeDiagonalFlag) != 0)
-            z += kLandHeightStep;
+        // Above the highest point of land and water on the tile
+        auto z = surfaceElement->getHighestCornerZ();
 
         z = std::max(z, surfaceElement->getWaterHeight());
         return z;
@@ -1677,9 +1669,7 @@ namespace OpenRCT2
             return true;
 
         int16_t base_z = surfaceElement->baseHeight;
-        int16_t clear_z = surfaceElement->baseHeight + 2;
-        if (surfaceElement->getSlope() & kTileSlopeDiagonalFlag)
-            clear_z += 2;
+        int16_t clear_z = surfaceElement->baseHeight + std::max<int16_t>(2, surfaceElement->getHighestCornerOffset());
 
         auto tileElement = reinterpret_cast<TileElement*>(surfaceElement);
         while (!(tileElement++)->isLastForTile())

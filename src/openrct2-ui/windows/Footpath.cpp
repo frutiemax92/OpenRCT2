@@ -79,12 +79,7 @@ namespace OpenRCT2::Ui::Windows
         if (surfaceElement != nullptr)
         {
             // Calculate max surface height including raised corners and steep slopes
-            int32_t z = surfaceElement->getBaseZ();
-            uint8_t slope = surfaceElement->getSlope();
-            if (slope & kTileSlopeRaisedCornersMask)
-                z += kPathHeightStep;
-            if (slope & kTileSlopeDiagonalFlag)
-                z += kPathHeightStep;
+            const int32_t z = surfaceElement->getHighestCornerZ(kPathHeightStep);
 
             placement.baseZ = z;
             placement.slope = { FootpathSlopeType::flat, 0 };
@@ -986,11 +981,7 @@ namespace OpenRCT2::Ui::Windows
                     int32_t mapZ = info.Element->getBaseZ();
                     if (info.Element->getType() == TileElementType::surface)
                     {
-                        uint8_t slope = info.Element->asSurface()->getSlope();
-                        if (slope & kTileSlopeRaisedCornersMask)
-                            mapZ += kPathHeightStep;
-                        if (slope & kTileSlopeDiagonalFlag)
-                            mapZ += kPathHeightStep;
+                        mapZ = info.Element->asSurface()->getHighestCornerZ(kPathHeightStep);
                     }
                     mapZ += _footpathPlaceShiftZ;
                     mapZ = std::max<int16_t>(mapZ, 16);
@@ -1238,13 +1229,7 @@ namespace OpenRCT2::Ui::Windows
 
             if (tileElement->getType() == TileElementType::surface)
             {
-                uint8_t slope = tileElement->asSurface()->getSlope();
-                if (slope & kTileSlopeRaisedCornersMask)
-                {
-                    z += kPathHeightStep;
-                } // Add 2 for a slope
-                if (slope & kTileSlopeDiagonalFlag)
-                    z += kPathHeightStep; // Add another 2 for a steep slope
+                z = tileElement->asSurface()->getHighestCornerZ(kPathHeightStep);
             }
 
             gMapSelectArrowPosition = CoordsXYZ{ mapCoords, z };
@@ -1513,18 +1498,7 @@ namespace OpenRCT2::Ui::Windows
             {
                 // If we start the path on a slope, the arrow is slightly raised, so we
                 // expect the path to be slightly raised as well.
-                uint8_t slope = tileElement->asSurface()->getSlope();
-                z = tileElement->getBaseZ();
-                if (slope & kTileSlopeDiagonalFlag)
-                {
-                    // Steep diagonal slope
-                    z += 2 * kPathHeightStep;
-                }
-                else if (slope & kTileSlopeRaisedCornersMask)
-                {
-                    // Normal slope
-                    z += kPathHeightStep;
-                }
+                z = tileElement->asSurface()->getHighestCornerZ(kPathHeightStep);
             }
             else
             {

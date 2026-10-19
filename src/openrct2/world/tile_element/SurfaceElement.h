@@ -67,6 +67,12 @@ namespace OpenRCT2
         Terrain::TerrainShape getTerrainShape() const;
         void setTerrainShape(const Terrain::TerrainShape& shape);
 
+        bool isFlat() const;
+        // Height of the highest corner above the base height, in Q.
+        uint8_t getHighestCornerOffset() const;
+        // Absolute z of the highest corner, rounded up to a multiple of roundTo.
+        int32_t getHighestCornerZ(int32_t roundTo = 1) const;
+
         // Legacy slope bit flags, converted from and to the terrain shape. Remove once all users are migrated (TER-016).
         uint8_t getSlope() const;
         void setSlope(uint8_t newSlope);

@@ -464,10 +464,7 @@ namespace OpenRCT2::Ui::Windows
             int32_t mapZ = tileElement->getBaseZ();
             if (tileElement->getType() == TileElementType::surface)
             {
-                if ((tileElement->asSurface()->getSlope() & kTileSlopeRaisedCornersMask) != 0)
-                    mapZ += 16;
-                if (tileElement->asSurface()->getSlope() & kTileSlopeDiagonalFlag)
-                    mapZ += 16;
+                mapZ = tileElement->asSurface()->getHighestCornerZ(16);
             }
 
             gMapSelectFlags.set(MapSelectFlag::enable, MapSelectFlag::enableArrow);

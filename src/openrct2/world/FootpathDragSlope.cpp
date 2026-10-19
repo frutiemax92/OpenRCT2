@@ -30,13 +30,7 @@ namespace OpenRCT2
     // Get surface height including raised corners and steep slopes
     static int32_t getMaxSurfaceHeight(const SurfaceElement& surface)
     {
-        int32_t z = surface.getBaseZ();
-        uint8_t slope = surface.getSlope();
-        if (slope & kTileSlopeRaisedCornersMask)
-            z += kPathHeightStep;
-        if (slope & kTileSlopeDiagonalFlag)
-            z += kPathHeightStep;
-        return z;
+        return surface.getHighestCornerZ(kPathHeightStep);
     }
 
     struct ConnectedPathSlopes

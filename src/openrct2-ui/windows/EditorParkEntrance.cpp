@@ -158,15 +158,7 @@ namespace OpenRCT2::Ui::Windows
             parkEntranceMapPosition.z = surfaceElement->getWaterHeight();
             if (parkEntranceMapPosition.z == 0)
             {
-                parkEntranceMapPosition.z = surfaceElement->getBaseZ();
-                if ((surfaceElement->getSlope() & kTileSlopeRaisedCornersMask) != 0)
-                {
-                    parkEntranceMapPosition.z += 16;
-                    if (surfaceElement->getSlope() & kTileSlopeDiagonalFlag)
-                    {
-                        parkEntranceMapPosition.z += 16;
-                    }
-                }
+                parkEntranceMapPosition.z = surfaceElement->getHighestCornerZ(16);
             }
             parkEntranceMapPosition.direction = (gWindowSceneryRotation - GetCurrentRotation()) & 3;
             return parkEntranceMapPosition;
