@@ -181,10 +181,11 @@ include(cmake/ipo.cmake)
 list(APPEND IPO_ENABLED_BUILDS RELEASE RELWITHDEBINFO MINSIZEREL)
 ipo_enable("${IPO_ENABLED_BUILDS}")
 
-# Describe current version in terms of closest tag
+# Describe current version in terms of closest game release tag (golf-vX.Y.Z). Upstream OpenRCT2 tags
+# are ignored so the game never reports an OpenRCT2 version as its own (ARC-001c).
 execute_process(
-    COMMAND git describe HEAD
-    COMMAND sed -E "s/-g.+$//"
+    COMMAND git describe --tags --match "golf-v*" HEAD
+    COMMAND sed -E "s/^golf-//; s/-g.+$//"
     WORKING_DIRECTORY ${ROOT_DIR}
     OUTPUT_VARIABLE OPENRCT2_VERSION_TAG
     OUTPUT_STRIP_TRAILING_WHITESPACE
@@ -406,7 +407,7 @@ if (NOT CMAKE_CROSSCOMPILING)
         file(GLOB_RECURSE dependent_files CONFIGURE_DEPENDS "${ROOT_DIR}/resources/${graphics_file}/*")
         add_custom_command(
             OUTPUT ${output_file}
-            COMMAND ./openrct2-cli sprite build "${CMAKE_BINARY_DIR}/${output_file}" "${json_file}" silent
+            COMMAND $<TARGET_FILE:openrct2-cli> sprite build "${CMAKE_BINARY_DIR}/${output_file}" "${json_file}" silent
             WORKING_DIRECTORY "${CMAKE_BINARY_DIR}"
             DEPENDS ${dependent_files}
         )

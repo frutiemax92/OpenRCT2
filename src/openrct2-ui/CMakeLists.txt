@@ -50,6 +50,9 @@ endif ()
 # Outputs
 add_executable(openrct2 ${OPENRCT2_UI_SOURCES} ${OPENRCT2_UI_MM_SOURCES})
 add_executable(OpenRCT2::openrct2 ALIAS openrct2)
+add_executable(OpenGolfSimulator::open-golf-simulator ALIAS openrct2)
+# ARC-001: the game executable is open-golf-simulator; the CMake target keeps its engine name.
+set_target_properties(openrct2 PROPERTIES OUTPUT_NAME "open-golf-simulator")
 
 SET_CHECK_CXX_FLAGS(openrct2)
 ipo_set_target_properties(openrct2)
@@ -164,7 +167,7 @@ endif ()
 
 if(MACOS_BUNDLE)
     add_dependencies(openrct2 openrct2-cli)
-    set(OUTPUT_NAME "OpenRCT2")
+    set(OUTPUT_NAME "OpenGolfSimulator")
     set(MACOS_APP_NAME "${OUTPUT_NAME}.app")
     set(BUNDLE_FRAMEWORK_DIR "${MACOS_APP_NAME}/Contents/Frameworks")
     set(BUNDLE_RESOURCE_DIR "${MACOS_APP_NAME}/Contents/Resources")
@@ -208,7 +211,7 @@ if(MACOS_BUNDLE)
         set(MACOSX_BUNDLE_SHORT_VERSION_STRING "${OPENRCT2_VERSION_TAG} ${OPENRCT2_BRANCH}")
     endif()
 
-    set(PRODUCT_BUNDLE_IDENTIFIER "io.openrct2.OpenRCT2")
+    set(PRODUCT_BUNDLE_IDENTIFIER "io.github.frutiemax92.OpenGolfSimulator")
     set(MACOSX_BUNDLE_BUNDLE_VERSION "${OPENRCT2_COMMIT_SHA1_SHORT}")
     set(EXECUTABLE_NAME "${OUTPUT_NAME}")
     set(MACOSX_DEPLOYMENT_TARGET "${CMAKE_OSX_DEPLOYMENT_TARGET}")

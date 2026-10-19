@@ -26,7 +26,7 @@ const char gVersionInfoTag[] =
 #ifdef OPENRCT2_VERSION_TAG
     OPENRCT2_VERSION_TAG
 #else
-    "v" kOpenRCT2Version
+    "v" kGameVersion
 #endif
     ;
 
@@ -34,8 +34,9 @@ const char gVersionInfoFull[] = OPENRCT2_NAME ", "
 #ifdef OPENRCT2_VERSION_TAG
     OPENRCT2_VERSION_TAG
 #else
-                                              "v" kOpenRCT2Version
+                                              "v" kGameVersion
 #endif
+                                              " (OpenRCT2 engine v" kOpenRCT2Version ")"
 #if defined(OPENRCT2_BRANCH) || defined(OPENRCT2_COMMIT_SHA1_SHORT) || !defined(NDEBUG)
                                               " ("
     #if defined(OPENRCT2_BRANCH) && defined(OPENRCT2_COMMIT_SHA1_SHORT)
@@ -85,7 +86,7 @@ NewVersionInfo GetLatestVersion()
     if (then < now - std::chrono::seconds(24h).count())
     {
         Http::Request request;
-        request.url = "https://api.github.com/repos/OpenRCT2/OpenRCT2/releases/latest";
+        request.url = "https://api.github.com/repos/frutiemax92/open-golf-simulator/releases/latest";
         request.method = Http::Method::get;
 
         Http::Response res;

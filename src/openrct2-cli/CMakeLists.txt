@@ -8,6 +8,8 @@ file(GLOB_RECURSE OPENRCT2_CLI_SOURCES
 
 add_executable(openrct2-cli ${OPENRCT2_CLI_SOURCES})
 add_executable(OpenRCT2::openrct2-cli ALIAS openrct2-cli)
+# ARC-001: the game ships as open-golf-simulator; the CMake target keeps its engine name.
+set_target_properties(openrct2-cli PROPERTIES OUTPUT_NAME "open-golf-simulator-cli")
 
 target_include_directories(openrct2-cli PRIVATE "${CMAKE_CURRENT_LIST_DIR}/..")
 ipo_set_target_properties(openrct2-cli)

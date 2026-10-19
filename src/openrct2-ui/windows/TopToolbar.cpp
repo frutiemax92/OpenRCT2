@@ -979,11 +979,10 @@ namespace OpenRCT2::Ui::Windows
                             break;
                         case DDIDX_FILE_BUG_ON_GITHUB:
                         {
-                            std::string url = "https://github.com/OpenRCT2/OpenRCT2/issues/new?"
-                                              "assignees=&labels=bug&template=bug_report.yaml";
-                            // Automatically fill the "OpenRCT2 build" input
-                            auto versionStr = String::urlEncode(gVersionInfoFull);
-                            url.append("&f299dd2a20432827d99b648f73eb4649b23f8ec98d158d6f82b81e43196ee36b=" + versionStr);
+                            std::string url = kGameRepositoryUrl "/issues/new?labels=bug&body=";
+                            // Automatically fill in the build
+                            auto versionStr = String::urlEncode(std::string("Build: ") + gVersionInfoFull);
+                            url.append(versionStr);
                             GetContext()->GetUiContext().OpenURL(url);
                         }
                         break;

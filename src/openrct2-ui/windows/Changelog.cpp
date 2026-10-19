@@ -153,7 +153,7 @@ namespace OpenRCT2::Ui::Windows
                 case WIDX_OPEN_URL:
                     if (_newVersionInfo != nullptr)
                     {
-                        GetContext()->GetUiContext().OpenURL("https://openrct2.io/download/release");
+                        GetContext()->GetUiContext().OpenURL(kGameRepositoryUrl "/releases/latest");
                     }
                     else
                     {

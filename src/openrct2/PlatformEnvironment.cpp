@@ -11,6 +11,7 @@
 
 #include "Diagnostic.h"
 #include "OpenRCT2.h"
+#include "Version.h"
 #include "config/Config.h"
 #include "core/EnumUtils.hpp"
 #include "core/File.h"
@@ -378,18 +379,18 @@ std::unique_ptr<IPlatformEnvironment> OpenRCT2::CreatePlatformEnvironment(DirBas
     return std::make_unique<PlatformEnvironment>(basePaths);
 }
 
-static u8string GetOpenRCT2DirectoryName()
+u8string OpenRCT2::GetUserDirectoryName()
 {
 #if defined(__ANDROID__)
-    return u8"openrct2-user";
+    return u8"" kGameUserDirectoryName "-user";
 #else
-    return u8"OpenRCT2";
+    return u8"" kGameUserDirectoryName;
 #endif
 }
 
 std::unique_ptr<IPlatformEnvironment> OpenRCT2::CreatePlatformEnvironment()
 {
-    auto subDirectory = GetOpenRCT2DirectoryName();
+    auto subDirectory = GetUserDirectoryName();
 
     // Set default paths
     std::string basePaths[kDirBaseCount];

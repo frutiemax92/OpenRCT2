@@ -11,7 +11,12 @@
 
 #include <string>
 
-#define OPENRCT2_NAME "OpenRCT2"
+// ARC-001c: user-visible product identity of the game. kOpenRCT2Version stays the version of the
+// OpenRCT2 engine the game is built on (network stream, plugin and park file compatibility).
+#define OPENRCT2_NAME "Open Golf Simulator"
+#define kGameVersion "0.1.0"
+#define kGameUserDirectoryName "open-golf-simulator"
+#define kGameRepositoryUrl "https://github.com/frutiemax92/open-golf-simulator"
 #define kOpenRCT2Version "0.5.6"
 
 #if defined(__amd64__) || defined(_M_AMD64)

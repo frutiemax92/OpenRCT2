@@ -90,4 +90,8 @@ namespace OpenRCT2
     [[nodiscard]] std::unique_ptr<IPlatformEnvironment> CreatePlatformEnvironment(DirBaseValues basePaths);
     [[nodiscard]] std::unique_ptr<IPlatformEnvironment> CreatePlatformEnvironment();
 
+    // Name of the per-user data, config and cache sub-folders. Distinct from OpenRCT2's so the game never
+    // shares config or saves with an installed OpenRCT2 (ARC-001c).
+    [[nodiscard]] u8string GetUserDirectoryName();
+
 } // namespace OpenRCT2

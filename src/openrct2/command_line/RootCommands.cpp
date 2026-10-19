@@ -430,17 +430,14 @@ namespace OpenRCT2
     {
         PrintVersion();
         Console::WriteLine();
-        Console::WriteLine("OpenRCT2 is an amusement park simulation game based upon the popular game");
-        Console::WriteLine("RollerCoaster Tycoon 2, written by Chris Sawyer. It attempts to mimic the ");
-        Console::WriteLine("original game as closely as possible while extending it with new features.");
-        Console::WriteLine("OpenRCT2 is licensed under the GNU General Public License version 3.0, but");
+        Console::WriteLine(OPENRCT2_NAME " is a retro golf course management game built on the OpenRCT2");
+        Console::WriteLine("engine. It is licensed under the GNU General Public License version 3.0, but");
         Console::WriteLine("includes some 3rd party software under different licenses. See the file");
         Console::WriteLine("\"licence.txt\" shipped with the game for details.");
         Console::WriteLine();
-        Console::WriteLine("Website:        https://openrct2.io");
-        Console::WriteLine("GitHub:         https://github.com/OpenRCT2/OpenRCT2");
+        Console::WriteLine("GitHub:         " kGameRepositoryUrl);
         Console::WriteLine("Contributors:   https://github.com/OpenRCT2/OpenRCT2/blob/develop/contributors.md");
-        Console::WriteLine("Privacy Policy: https://github.com/OpenRCT2/OpenRCT2/blob/develop/PRIVACY.md");
+        Console::WriteLine("Privacy Policy: " kGameRepositoryUrl "/blob/develop/PRIVACY.md");
         Console::WriteLine();
     }
 
