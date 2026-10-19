@@ -237,6 +237,13 @@ namespace OpenRCT2::GameActions
                                 surfaceElement->setPrimarySurfaceColour(Drawing::Colour::black);
 
                             MapInvalidateTileFull(coords);
+                            // The smoothing band of the neighbouring tiles depends on this surface.
+                            for (const CoordsXY step : { CoordsXY{ kCoordsXYStep, 0 }, CoordsXY{ -kCoordsXYStep, 0 },
+                                                         CoordsXY{ 0, kCoordsXYStep }, CoordsXY{ 0, -kCoordsXYStep } })
+                            {
+                                if (MapIsLocationValid(coords + step))
+                                    MapInvalidateTileFull(coords + step);
+                            }
                             FootpathRemoveLitter({ coords, TileElementHeight(coords) });
                         }
                     }

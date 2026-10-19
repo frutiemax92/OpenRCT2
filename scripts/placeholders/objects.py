@@ -38,6 +38,12 @@ DEFAULT_OUTPUT = os.path.join(REPO_ROOT, "data", "object", "golf")
 TERRAIN_LAYOUT = os.path.join(REPO_ROOT, "resources", "base", "terrain_layout.json")
 IMAGE_IMPORTER_H = os.path.join(REPO_ROOT, "src", "openrct2", "drawing", "ImageImporter.h")
 
+# Smoothing priority of each surface (TER-041): the higher one bleeds over the lower where they meet.
+SMOOTHING_PRIORITY = {
+    "grass": 10, "rough": 20, "deep_rough": 25, "woods": 30, "rocks": 35, "fairway": 40, "tee": 50,
+    "mini_putt_carpet": 55, "green": 60, "sand": 70,
+}
+
 AUTHORS = ["Open Golf Simulator contributors"]
 LICENCE = "CC0-1.0"
 
@@ -270,6 +276,7 @@ def terrain_surface(name, label, colour, description, palette):
         "mapColours": [map_colour, map_colour],
         "rotations": 1,
         "hasTexture": True,  # the last image is the square texture
+        "smoothing": {"priority": SMOOTHING_PRIORITY[name]},
     }
     data = manifest("golf.terrain_surface." + name, "terrain_surface", description, properties, table)
     data["default"] = {"normal": 0, "grid": 1, "underground": 2}

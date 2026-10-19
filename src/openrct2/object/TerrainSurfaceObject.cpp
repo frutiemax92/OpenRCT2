@@ -128,6 +128,7 @@ namespace OpenRCT2
         }
         const auto size = static_cast<size_t>(g1->width);
         Texture = Drawing::TerrainTexture::Create(g1->width, std::vector<uint8_t>(g1->offset, g1->offset + size * size));
+        Texture.smoothingPriority = SmoothingPriority;
     }
 
     void TerrainSurfaceObject::Unload()
@@ -187,6 +188,8 @@ namespace OpenRCT2
                   { "hasPrimaryColour", TerrainSurfaceFlag::hasPrimaryColour } });
 
             HasTexture = Json::GetBoolean(properties["hasTexture"]);
+            if (properties["smoothing"].is_object())
+                SmoothingPriority = Json::GetNumber<int32_t>(properties["smoothing"]["priority"]);
 
             const auto colourSettings = properties["colourSettings"];
             if (colourSettings.is_object() && colourSettings["parkMap"].is_array())

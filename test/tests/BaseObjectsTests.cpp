@@ -122,6 +122,8 @@ TEST_F(BaseObjects, TerrainSurfacesHaveASquareTileableTexture)
         const auto* texture = surface->getTexture();
         ASSERT_NE(nullptr, texture) << identifier;
         EXPECT_EQ(64, texture->size) << identifier;
+        EXPECT_GT(texture->smoothingPriority, 0) << identifier;
+        EXPECT_EQ(surface->SmoothingPriority, texture->smoothingPriority) << identifier;
         EXPECT_EQ(static_cast<size_t>(Drawing::kTerrainZoomLevels), texture->mips.size()) << identifier;
         for (auto pixel : texture->mips[0])
             ASSERT_NE(Drawing::kTerrainTransparent, pixel) << identifier;

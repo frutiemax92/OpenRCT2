@@ -185,6 +185,14 @@ class ObjectTests(unittest.TestCase):
             pixels = png_pixels(z.read(texture["path"]))
             self.assertTrue(all(p[3] == 255 for row in pixels for p in row), name)  # opaque, so no index 0
 
+    def test_surfaces_have_distinct_smoothing_priorities(self):
+        priorities = set()
+        for name, _, _, _ in objects.SURFACES:
+            _, data = open_object("terrain_surface/golf.terrain_surface.%s.parkobj" % name)
+            priorities.add(data["properties"]["smoothing"]["priority"])
+        self.assertEqual(len(objects.SURFACES), len(priorities))
+        self.assertEqual({s[0] for s in objects.SURFACES}, set(objects.SMOOTHING_PRIORITY))
+
     def test_surfaces_have_distinct_colours(self):
         centres = set()
         for name, _, _, _ in objects.SURFACES:

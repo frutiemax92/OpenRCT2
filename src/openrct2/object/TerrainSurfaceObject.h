@@ -96,6 +96,7 @@ namespace OpenRCT2
 
         // The flat square texture of the procedural terrain renderer (TER-030): the last image of the object.
         bool HasTexture{};
+        int32_t SmoothingPriority{};
         Drawing::TerrainTexture Texture{};
         const Drawing::TerrainTexture* getTexture() const
         {

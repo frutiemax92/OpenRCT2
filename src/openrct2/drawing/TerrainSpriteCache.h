@@ -25,6 +25,9 @@ namespace OpenRCT2::Drawing
         std::array<uint8_t, 4> quadrantSurfaces;
         uint8_t rotation;
         uint8_t zoom;
+        // Surfaces across the tile edge each quadrant touches, and whether smoothing is on (TER-050).
+        std::array<uint8_t, 4> neighbourSurfaces{};
+        bool smoothing = false;
 
         bool operator==(const TerrainSpriteKey&) const = default;
     };

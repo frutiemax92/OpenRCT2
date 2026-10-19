@@ -10,6 +10,7 @@
 #pragma once
 
 #include "ImageIndexType.h"
+#include "../world/Location.hpp"
 #include "TerrainSpriteCache.h"
 
 #include <cstdint>
@@ -39,7 +40,8 @@ namespace OpenRCT2::Drawing
         // The image of the surface of a tile for the view rotation, or kImageIndexUndefined when it cannot be drawn
         // procedurally yet (missing texture, generation limit reached): the caller draws a fallback. The image stays
         // valid until the next BeginFrame. Safe to call from paint threads.
-        ImageIndex GetImage(const SurfaceElement& surface, int32_t rotation);
+        // tilePos is the tile's map position, used to look up the surfaces of its neighbours for smoothing.
+        ImageIndex GetImage(const SurfaceElement& surface, const CoordsXY& tilePos, int32_t rotation);
 
         size_t GetSpriteCount() const;
 

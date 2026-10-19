@@ -9,7 +9,9 @@
 
 #include "TerrainSpriteStore.h"
 
+#include "../config/Config.h"
 #include "../object/TerrainSurfaceObject.h"
+#include "../world/Map.h"
 #include "../world/tile_element/SurfaceElement.h"
 #include "G1Element.h"
 #include "Image.h"
@@ -68,7 +70,7 @@ namespace OpenRCT2::Drawing
         return _cache.GetCount();
     }
 
-    ImageIndex TerrainSpriteStore::GetImage(const SurfaceElement& surface, int32_t rotation)
+    ImageIndex TerrainSpriteStore::GetImage(const SurfaceElement& surface, const CoordsXY& tilePos, int32_t rotation)
     {
         const auto shape = surface.getTerrainShape();
         const auto shapeIndex = Terrain::GetShapeIndex(shape);
@@ -87,13 +89,48 @@ namespace OpenRCT2::Drawing
             key.quadrantSurfaces[q] = static_cast<uint8_t>(surfaceIndex);
         }
 
+        // The quadrant across each tile edge: north-east touches x + 1, south-east y - 1, south-west x - 1, north-west y + 1.
+        TerrainSmoothing smoothing;
+        smoothing.enabled = Config::Get().general.landscapeSmoothing;
+        key.smoothing = smoothing.enabled;
+        if (smoothing.enabled)
+        {
+            struct Across
+            {
+                CoordsXY offset;
+                Terrain::Quadrant touching;
+            };
+            const Across across[4] = {
+                { { kCoordsXYStep, 0 }, Terrain::Quadrant::southWest },
+                { { 0, -kCoordsXYStep }, Terrain::Quadrant::northWest },
+                { { -kCoordsXYStep, 0 }, Terrain::Quadrant::northEast },
+                { { 0, kCoordsXYStep }, Terrain::Quadrant::southEast },
+            };
+            for (size_t q = 0; q < 4; q++)
+            {
+                key.neighbourSurfaces[q] = key.quadrantSurfaces[q];
+                const auto neighbourPos = tilePos + across[q].offset;
+                if (!MapIsLocationValid(neighbourPos))
+                    continue;
+                const auto* neighbour = MapGetSurfaceElementAt(neighbourPos);
+                if (neighbour == nullptr)
+                    continue;
+                const auto neighbourSurface = neighbour->getQuadrantSurfaceIndex(across[q].touching);
+                const auto* object = TerrainSurfaceObject::GetById(neighbourSurface);
+                if (object == nullptr || object->getTexture() == nullptr)
+                    continue;
+                key.neighbourSurfaces[q] = static_cast<uint8_t>(neighbourSurface);
+                smoothing.edgeNeighbours[q] = object->getTexture();
+            }
+        }
+
         std::lock_guard lock(_mutex);
         if (!_shadesBuilt)
         {
             _shades = BuildShades();
             _shadesBuilt = true;
         }
-        const auto* sprite = _cache.Get(key, [&] { return GenerateTerrainSprite(shape, textures, _shades, rotation, 0); });
+        const auto* sprite = _cache.Get(key, [&] { return GenerateTerrainSprite(shape, textures, _shades, rotation, 0, smoothing); });
         if (sprite == nullptr || sprite->pixels.empty())
             return kImageIndexUndefined;
 

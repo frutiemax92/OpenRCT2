@@ -1056,7 +1056,7 @@ void PaintSurface(PaintSession& session, uint8_t direction, uint16_t height, con
         // Procedural terrain (TER-031). Grid lines and sprites not generated yet fall back to the slope images.
         if (!showGridlines)
         {
-            const auto proceduralImage = Drawing::TerrainSpriteStore::Instance().GetImage(tileElement, rotation);
+            const auto proceduralImage = Drawing::TerrainSpriteStore::Instance().GetImage(tileElement, session.MapPosition, rotation);
             if (proceduralImage != kImageIndexUndefined)
             {
                 auto procedural = ImageId(proceduralImage);

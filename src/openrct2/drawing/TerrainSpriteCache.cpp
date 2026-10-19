@@ -23,6 +23,9 @@ namespace OpenRCT2::Drawing
             mix(q);
         mix(k.rotation);
         mix(k.zoom);
+        for (auto n : k.neighbourSurfaces)
+            mix(n);
+        mix(k.smoothing ? 1 : 0);
         return static_cast<size_t>(h);
     }
 
