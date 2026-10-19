@@ -71,6 +71,79 @@ namespace OpenRCT2::Drawing
             return (dy < 0) || (dy == 0 && dx > 0);
         }
 
+        Quadrant AcrossNorthSouth(Quadrant q)
+        {
+            switch (q)
+            {
+                case Quadrant::northEast:
+                    return Quadrant::northWest;
+                case Quadrant::northWest:
+                    return Quadrant::northEast;
+                case Quadrant::southEast:
+                    return Quadrant::southWest;
+                default:
+                    return Quadrant::southEast;
+            }
+        }
+
+        Quadrant AcrossEastWest(Quadrant q)
+        {
+            switch (q)
+            {
+                case Quadrant::northEast:
+                    return Quadrant::southEast;
+                case Quadrant::southEast:
+                    return Quadrant::northEast;
+                case Quadrant::northWest:
+                    return Quadrant::southWest;
+                default:
+                    return Quadrant::northWest;
+            }
+        }
+
+        // Fixed noise in 0..255 for a position inside the tile, so the dithering never flickers.
+        uint32_t DitherNoise(int32_t x, int32_t y)
+        {
+            uint32_t h = static_cast<uint32_t>(x) * 374761393u + static_cast<uint32_t>(y) * 668265263u;
+            h = (h ^ (h >> 13)) * 1274126177u;
+            return (h ^ (h >> 16)) & 0xFF;
+        }
+
+        // The texture of a higher priority surface bleeding over `own` at this point, or null. Positions and distances
+        // are in 1/256 tile units.
+        const TerrainTexture* PickBleed(
+            const TerrainTexture* own, Quadrant quadrant, int64_t lx, int64_t ly, const std::array<const TerrainTexture*, 4>& quads,
+            const TerrainSmoothing& smoothing)
+        {
+            const int64_t band = static_cast<int64_t>(smoothing.bandWidth) * 256;
+            struct Candidate
+            {
+                const TerrainTexture* texture;
+                int64_t distance;
+            };
+            const int64_t full = int64_t{ kTile } * 256;
+            const int64_t edgeDistance[4] = { full - lx, ly, lx, full - ly }; // by quadrant
+            const Candidate candidates[3] = {
+                { quads[static_cast<size_t>(AcrossNorthSouth(quadrant))], (std::abs(lx - ly) * 181) >> 8 },
+                { quads[static_cast<size_t>(AcrossEastWest(quadrant))], (std::abs(lx + ly - full) * 181) >> 8 },
+                { smoothing.edgeNeighbours[static_cast<size_t>(quadrant)], edgeDistance[static_cast<size_t>(quadrant)] },
+            };
+            const uint32_t noise = DitherNoise(static_cast<int32_t>(lx >> 8), static_cast<int32_t>(ly >> 8));
+            const TerrainTexture* best = nullptr;
+            for (const auto& c : candidates)
+            {
+                if (c.texture == nullptr || c.texture == own || c.texture->smoothingPriority <= own->smoothingPriority
+                    || c.distance >= band)
+                    continue;
+                // At most half of the pixels on the boundary, fading to none at the end of the band.
+                const int64_t threshold = ((band - c.distance) * 128) / band;
+                if (static_cast<int64_t>(noise) < threshold
+                    && (best == nullptr || c.texture->smoothingPriority > best->smoothingPriority))
+                    best = c.texture;
+            }
+            return best;
+        }
+
         int32_t FloorDiv(int64_t a, int64_t b)
         {
             int64_t q = a / b;
@@ -205,7 +278,7 @@ namespace OpenRCT2::Drawing
 
     TerrainSprite GenerateTerrainSprite(
         const TerrainShape& shape, const std::array<const TerrainTexture*, 4>& quadrants, const TerrainShadeTable& shades,
-        int32_t rotation, int32_t zoom)
+        int32_t rotation, int32_t zoom, const TerrainSmoothing& smoothing)
     {
         assert(zoom >= 0 && zoom < kTerrainZoomLevels);
         rotation &= 3;
@@ -294,6 +367,11 @@ namespace OpenRCT2::Drawing
                     const int32_t iyl = static_cast<int32_t>(std::clamp<int64_t>(ly >> 8, 0, kTile - 1));
                     const auto quadrant = GetQuadrantAt(ixl, iyl);
                     const TerrainTexture* tex = quadrants[static_cast<size_t>(quadrant)];
+                    if (smoothing.enabled)
+                    {
+                        if (const auto* bleed = PickBleed(tex, quadrant, lx, ly, quadrants, smoothing))
+                            tex = bleed;
+                    }
 
                     // Texture space = tile space, sampled in the mip matching the zoom.
                     const int32_t mipSize = tex->MipSize(zoom);

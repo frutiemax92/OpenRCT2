@@ -31,6 +31,7 @@ namespace OpenRCT2::Drawing
     struct TerrainTexture
     {
         int32_t size = 0; // power of two
+        int32_t smoothingPriority = 0; // the higher one bleeds over the lower where two surfaces meet (TER-050)
         std::vector<std::vector<uint8_t>> mips; // mips[0] is size x size, mips[n] is (size >> n) squared
 
         // pixels: size * size palette indices. Builds as many reduced levels as the size allows (up to 4 levels).
@@ -66,8 +67,18 @@ namespace OpenRCT2::Drawing
     // Shade band 0..kTerrainShadeBands - 1 of a surface triangle for the given view rotation.
     int32_t GetTerrainShadeBand(const Terrain::Vector3Fixed& normal, int32_t rotation);
 
+    // Smoothing between surfaces (TER-050, TER-051): where a lower priority surface borders a higher one, a dithered band
+    // of the higher one bleeds over it, along the diagonals inside the tile and along the tile edges.
+    struct TerrainSmoothing
+    {
+        bool enabled = false;
+        int32_t bandWidth = 3; // in tile units, about pixels at 1x zoom
+        // Texture across the tile edge each quadrant touches, indexed by Terrain::Quadrant; null = none.
+        std::array<const TerrainTexture*, 4> edgeNeighbours{};
+    };
+
     // quadrants are indexed by Terrain::Quadrant. Textures must outlive the call and must not be null.
     TerrainSprite GenerateTerrainSprite(
         const Terrain::TerrainShape& shape, const std::array<const TerrainTexture*, 4>& quadrants,
-        const TerrainShadeTable& shades, int32_t rotation, int32_t zoom);
+        const TerrainShadeTable& shades, int32_t rotation, int32_t zoom, const TerrainSmoothing& smoothing = {});
 } // namespace OpenRCT2::Drawing

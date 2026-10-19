@@ -335,3 +335,127 @@ TEST(TerrainSpriteTest, ShadingDarkensSlopesAwayFromTheLight)
     auto first = [](const TerrainSprite& s) { for (auto p : s.pixels) if (p) return p; return uint8_t(0); };
     EXPECT_NE(first(a), first(b));
 }
+
+namespace
+{
+    TerrainTexture WithPriority(uint8_t colour, int32_t priority)
+    {
+        auto tex = Solid(colour);
+        tex.smoothingPriority = priority;
+        return tex;
+    }
+
+    // Colour at a position inside the tile for rotation 0 (local = centre + inverse projection).
+    uint8_t PixelAt(const TerrainSprite& s, int lx, int ly)
+    {
+        const int dx = lx - 16, dy = ly - 16;
+        const int sx = dy - dx, sy = (dx + dy) >> 1;
+        const int ox = sx - s.xOffset, oy = sy - s.yOffset;
+        return s.pixels[static_cast<size_t>(oy) * s.width + ox];
+    }
+} // namespace
+
+TEST(TerrainSmoothingTest, HigherPriorityBleedsIntoTheLowerOneInsideATile)
+{
+    auto low = WithPriority(10, 1);
+    auto high = WithPriority(20, 5);
+    // South-east quadrant is the high priority one, the others low.
+    const std::array<const TerrainTexture*, 4> quads = { &low, &high, &low, &low };
+    TerrainSmoothing smoothing;
+    smoothing.enabled = true;
+    auto s = GenerateTerrainSprite({ 0, 0, 0, 0 }, quads, TerrainShadeTable::Identity(), 0, 0, smoothing);
+
+    int lowNearBoundaryWithHigh = 0, highInLowTerritory = 0, lowInHighTerritory = 0, highFar = 0;
+    for (int ly = 1; ly < 31; ly++)
+    {
+        for (int lx = 1; lx < 31; lx++)
+        {
+            const auto q = GetQuadrantAt(lx, ly);
+            const auto c = PixelAt(s, lx, ly);
+            if (c == 0)
+                continue;
+            if (q == Quadrant::southEast)
+                lowInHighTerritory += c == 10;
+            else if (c == 20)
+            {
+                highInLowTerritory++;
+                // Only near the south-east quadrant: within the band of its diagonals.
+                const bool nearSE = std::abs(lx - ly) * 0.71 < 3.5 || std::abs(lx + ly - 32) * 0.71 < 3.5;
+                EXPECT_TRUE(nearSE) << lx << "," << ly;
+            }
+            if (q == Quadrant::northWest && c == 20)
+                highFar++;
+        }
+    }
+    EXPECT_EQ(lowInHighTerritory, 0); // the higher priority surface never gets bled over
+    EXPECT_GT(highInLowTerritory, 5);
+    EXPECT_EQ(highFar, 0);
+    (void)lowNearBoundaryWithHigh;
+}
+
+TEST(TerrainSmoothingTest, DisabledOrEqualPriorityChangesNothing)
+{
+    auto a = WithPriority(10, 3);
+    auto b = WithPriority(20, 3);
+    const std::array<const TerrainTexture*, 4> quads = { &a, &b, &a, &b };
+    const auto shades = TerrainShadeTable::Identity();
+    TerrainSmoothing off;
+    TerrainSmoothing on;
+    on.enabled = true;
+    EXPECT_EQ(
+        GenerateTerrainSprite({ 1, 2, 0, 1 }, quads, shades, 0, 0, off).pixels,
+        GenerateTerrainSprite({ 1, 2, 0, 1 }, quads, shades, 0, 0, on).pixels); // same priority: no bleeding
+
+    auto high = WithPriority(30, 9);
+    const std::array<const TerrainTexture*, 4> mixed = { &a, &high, &a, &a };
+    EXPECT_NE(
+        GenerateTerrainSprite({ 0, 0, 0, 0 }, mixed, shades, 0, 0, off).pixels,
+        GenerateTerrainSprite({ 0, 0, 0, 0 }, mixed, shades, 0, 0, on).pixels);
+    EXPECT_EQ( // and disabled equals the default
+        GenerateTerrainSprite({ 0, 0, 0, 0 }, mixed, shades, 0, 0, off).pixels,
+        GenerateTerrainSprite({ 0, 0, 0, 0 }, mixed, shades, 0, 0).pixels);
+}
+
+TEST(TerrainSmoothingTest, BleedsAcrossTileEdgesFromTheNeighbour)
+{
+    auto own = WithPriority(10, 1);
+    auto neighbour = WithPriority(20, 5);
+    const std::array<const TerrainTexture*, 4> quads = { &own, &own, &own, &own };
+    TerrainSmoothing smoothing;
+    smoothing.enabled = true;
+    smoothing.edgeNeighbours[static_cast<size_t>(Quadrant::northEast)] = &neighbour; // across the edge x = 32
+    auto s = GenerateTerrainSprite({ 0, 0, 0, 0 }, quads, TerrainShadeTable::Identity(), 0, 0, smoothing);
+    int nearEdge = 0, farFromEdge = 0;
+    for (int ly = 1; ly < 31; ly++)
+        for (int lx = 1; lx < 31; lx++)
+        {
+            if (PixelAt(s, lx, ly) != 20)
+                continue;
+            (lx >= 28 ? nearEdge : farFromEdge)++;
+        }
+    EXPECT_GT(nearEdge, 3);
+    EXPECT_EQ(farFromEdge, 0);
+}
+
+TEST(TerrainSmoothingTest, IsDeterministicAndKeepsEveryShapeGapFree)
+{
+    auto low = WithPriority(10, 1);
+    auto high = WithPriority(20, 5);
+    const std::array<const TerrainTexture*, 4> quads = { &low, &high, &low, &high };
+    TerrainSmoothing smoothing;
+    smoothing.enabled = true;
+    smoothing.edgeNeighbours = { &high, nullptr, &high, nullptr };
+    const auto shades = TerrainShadeTable::Identity();
+    for (uint16_t i = 0; i < kShapeCount; i += 7)
+    {
+        const auto sh = GetShapeFromIndex(i);
+        auto plain = GenerateTerrainSprite(sh, quads, shades, 1, 0);
+        auto a = GenerateTerrainSprite(sh, quads, shades, 1, 0, smoothing);
+        auto b = GenerateTerrainSprite(sh, quads, shades, 1, 0, smoothing);
+        EXPECT_EQ(a.pixels, b.pixels);
+        // Smoothing only recolours: the covered pixels are the same.
+        ASSERT_EQ(a.pixels.size(), plain.pixels.size());
+        for (size_t p = 0; p < a.pixels.size(); p++)
+            ASSERT_EQ(a.pixels[p] == 0, plain.pixels[p] == 0);
+    }
+}
