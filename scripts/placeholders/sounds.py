@@ -16,13 +16,14 @@ Usage: sounds.py [--output DIR]   (default: data/object/golf/audio)
 """
 
 import argparse
-import io
 import json
 import os
 import re
 import struct
 import sys
-import zipfile
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from parkobj import ZIP_DATE, pack  # noqa: E402,F401  (ZIP_DATE re-exported for the tests)
 
 REPO_ROOT = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", ".."))
 AUDIO_H = os.path.join(REPO_ROOT, "src", "openrct2", "audio", "Audio.h")
@@ -31,7 +32,6 @@ DEFAULT_OUTPUT = os.path.join(REPO_ROOT, "data", "object", "golf", "audio")
 SAMPLE_RATE = 22050
 AMPLITUDE = 0.45
 FIRST_ADDITIONAL = "liftRMC"
-ZIP_DATE = (1980, 1, 1, 0, 0, 0)
 
 PI = 3.141592653589793
 TWO_PI = 2.0 * PI
@@ -216,20 +216,6 @@ def audio_object(object_id, description, names, first_index):
     }
     files["object.json"] = (json.dumps(manifest, indent=4) + "\n").encode("utf-8")
     return files
-
-
-def pack(files):
-    """Deterministic ZIP: object.json first, then sorted paths, stored, fixed timestamps and attributes."""
-    buffer = io.BytesIO()
-    order = ["object.json"] + sorted(p for p in files if p != "object.json")
-    with zipfile.ZipFile(buffer, "w", zipfile.ZIP_STORED) as z:
-        for path in order:
-            info = zipfile.ZipInfo(path, ZIP_DATE)
-            info.compress_type = zipfile.ZIP_STORED
-            info.external_attr = 0o644 << 16
-            info.create_system = 3
-            z.writestr(info, files[path])
-    return buffer.getvalue()
 
 
 def build(path=AUDIO_H):
