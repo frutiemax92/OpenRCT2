@@ -90,7 +90,6 @@
 #include "terraform/WaterLowerAction.h"
 #include "terraform/WaterRaiseAction.h"
 #include "terraform/WaterSetHeightAction.h"
-#include "track/TrackDesignAction.h"
 #include "track/TrackPlaceAction.h"
 #include "track/TrackRemoveAction.h"
 #include "track/TrackSetBrakeSpeedAction.h"
@@ -196,7 +195,6 @@ namespace OpenRCT2::GameActions
         REGISTER_ACTION(LandSetRightsAction);
         REGISTER_ACTION(LandSmoothAction);
         REGISTER_ACTION(TileModifyAction);
-        REGISTER_ACTION(TrackDesignAction);
         REGISTER_ACTION(TrackPlaceAction);
         REGISTER_ACTION(TrackRemoveAction);
         REGISTER_ACTION(TrackSetBrakeSpeedAction);

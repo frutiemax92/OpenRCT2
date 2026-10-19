@@ -23,7 +23,6 @@
 #include "../../object/TerrainSurfaceObject.h"
 #include "../../paint/Paint.h"
 #include "../../profiling/Profiling.h"
-#include "../../ride/TrackDesign.h"
 #include "../../world/Map.h"
 #include "../../world/MapSelection.h"
 #include "../../world/tile_element/Slope.h"
@@ -1209,8 +1208,7 @@ void PaintSurface(PaintSession& session, uint8_t direction, uint16_t height, con
         ViewportSurfaceSmoothenEdge(session, EDGE_BOTTOMRIGHT, selfDescriptor, tileDescriptors[1]);
     }
 
-    if (session.ViewFlags.has(ViewportFlag::undergroundInside) && !session.ViewFlags.has(ViewportFlag::hideBase)
-        && !(isInTrackDesignerOrManager()))
+    if (session.ViewFlags.has(ViewportFlag::undergroundInside) && !session.ViewFlags.has(ViewportFlag::hideBase))
     {
         const uint8_t image_offset = Byte97B444[surfaceShape];
         ImageId imageId;
@@ -1238,7 +1236,7 @@ void PaintSurface(PaintSession& session, uint8_t direction, uint16_t height, con
     const bool waterIsTransparent = Config::Get().general.transparentWater
         || session.ViewFlags.has(ViewportFlag::undergroundInside);
 
-    if (waterHeight > 0 && !gTrackDesignSaveMode && !waterGetsClipped)
+    if (waterHeight > 0 && !waterGetsClipped)
     {
         // Loc6615A9: (water height)
         session.InteractionType = ViewportInteractionItem::water;
@@ -1274,7 +1272,7 @@ void PaintSurface(PaintSession& session, uint8_t direction, uint16_t height, con
         }
     }
 
-    if ((tileElement.getParkFences()) && !gTrackDesignSaveMode)
+    if ((tileElement.getParkFences()))
     {
         // Owned land boundary fences
         session.InteractionType = ViewportInteractionItem::parkEntrance;

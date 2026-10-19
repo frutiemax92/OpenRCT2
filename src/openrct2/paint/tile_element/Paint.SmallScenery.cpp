@@ -13,7 +13,6 @@
 #include "../../interface/Viewport.h"
 #include "../../object/SmallSceneryEntry.h"
 #include "../../profiling/Profiling.h"
-#include "../../ride/TrackDesign.h"
 #include "../../world/Scenery.h"
 #include "../../world/tile_element/SmallSceneryElement.h"
 #include "../support/WoodenSupports.h"
@@ -338,13 +337,6 @@ void PaintSmallScenery(PaintSession& session, uint8_t direction, int32_t height,
 
     session.InteractionType = ViewportInteractionItem::scenery;
     ImageId imageTemplate;
-    if (gTrackDesignSaveMode)
-    {
-        if (!TrackDesignSaveContainsTileElement(reinterpret_cast<const TileElement*>(&sceneryElement)))
-        {
-            imageTemplate = ImageId().WithRemap(FilterPaletteID::palette46);
-        }
-    }
     if (sceneryElement.isGhost())
     {
         session.InteractionType = ViewportInteractionItem::none;

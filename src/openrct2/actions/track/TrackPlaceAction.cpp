@@ -19,7 +19,6 @@
 #include "../../ride/RideData.h"
 #include "../../ride/Track.h"
 #include "../../ride/TrackData.h"
-#include "../../ride/TrackDesign.h"
 #include "../../ride/ted/TrackElementDescriptor.h"
 #include "../../world/ConstructionClearance.h"
 #include "../../world/Footpath.h"
@@ -317,7 +316,7 @@ namespace OpenRCT2::GameActions
                     Status::disallowed, STR_RIDE_CONSTRUCTION_CANT_CONSTRUCT_THIS_HERE, STR_RIDE_CANT_BUILD_THIS_UNDERWATER);
             }
 
-            if (rtd.flags.has(RtdFlag::trackMustBeOnWater) && !_trackDesignDrawingPreview)
+            if (rtd.flags.has(RtdFlag::trackMustBeOnWater))
             {
                 auto surfaceElement = MapGetSurfaceElementAt(mapLoc);
                 if (surfaceElement == nullptr)
@@ -392,7 +391,7 @@ namespace OpenRCT2::GameActions
                     }
 
                     ride_height /= kCoordsZPerTinyZ;
-                    if (ride_height > maxHeight && !_trackDesignDrawingPreview)
+                    if (ride_height > maxHeight)
                     {
                         return Result(
                             Status::disallowed, STR_RIDE_CONSTRUCTION_CANT_CONSTRUCT_THIS_HERE, STR_TOO_HIGH_FOR_SUPPORTS);

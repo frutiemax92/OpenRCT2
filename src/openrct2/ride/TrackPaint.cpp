@@ -19,7 +19,6 @@
 #include "Ride.h"
 #include "RideData.h"
 #include "TrackData.h"
-#include "TrackDesign.h"
 #include "ted/TrackElementDescriptor.h"
 
 using namespace OpenRCT2;
@@ -36,8 +35,7 @@ void PaintTrack(PaintSession& session, Direction direction, int32_t height, cons
         return;
     }
 
-    if ((!gTrackDesignSaveMode || rideIndex == gTrackDesignSaveRideIndex)
-        && !session.ViewFlags.has(ViewportFlag::highlightPathIssues))
+    if (!session.ViewFlags.has(ViewportFlag::highlightPathIssues))
     {
         auto trackType = trackElement.getTrackType();
         int32_t trackSequence = trackElement.getSequenceIndex();

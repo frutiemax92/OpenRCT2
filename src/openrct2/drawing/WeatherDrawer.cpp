@@ -12,7 +12,6 @@
 #include "../GameState.h"
 #include "../config/Config.h"
 #include "../interface/Viewport.h"
-#include "../ride/TrackDesign.h"
 #include "../ui/UiContext.h"
 #include "../world/Weather.h"
 #include "IDrawingEngine.h"
@@ -61,7 +60,7 @@ void DrawWeather(RenderTarget& rt, IWeatherDrawer* weatherDrawer)
         viewFlags = viewport->flags;
 
     auto weatherLevel = getGameState().weatherCurrent.level;
-    if (weatherLevel == Weather::Level::none || gTrackDesignSaveMode || viewFlags.has(ViewportFlag::highlightPathIssues))
+    if (weatherLevel == Weather::Level::none || viewFlags.has(ViewportFlag::highlightPathIssues))
         return;
 
     // Get weather draw function and draw weather

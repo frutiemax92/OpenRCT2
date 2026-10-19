@@ -20,7 +20,6 @@
 #include "../../object/WallSceneryEntry.h"
 #include "../../ride/RideData.h"
 #include "../../ride/TrackData.h"
-#include "../../ride/TrackDesign.h"
 #include "../../ride/ted/TrackElementDescriptor.h"
 #include "../../world/Banner.h"
 #include "../../world/ConstructionClearance.h"
@@ -106,7 +105,7 @@ namespace OpenRCT2::GameActions
                 return Result(Status::notOwned, STR_CANT_BUILD_THIS_HERE, STR_LAND_NOT_OWNED_BY_PARK);
             }
         }
-        else if (!_trackDesignDrawingPreview && (_loc.x > mapSizeMax.x || _loc.y > mapSizeMax.y))
+        else if ((_loc.x > mapSizeMax.x || _loc.y > mapSizeMax.y))
         {
             LOG_ERROR("Invalid x/y coordinates. x = %d y = %d", _loc.x, _loc.y);
             return Result(Status::invalidParameters, STR_CANT_BUILD_THIS_HERE, STR_OFF_EDGE_OF_MAP);

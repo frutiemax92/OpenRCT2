@@ -432,20 +432,6 @@ namespace OpenRCT2::Ui::Windows
                     break;
                 }
 
-                case WIDX_INSTALL_TRACK:
-                {
-                    if (selectedListItem != -1)
-                    {
-                        selectedListItem = -1;
-                    }
-                    invalidate();
-
-                    auto intent = Intent(WindowClass::loadsave);
-                    intent.PutEnumExtra<LoadSaveAction>(INTENT_EXTRA_LOADSAVE_ACTION, LoadSaveAction::load);
-                    intent.PutEnumExtra<LoadSaveType>(INTENT_EXTRA_LOADSAVE_TYPE, LoadSaveType::track);
-                    ContextOpenIntent(&intent);
-                    break;
-                }
                 case WIDX_FILTER_TEXT_BOX:
                     WindowStartTextbox(*this, widgetIndex, _filter, kTextInputSize);
                     break;

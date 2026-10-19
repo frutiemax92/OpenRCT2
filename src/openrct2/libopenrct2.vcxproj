@@ -166,7 +166,6 @@
     <ClInclude Include="actions\terraform\WaterLowerAction.h" />
     <ClInclude Include="actions\terraform\WaterRaiseAction.h" />
     <ClInclude Include="actions\terraform\WaterSetHeightAction.h" />
-    <ClInclude Include="actions\track\TrackDesignAction.h" />
     <ClInclude Include="actions\track\TrackPlaceAction.h" />
     <ClInclude Include="actions\track\TrackRemoveAction.h" />
     <ClInclude Include="actions\track\TrackSetBrakeSpeedAction.h" />
@@ -456,11 +455,9 @@
     <ClInclude Include="rct12\EntryList.h" />
     <ClInclude Include="rct12\Limits.h" />
     <ClInclude Include="rct12\RCT12.h" />
-    <ClInclude Include="rct12\TD46.h" />
     <ClInclude Include="rct2\DATLimits.h" />
     <ClInclude Include="rct2\Limits.h" />
     <ClInclude Include="rct2\RCT2.h" />
-    <ClInclude Include="rct2\T6Exporter.h" />
     <ClInclude Include="ReplayManager.h" />
     <ClInclude Include="ride\Angles.h" />
     <ClInclude Include="ride\CableLift.h" />
@@ -589,8 +586,6 @@
     <ClInclude Include="ride\ShopItem.h" />
     <ClInclude Include="ride\Track.h" />
     <ClInclude Include="ride\TrackData.h" />
-    <ClInclude Include="ride\TrackDesign.h" />
-    <ClInclude Include="ride\TrackDesignRepository.h" />
     <ClInclude Include="ride\TrackIteration.h" />
     <ClInclude Include="ride\TrackPaint.h" />
     <ClInclude Include="ride\TrackStyle.h" />
@@ -617,8 +612,6 @@
     <ClInclude Include="scenes\editor\EditorController.h" />
     <ClInclude Include="scenes\editor\EditorScene.h" />
     <ClInclude Include="scenes\editor\EditorStep.h" />
-    <ClInclude Include="scenes\editor\TrackDesignerScene.h" />
-    <ClInclude Include="scenes\editor\TrackManagerScene.h" />
     <ClInclude Include="scenes\game\GameScene.h" />
     <ClInclude Include="scenes\intro\IntroScene.h" />
     <ClInclude Include="scenes\preloader\PreloaderScene.h" />
@@ -670,7 +663,6 @@
     <ClInclude Include="scripting\SoundNames.hpp" />
     <ClInclude Include="SpriteIds.h" />
     <ClInclude Include="System.hpp" />
-    <ClInclude Include="TrackImporter.h" />
     <ClInclude Include="ui\UiContext.h" />
     <ClInclude Include="ui\WindowManager.h" />
     <ClInclude Include="util\Util.h" />
@@ -812,7 +804,6 @@
     <ClCompile Include="actions\terraform\WaterLowerAction.cpp" />
     <ClCompile Include="actions\terraform\WaterRaiseAction.cpp" />
     <ClCompile Include="actions\terraform\WaterSetHeightAction.cpp" />
-    <ClCompile Include="actions\track\TrackDesignAction.cpp" />
     <ClCompile Include="actions\track\TrackPlaceAction.cpp" />
     <ClCompile Include="actions\track\TrackRemoveAction.cpp" />
     <ClCompile Include="actions\track\TrackSetBrakeSpeedAction.cpp" />
@@ -1050,10 +1041,7 @@
     <ClCompile Include="rct12\CSStringConverter.cpp" />
     <ClCompile Include="rct12\RCT12.cpp" />
     <ClCompile Include="rct12\ScenarioPatcher.cpp" />
-    <ClCompile Include="rct12\TD46.cpp" />
     <ClCompile Include="rct2\RCT2.cpp" />
-    <ClCompile Include="rct2\T6Exporter.cpp" />
-    <ClCompile Include="rct2\T6Importer.cpp" />
     <ClCompile Include="ReplayManager.cpp" />
     <ClCompile Include="ride\ted\PitchAndRoll.cpp" />
     <ClCompile Include="ride\ted\TrackElemType.cpp" />
@@ -1070,9 +1058,6 @@
     <ClCompile Include="ride\Station.cpp" />
     <ClCompile Include="ride\Track.cpp" />
     <ClCompile Include="ride\TrackData.cpp" />
-    <ClCompile Include="ride\TrackDesign.cpp" />
-    <ClCompile Include="ride\TrackDesignRepository.cpp" />
-    <ClCompile Include="ride\TrackDesignSave.cpp" />
     <ClCompile Include="ride\TrackIteration.cpp" />
     <ClCompile Include="ride\TrackPaint.cpp" />
     <ClCompile Include="ride\TrainManager.cpp" />
@@ -1106,8 +1091,6 @@
     <ClCompile Include="scenes\SceneManager.cpp" />
     <ClCompile Include="scenes\editor\EditorController.cpp" />
     <ClCompile Include="scenes\editor\EditorScene.cpp" />
-    <ClCompile Include="scenes\editor\TrackDesignerScene.cpp" />
-    <ClCompile Include="scenes\editor\TrackManagerScene.cpp" />
     <ClCompile Include="scenes\game\GameScene.cpp" />
     <ClCompile Include="scenes\intro\IntroScene.cpp" />
     <ClCompile Include="scenes\preloader\PreloaderScene.cpp" />
@@ -1142,7 +1125,6 @@
     <ClCompile Include="scripting\HookEngine.cpp" />
     <ClCompile Include="scripting\Plugin.cpp" />
     <ClCompile Include="scripting\ScriptEngine.cpp" />
-    <ClCompile Include="TrackImporter.cpp" />
     <ClCompile Include="ui\DummyUiContext.cpp" />
     <ClCompile Include="ui\DummyWindowManager.cpp" />
     <ClCompile Include="util\Util.cpp" />

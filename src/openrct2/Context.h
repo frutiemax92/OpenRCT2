@@ -19,7 +19,6 @@ enum class CursorID : uint8_t;
 enum class DrawingEngine : int32_t;
 struct IGameStateSnapshots;
 struct IScenarioRepository;
-struct ITrackDesignRepository;
 struct NewVersionInfo;
 struct ScreenCoordsXY;
 
@@ -94,7 +93,6 @@ namespace OpenRCT2
 #ifdef ENABLE_SCRIPTING
         virtual Scripting::ScriptEngine& GetScriptEngine() = 0;
 #endif
-        virtual ITrackDesignRepository* GetTrackDesignRepository() = 0;
         virtual IScenarioRepository* GetScenarioRepository() = 0;
         virtual IReplayManager* GetReplayManager() = 0;
         virtual ISceneManager* GetSceneManager() = 0;

@@ -66,7 +66,6 @@
 #include "platform/Platform.h"
 #include "profiling/Profiling.h"
 #include "rct2/RCT2.h"
-#include "ride/TrackDesignRepository.h"
 #include "scenario/Scenario.h"
 #include "scenario/ScenarioRepository.h"
 #include "scenes/SceneManager.h"
@@ -112,7 +111,6 @@ namespace OpenRCT2
         std::unique_ptr<Localisation::LocalisationService> _localisationService;
         std::unique_ptr<IObjectRepository> _objectRepository;
         std::unique_ptr<IObjectManager> _objectManager;
-        std::unique_ptr<ITrackDesignRepository> _trackDesignRepository;
         std::unique_ptr<IScenarioRepository> _scenarioRepository;
         std::unique_ptr<ISceneManager> _sceneManager;
         std::unique_ptr<IReplayManager> _replayManager;
@@ -256,11 +254,6 @@ namespace OpenRCT2
             return *_objectRepository;
         }
 
-        ITrackDesignRepository* GetTrackDesignRepository() override
-        {
-            return _trackDesignRepository.get();
-        }
-
         IScenarioRepository* GetScenarioRepository() override
         {
             return _scenarioRepository.get();
@@ -401,7 +394,6 @@ namespace OpenRCT2
             // so they cannot be set in the constructor.
             _objectRepository = CreateObjectRepository(*_env);
             _objectManager = CreateObjectManager(*_objectRepository);
-            _trackDesignRepository = CreateTrackDesignRepository(*_env);
             _scenarioRepository = CreateScenarioRepository(*_env);
             _sceneManager = createSceneManager(this);
 
@@ -546,7 +538,6 @@ namespace OpenRCT2
             Audio::LoadAudioObjects();
 
             OpenProgress(STR_CHECKING_TRACK_DESIGN_FILES);
-            _trackDesignRepository->Scan(currentLanguage);
 
             OpenProgress(STR_CHECKING_SCENARIO_FILES);
             _scenarioRepository->Scan(currentLanguage);

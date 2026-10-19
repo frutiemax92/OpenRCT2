@@ -10,6 +10,7 @@
 #include "Staff.h"
 
 #include "../Context.h"
+#include "../actions/GameActionResult.h"
 #include "../Diagnostic.h"
 #include "../GameState.h"
 #include "../audio/Audio.h"

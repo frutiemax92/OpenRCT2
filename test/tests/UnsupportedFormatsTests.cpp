@@ -7,12 +7,11 @@
  * OpenRCT2 is licensed under the GNU General Public License version 3.
  *****************************************************************************/
 
-// ARC-002: the RCT1 and RCT2 park importers are removed; only .park files load. RCT1 track designs are rejected.
+// ARC-002: the RCT1 and RCT2 park importers are removed; only .park files load.
 
 #include <gtest/gtest.h>
 #include <openrct2/FileClassifier.h>
 #include <openrct2/ParkImporter.h>
-#include <openrct2/TrackImporter.h>
 #include <stdexcept>
 
 using namespace OpenRCT2;
@@ -31,16 +30,12 @@ TEST(UnsupportedFormats, RCT2ParksAreRejected)
     EXPECT_THROW(ParkImporter::Create("park.sv7"), std::runtime_error);
 }
 
-TEST(UnsupportedFormats, RCT1TrackDesignsAreRejected)
-{
-    EXPECT_THROW(TrackImporter::Create("design.td4"), std::runtime_error);
-}
-
 TEST(UnsupportedFormats, RCTExtensionsAreUnknown)
 {
     EXPECT_EQ(FileExtension::unknown, GetFileExtensionType("park.sv4"));
     EXPECT_EQ(FileExtension::unknown, GetFileExtensionType("scenario.sc4"));
     EXPECT_EQ(FileExtension::unknown, GetFileExtensionType("design.td4"));
+    EXPECT_EQ(FileExtension::unknown, GetFileExtensionType("design.td6"));
     EXPECT_EQ(FileExtension::unknown, GetFileExtensionType("park.sv6"));
     EXPECT_EQ(FileExtension::unknown, GetFileExtensionType("scenario.sc6"));
     EXPECT_EQ(FileExtension::unknown, GetFileExtensionType("scenario.sea"));

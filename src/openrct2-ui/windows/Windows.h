@@ -21,8 +21,6 @@
 struct ScreenCoordsXY;
 struct StringWithArgs;
 struct RideSelection;
-struct TrackDesign;
-struct TrackDesignFileRef;
 
 enum class ScatterToolDensity : uint8_t;
 
@@ -149,7 +147,7 @@ namespace OpenRCT2::Ui::Windows
     // LoadSave
     WindowBase* LoadsaveOpen(
         LoadSaveAction action, LoadSaveType type, std::string_view defaultPath,
-        std::function<void(ModalResult result, std::string_view)> callback, bool isJsCallback, TrackDesign* trackDesign);
+        std::function<void(ModalResult result, std::string_view)> callback, bool isJsCallback);
     void WindowLoadSaveInputKey(WindowBase* w, uint32_t keycode);
 
     // Main
@@ -195,7 +193,7 @@ namespace OpenRCT2::Ui::Windows
 
     // OverwritePrompt
     WindowBase* WindowOverwritePromptOpen(
-        std::string_view name, std::string_view path, LoadSaveAction action, LoadSaveType type, TrackDesign* trackDesignPtr);
+        std::string_view name, std::string_view path, LoadSaveAction action, LoadSaveType type);
     void WindowLoadSaveOverwritePromptInputKey(WindowBase* w, uint32_t keycode);
 
     // Park

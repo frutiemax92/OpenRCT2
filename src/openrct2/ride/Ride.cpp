@@ -67,7 +67,6 @@
 #include "ShopItem.h"
 #include "Station.h"
 #include "TrackData.h"
-#include "TrackDesign.h"
 #include "TrackIteration.h"
 #include "Vehicle.h"
 #include "ted/TrackElementDescriptor.h"
@@ -725,35 +724,6 @@ namespace OpenRCT2
             ride.update();
 
         RideAudio::UpdateMusicChannels();
-    }
-
-    std::unique_ptr<TrackDesign> Ride::saveToTrackDesign(TrackDesignState& tds) const
-    {
-        if (!flags.has(RideFlag::tested))
-        {
-            ContextShowError(STR_CANT_SAVE_TRACK_DESIGN, kStringIdNone, {});
-            return nullptr;
-        }
-
-        if (!RideHasRatings(*this))
-        {
-            ContextShowError(STR_CANT_SAVE_TRACK_DESIGN, kStringIdNone, {});
-            return nullptr;
-        }
-
-        auto td = std::make_unique<TrackDesign>();
-        auto errMessage = td->CreateTrackDesign(tds, *this);
-        if (!errMessage.Successful)
-        {
-            ContextShowError(STR_CANT_SAVE_TRACK_DESIGN, errMessage.Message, {});
-            return nullptr;
-        }
-        if (errMessage.HasMessage())
-        {
-            ContextShowError(errMessage.Message, kStringIdEmpty, {});
-        }
-
-        return td;
     }
 
     RideStation& Ride::getStation(StationIndex stationIndex)

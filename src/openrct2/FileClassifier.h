@@ -15,7 +15,6 @@ enum class FileExtension
 {
     unknown,
     dat,
-    td6,
     park,
 };
 
@@ -32,7 +31,6 @@ enum class FileType
     object,
     savedGame,
     scenario,
-    trackDesign,
     park,
 };
 

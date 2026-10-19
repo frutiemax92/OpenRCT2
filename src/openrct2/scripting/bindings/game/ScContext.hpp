@@ -16,6 +16,7 @@
     #include "../../../actions/GameActionRunner.h"
     #include "../../../interface/Screenshot.h"
     #include "../../../localisation/Formatting.h"
+    #include "../../../ride/ted/TrackElemType.h"
     #include "../../../object/ObjectManager.h"
     #include "../../../scenario/Scenario.h"
     #include "../../HookEngine.h"

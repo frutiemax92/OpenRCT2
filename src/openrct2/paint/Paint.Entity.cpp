@@ -14,7 +14,6 @@
 #include "../entity/Staff.h"
 #include "../interface/Viewport.h"
 #include "../profiling/Profiling.h"
-#include "../ride/TrackDesign.h"
 #include "../world/Map.h"
 #include "Paint.h"
 #include "entity/Paint.Balloon.h"
@@ -47,7 +46,7 @@ void EntityPaintSetup(PaintSession& session, const CoordsXY& pos)
     {
         return;
     }
-    if (gTrackDesignSaveMode || session.ViewFlags.has(ViewportFlag::hideEntities))
+    if (session.ViewFlags.has(ViewportFlag::hideEntities))
     {
         return;
     }

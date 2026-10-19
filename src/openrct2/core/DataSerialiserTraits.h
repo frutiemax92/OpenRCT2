@@ -13,7 +13,10 @@
 #include "../entity/Guest.h"
 #include "../network/Network.h"
 #include "../network/NetworkTypes.h"
-#include "../ride/TrackDesign.h"
+#include "../object/Object.h"
+#include "../ride/RideColour.h"
+#include "../ride/RideRatings.h"
+#include "../ride/VehicleColour.h"
 #include "../world/Banner.h"
 #include "../world/Footpath.h"
 #include "../world/tile_element/TileElement.h"
@@ -676,119 +679,6 @@ namespace OpenRCT2
             char msg[128] = {};
             snprintf(msg, sizeof(msg), "ObjectEntryDescriptor[%s]", identifier.c_str());
             stream->Write(msg, strlen(msg));
-        }
-    };
-
-    template<>
-    struct DataSerializerTraitsT<TrackDesignTrackElement>
-    {
-        static void encode(IStream* stream, const TrackDesignTrackElement& val)
-        {
-            stream->WriteValue(val.type);
-            stream->WriteValue(val.flags);
-            stream->WriteValue(val.colourScheme);
-            stream->WriteValue(val.stationIndex);
-            stream->WriteValue(val.brakeBoosterSpeed);
-            stream->WriteValue(val.seatRotation);
-        }
-        static void decode(IStream* stream, TrackDesignTrackElement& val)
-        {
-            stream->ReadValue(val.type);
-            stream->ReadValue(val.flags);
-            stream->ReadValue(val.colourScheme);
-            stream->ReadValue(val.stationIndex);
-            stream->ReadValue(val.brakeBoosterSpeed);
-            stream->ReadValue(val.seatRotation);
-        }
-        static void log(IStream* stream, const TrackDesignTrackElement& val)
-        {
-            char msg[128] = {};
-            snprintf(msg, sizeof(msg), "TrackDesignTrackElement(type = %d, flags = %d)", EnumValue(val.type), val.flags.holder);
-            stream->Write(msg, strlen(msg));
-        }
-    };
-
-    template<>
-    struct DataSerializerTraitsT<TrackDesignMazeElement>
-    {
-        static void encode(IStream* stream, const TrackDesignMazeElement& val)
-        {
-            stream->WriteValue(val.location);
-            stream->WriteValue(val.mazeEntry);
-        }
-        static void decode(IStream* stream, TrackDesignMazeElement& val)
-        {
-            stream->ReadValue(val.location);
-            stream->ReadValue(val.mazeEntry);
-        }
-        static void log(IStream* stream, const TrackDesignMazeElement& val)
-        {
-            char msg[128] = {};
-            snprintf(
-                msg, sizeof(msg), "TrackDesignMazeElement(x = %d, y = %d, entry = %d)", val.location.x, val.location.y,
-                val.mazeEntry);
-            stream->Write(msg, strlen(msg));
-        }
-    };
-
-    template<>
-    struct DataSerializerTraitsT<TrackDesignEntranceElement>
-    {
-        static void encode(IStream* stream, const TrackDesignEntranceElement& val)
-        {
-            stream->WriteValue(val.location);
-            stream->WriteValue(val.isExit);
-        }
-        static void decode(IStream* stream, TrackDesignEntranceElement& val)
-        {
-            stream->ReadValue(val.location);
-            stream->ReadValue(val.isExit);
-        }
-        static void log(IStream* stream, const TrackDesignEntranceElement& val)
-        {
-            char msg[128] = {};
-            snprintf(
-                msg, sizeof(msg), "TrackDesignEntranceElement(x = %d, y = %d, z = %d, dir = %d, isExit = %d)", val.location.x,
-                val.location.y, val.location.z, val.location.direction, val.isExit);
-            stream->Write(msg, strlen(msg));
-        }
-    };
-
-    template<>
-    struct DataSerializerTraitsT<TrackDesignSceneryElement>
-    {
-        static void encode(IStream* stream, const TrackDesignSceneryElement& val)
-        {
-            stream->WriteValue(val.loc);
-            stream->WriteValue(val.flags);
-            stream->WriteValue(val.primaryColour);
-            stream->WriteValue(val.secondaryColour);
-            stream->WriteValue(val.tertiaryColour);
-            DataSerializerTraits<ObjectEntryDescriptor> s;
-            s.encode(stream, val.sceneryObject);
-        }
-        static void decode(IStream* stream, TrackDesignSceneryElement& val)
-        {
-            stream->ReadValue(val.loc);
-            stream->ReadValue(val.flags);
-            stream->ReadValue(val.primaryColour);
-            stream->ReadValue(val.secondaryColour);
-            stream->ReadValue(val.tertiaryColour);
-            DataSerializerTraits<ObjectEntryDescriptor> s;
-            s.decode(stream, val.sceneryObject);
-        }
-        static void log(IStream* stream, const TrackDesignSceneryElement& val)
-        {
-            char msg[128] = {};
-            snprintf(
-                msg, sizeof(msg),
-                "TrackDesignSceneryElement(x = %d, y = %d, z = %d, flags = %d, colour1 = %d, colour2 = %d, colour3 = %d)",
-                val.loc.x, val.loc.y, val.loc.z, val.flags, EnumValue(val.primaryColour), EnumValue(val.secondaryColour),
-                EnumValue(val.tertiaryColour));
-            stream->Write(msg, strlen(msg));
-
-            auto identifier = val.sceneryObject.GetName();
-            stream->WriteArray(identifier.data(), identifier.size());
         }
     };
 

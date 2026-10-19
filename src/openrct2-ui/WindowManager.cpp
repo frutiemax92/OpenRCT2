@@ -263,7 +263,6 @@ public:
                 std::string defaultPath = intent->GetStringExtra(INTENT_EXTRA_PATH);
                 LoadSaveCallback callback = reinterpret_cast<LoadSaveCallback>(
                     intent->GetCloseCallbackExtra(INTENT_EXTRA_CALLBACK));
-                TrackDesign* trackDesign = static_cast<TrackDesign*>(intent->GetPointerExtra(INTENT_EXTRA_TRACK_DESIGN));
                 auto* w = FileBrowser::OpenPreferred(
                     action, type, defaultPath,
                     [callback](ModalResult result, std::string_view path) {
@@ -272,11 +271,9 @@ public:
                             callback(result, std::string(path).c_str());
                         }
                     },
-                    false, trackDesign);
+                    false);
                 return w;
             }
-            case WindowClass::manageTrackDesign:
-                return nullptr; // Ride windows are removed (ARC-002).
             case WindowClass::networkStatus:
             {
                 std::string message = intent->GetStringExtra(INTENT_EXTRA_MESSAGE);
@@ -293,8 +290,6 @@ public:
                 return nullptr;
             }
             case WindowClass::ride:
-            case WindowClass::trackDesignPlace:
-            case WindowClass::trackDesignList:
                 return nullptr; // Ride windows are removed (ARC-002).
             case WindowClass::scenarioSelect:
                 return ScenarioselectOpen(

@@ -33,7 +33,6 @@
 #include "../profiling/Profiling.h"
 #include "../ride/Ride.h"
 #include "../ride/RideData.h"
-#include "../ride/TrackDesign.h"
 #include "../ride/Vehicle.h"
 #include "../ui/WindowManager.h"
 #include "../world/Map.h"
@@ -864,7 +863,7 @@ namespace OpenRCT2
 
         PaintDrawStructs(session);
 
-        if (Config::Get().general.renderWeatherGloom && !gTrackDesignSaveMode
+        if (Config::Get().general.renderWeatherGloom
             && !session.ViewFlags.hasAny(ViewportFlag::hideEntities, ViewportFlag::highlightPathIssues))
         {
             ViewportPaintWeatherGloom(session.rt);

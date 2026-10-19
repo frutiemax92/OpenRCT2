@@ -23,7 +23,6 @@ using namespace OpenRCT2;
 using namespace OpenRCT2::SawyerCoding;
 
 static bool TryClassifyAsPark(IStream* stream, ClassifiedFileInfo* result);
-static bool TryClassifyAsTD4_TD6(IStream* stream, ClassifiedFileInfo* result);
 
 bool TryClassifyFile(const std::string& path, ClassifiedFileInfo* result)
 {
@@ -40,19 +39,8 @@ bool TryClassifyFile(const std::string& path, ClassifiedFileInfo* result)
 
 bool TryClassifyFile(IStream* stream, ClassifiedFileInfo* result)
 {
-    // TODO Currently track designs get classified as SC4s because they use the
-    //      same checksum algorithm. The only way after to tell the difference
-    //      between them is to decode it. Decoding however is currently not protected
-    //      against invalid compression data for that decoding algorithm and will crash.
-
     // Park detection
     if (TryClassifyAsPark(stream, result))
-    {
-        return true;
-    }
-
-    // TD6 detection
-    if (TryClassifyAsTD4_TD6(stream, result))
     {
         return true;
     }
@@ -83,50 +71,11 @@ static bool TryClassifyAsPark(IStream* stream, ClassifiedFileInfo* result)
     return success;
 }
 
-static bool TryClassifyAsTD4_TD6(IStream* stream, ClassifiedFileInfo* result)
-{
-    bool success = false;
-    uint64_t originalPosition = stream->GetPosition();
-    try
-    {
-        size_t dataLength = static_cast<size_t>(stream->GetLength());
-
-        auto data = stream->ReadArray<uint8_t>(dataLength);
-        stream->SetPosition(originalPosition);
-
-        if (ValidateTrackChecksum(data.get(), dataLength))
-        {
-            const auto td6data = std::make_unique_for_overwrite<uint8_t[]>(0x10000);
-            size_t td6len = DecodeTD6(data.get(), td6data.get(), dataLength);
-            if (td6data != nullptr && td6len >= 8)
-            {
-                uint8_t version = (td6data.get()[7] >> 2) & 3;
-                if (version <= 2)
-                {
-                    result->Type = FileType::trackDesign;
-                    result->Version = version;
-                    success = true;
-                }
-            }
-        }
-    }
-    catch (const std::exception& e)
-    {
-        Console::Error::WriteLine(e.what());
-    }
-
-    return success;
-}
-
 FileExtension GetFileExtensionType(u8string_view path)
 {
     auto extension = Path::GetExtension(path);
     if (String::iequals(extension, ".dat") || String::iequals(extension, ".pob"))
         return FileExtension::dat;
-    if (String::iequals(extension, ".td6"))
-        return FileExtension::td6;
-    if (String::iequals(extension, ".td7"))
-        return FileExtension::td6;
     if (String::iequals(extension, ".park"))
         return FileExtension::park;
     return FileExtension::unknown;

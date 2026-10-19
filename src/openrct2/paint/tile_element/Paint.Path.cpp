@@ -16,7 +16,7 @@
 #include "../../object/FootpathSurfaceObject.h"
 #include "../../profiling/Profiling.h"
 #include "../../ride/Ride.h"
-#include "../../ride/TrackDesign.h"
+#include "../../ride/ted/TrackElemType.h"
 #include "../../world/Footpath.h"
 #include "../../world/Map.h"
 #include "../../world/tile_element/PathElement.h"
@@ -596,7 +596,6 @@ static void PathPaintFencesAdditionsTunnels(
 
     if (session.rt.zoom_level <= ZoomLevel{ 1 })
     {
-        if (!gTrackDesignSaveMode)
         {
             if (pathElement.hasAddition())
             {
@@ -735,20 +734,6 @@ void PaintPath(PaintSession& session, uint16_t height, const PathElement& tileEl
     session.InteractionType = ViewportInteractionItem::footpath;
 
     ImageId imageTemplate, sceneryImageTemplate;
-    if (gTrackDesignSaveMode)
-    {
-        // Do not display queues for other rides
-        if (tileElement.isQueue() && tileElement.getRideIndex() != gTrackDesignSaveRideIndex)
-        {
-            return;
-        }
-
-        if (!TrackDesignSaveContainsTileElement(reinterpret_cast<const TileElement*>(&tileElement)))
-        {
-            imageTemplate = ImageId().WithRemap(FilterPaletteID::palette46);
-        }
-    }
-
     if (session.ViewFlags.has(ViewportFlag::highlightPathIssues))
     {
         imageTemplate = ImageId().WithRemap(FilterPaletteID::palette46);

@@ -21,7 +21,6 @@
 #include "../../object/ObjectManager.h"
 #include "../../object/StationObject.h"
 #include "../../profiling/Profiling.h"
-#include "../../ride/TrackDesign.h"
 #include "../../world/Footpath.h"
 #include "../../world/tile_element/EntranceElement.h"
 #include "../support/WoodenSupports.h"
@@ -99,8 +98,7 @@ static void PaintRideEntranceExit(PaintSession& session, uint8_t direction, int3
     PROFILED_FUNCTION();
 
     auto rideIndex = entranceEl.getRideIndex();
-    if (session.ViewFlags.has(ViewportFlag::highlightPathIssues)
-        || (gTrackDesignSaveMode && rideIndex != gTrackDesignSaveRideIndex))
+    if (session.ViewFlags.has(ViewportFlag::highlightPathIssues))
     {
         return;
     }
@@ -248,7 +246,7 @@ static void PaintParkEntrance(PaintSession& session, uint8_t direction, int32_t 
 {
     PROFILED_FUNCTION();
 
-    if (gTrackDesignSaveMode || session.ViewFlags.has(ViewportFlag::highlightPathIssues))
+    if (session.ViewFlags.has(ViewportFlag::highlightPathIssues))
         return;
 
     PaintParkEntranceLightEffects(session);

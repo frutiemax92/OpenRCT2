@@ -43,8 +43,6 @@ namespace OpenRCT2::Ui::Windows
     {
         DDIDX_SCENARIO_EDITOR,
         DDIDX_CONVERT_SAVED_GAME,
-        DDIDX_TRACK_DESIGNER,
-        DDIDX_TRACK_MANAGER,
         DDIDX_OPEN_CONTENT_FOLDER,
         DDIDX_CUSTOM_BEGIN = 6,
     };
@@ -167,8 +165,6 @@ namespace OpenRCT2::Ui::Windows
                 int32_t i = 0;
                 gDropdown.items[i++] = Dropdown::PlainMenuLabel(STR_SCENARIO_EDITOR);
                 gDropdown.items[i++] = Dropdown::PlainMenuLabel(STR_CONVERT_SAVED_GAME_TO_SCENARIO);
-                gDropdown.items[i++] = Dropdown::PlainMenuLabel(STR_ROLLER_COASTER_DESIGNER);
-                gDropdown.items[i++] = Dropdown::PlainMenuLabel(STR_TRACK_DESIGNS_MANAGER);
                 gDropdown.items[i++] = Dropdown::PlainMenuLabel(STR_OPEN_USER_CONTENT_FOLDER);
 
 #ifdef ENABLE_SCRIPTING
@@ -226,12 +222,6 @@ namespace OpenRCT2::Ui::Windows
                         editorScene->ConvertSaveToScenario();
                         break;
                     }
-                    case DDIDX_TRACK_DESIGNER:
-                        sceneMgr->setActiveScene(sceneMgr->getTrackDesignerScene());
-                        break;
-                    case DDIDX_TRACK_MANAGER:
-                        sceneMgr->setActiveScene(sceneMgr->getTrackManagerScene());
-                        break;
                     case DDIDX_OPEN_CONTENT_FOLDER:
                     {
                         auto context = GetContext();

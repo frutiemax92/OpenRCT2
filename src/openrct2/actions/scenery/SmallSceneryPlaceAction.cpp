@@ -17,7 +17,6 @@
 #include "../../management/Finance.h"
 #include "../../object/ObjectEntryManager.h"
 #include "../../object/SmallSceneryEntry.h"
-#include "../../ride/TrackDesign.h"
 #include "../../world/ConstructionClearance.h"
 #include "../../world/Footpath.h"
 #include "../../world/Map.h"
@@ -112,7 +111,7 @@ namespace OpenRCT2::GameActions
         }
 
         auto maxSizeMax = GetMapSizeMaxXY();
-        if (!_trackDesignDrawingPreview && (_loc.x > maxSizeMax.x || _loc.y > maxSizeMax.y))
+        if ((_loc.x > maxSizeMax.x || _loc.y > maxSizeMax.y))
         {
             return Result(Status::invalidParameters, STR_CANT_POSITION_THIS_HERE, STR_ERR_VALUE_OUT_OF_RANGE);
         }

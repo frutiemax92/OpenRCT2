@@ -22,10 +22,9 @@
 #include <openrct2/drawing/Drawing.Screen.h>
 #include <openrct2/interface/WindowTypes.h>
 #include <openrct2/localisation/Formatter.h>
+#include <openrct2/localisation/Language.h>
 #include <openrct2/localisation/StringIds.h>
 #include <openrct2/platform/Platform.h>
-#include <openrct2/rct2/T6Exporter.h>
-#include <openrct2/ride/TrackDesign.h>
 #include <openrct2/scenario/Scenario.h>
 #include <openrct2/scenes/SceneManager.h>
 #include <openrct2/scenes/editor/EditorScene.h>
@@ -46,14 +45,13 @@ namespace OpenRCT2::Ui::FileBrowser
     static bool _loadSaveCallbackIsJs = false;
 
     WindowBase* OpenPreferred(
-        LoadSaveAction action, LoadSaveType type, u8string defaultPath, LoadSaveCallback callback, bool isJsCallback,
-        TrackDesign* trackDesign)
+        LoadSaveAction action, LoadSaveType type, u8string defaultPath, LoadSaveCallback callback, bool isJsCallback)
     {
 #ifdef __EMSCRIPTEN__
         if (action == LoadSaveAction::save)
         {
-            Select("/save.park", action, type, trackDesign);
-            EmscriptenSaveGame(type == LoadSaveType::track, false, type);
+            Select("/save.park", action, type);
+            EmscriptenSaveGame(false, false, type);
         }
         else
         {
@@ -72,17 +70,17 @@ namespace OpenRCT2::Ui::FileBrowser
             const auto defaultDirectory = GetDir(type);
 
             RegisterCallback(callback, isJsCallback);
-            const u8string path = OpenSystemFileBrowser(isSave, type, defaultDirectory, defaultPath, trackDesign);
+            const u8string path = OpenSystemFileBrowser(isSave, type, defaultDirectory, defaultPath);
             if (!path.empty())
             {
-                Select(path.c_str(), action, type, trackDesign);
+                Select(path.c_str(), action, type);
             }
             UnregisterJSCallback();
             return nullptr;
         }
 
         // Use built-in load/save window
-        return Windows::LoadsaveOpen(action, type, defaultPath, callback, isJsCallback, trackDesign);
+        return Windows::LoadsaveOpen(action, type, defaultPath, callback, isJsCallback);
     }
 
     bool ListItemSort(LoadSaveListItem& a, LoadSaveListItem& b)
@@ -137,9 +135,6 @@ namespace OpenRCT2::Ui::FileBrowser
             case LoadSaveType::scenario:
                 return Config::Get().general.lastSaveScenarioDirectory;
 
-            case LoadSaveType::track:
-                return Config::Get().general.lastSaveTrackDirectory;
-
             default:
                 return u8string();
         }
@@ -162,10 +157,6 @@ namespace OpenRCT2::Ui::FileBrowser
                 subdir = DirId::scenarios;
                 break;
 
-            case LoadSaveType::track:
-                subdir = DirId::trackDesigns;
-                break;
-
             case LoadSaveType::heightmap:
                 subdir = DirId::heightmaps;
                 break;
@@ -178,7 +169,7 @@ namespace OpenRCT2::Ui::FileBrowser
             return env.GetDirectoryPath(DirBase::user);
     }
 
-    u8string GetFilterPatternByType(const LoadSaveType type, const bool isSave, const TrackDesign* trackDesign)
+    u8string GetFilterPatternByType(const LoadSaveType type, const bool isSave)
     {
         switch (type)
         {
@@ -190,17 +181,6 @@ namespace OpenRCT2::Ui::FileBrowser
 
             case LoadSaveType::scenario:
                 return "*.park";
-
-            case LoadSaveType::track:
-            {
-                if (!isSave)
-                    return "*.td6;*.td7";
-
-                if (trackDesign == nullptr)
-                    return "*.td6";
-
-                return "*" + trackDesignGetExtension(trackDesign->version);
-            }
 
             case LoadSaveType::heightmap:
                 return "*.bmp;*.png";
@@ -254,7 +234,7 @@ namespace OpenRCT2::Ui::FileBrowser
         }
     }
 
-    void Select(const char* path, LoadSaveAction action, LoadSaveType type, TrackDesign* trackDesignPtr)
+    void Select(const char* path, LoadSaveAction action, LoadSaveType type)
     {
         if (!IsValidPath(path))
         {
@@ -349,16 +329,6 @@ namespace OpenRCT2::Ui::FileBrowser
                         }
                         break;
                     }
-                    case (LoadSaveType::track):
-                    {
-                        SetAndSaveConfigPath(Config::Get().general.lastSaveTrackDirectory, pathBuffer);
-                        auto intent = Intent(WindowClass::installTrack);
-                        intent.PutExtra(INTENT_EXTRA_PATH, std::string{ pathBuffer });
-                        ContextOpenIntent(&intent);
-                        windowMgr->CloseByClass(WindowClass::loadsave);
-                        InvokeCallback(ModalResult::ok, pathBuffer);
-                        break;
-                    }
                     case (LoadSaveType::heightmap):
                     {
                         windowMgr->CloseByClass(WindowClass::loadsave);
@@ -444,30 +414,6 @@ namespace OpenRCT2::Ui::FileBrowser
                         }
                         break;
                     }
-                    case LoadSaveType::track:
-                    {
-                        auto extension = trackDesignGetExtension(trackDesignPtr->version);
-                        SetAndSaveConfigPath(Config::Get().general.lastSaveTrackDirectory, pathBuffer);
-
-                        const auto withExtension = Path::WithExtension(pathBuffer, extension);
-                        String::set(pathBuffer, sizeof(pathBuffer), withExtension.c_str());
-
-                        RCT2::T6Exporter t6Export{ *trackDesignPtr };
-
-                        auto success = t6Export.SaveTrack(pathBuffer);
-
-                        if (success)
-                        {
-                            windowMgr->CloseByClass(WindowClass::loadsave);
-                            InvokeCallback(ModalResult::ok, path);
-                        }
-                        else
-                        {
-                            ContextShowError(STR_FILE_DIALOG_TITLE_SAVE_TRACK, STR_TRACK_SAVE_FAILED, {});
-                            InvokeCallback(ModalResult::fail, path);
-                        }
-                        break;
-                    }
                     case LoadSaveType::heightmap:
                     {
                         break;
@@ -491,9 +437,6 @@ namespace OpenRCT2::Ui::FileBrowser
             case LoadSaveType::scenario:
                 return STR_FILE_DIALOG_TITLE_SAVE_SCENARIO;
 
-            case LoadSaveType::track:
-                return isSave ? STR_FILE_DIALOG_TITLE_SAVE_TRACK : STR_FILE_DIALOG_TITLE_INSTALL_NEW_TRACK_DESIGN;
-
             case LoadSaveType::heightmap:
                 return STR_FILE_DIALOG_TITLE_LOAD_HEIGHTMAP;
 
@@ -502,7 +445,7 @@ namespace OpenRCT2::Ui::FileBrowser
         }
     }
 
-    static FileDialogDesc::Filter GetFilterForType(LoadSaveType type, bool isSave, const TrackDesign* trackDesign)
+    static FileDialogDesc::Filter GetFilterForType(LoadSaveType type, bool isSave)
     {
         switch (type)
         {
@@ -515,9 +458,6 @@ namespace OpenRCT2::Ui::FileBrowser
             case LoadSaveType::scenario:
                 return { LanguageGetString(STR_OPENRCT2_SCENARIO_FILE), GetFilterPatternByType(type, isSave) };
 
-            case LoadSaveType::track:
-                return { LanguageGetString(STR_OPENRCT2_TRACK_DESIGN_FILE), GetFilterPatternByType(type, isSave, trackDesign) };
-
             case LoadSaveType::heightmap:
                 return { LanguageGetString(STR_OPENRCT2_HEIGHTMAP_FILE), GetFilterPatternByType(type, isSave) };
 
@@ -528,7 +468,7 @@ namespace OpenRCT2::Ui::FileBrowser
     }
 
     u8string OpenSystemFileBrowser(
-        bool isSave, LoadSaveType type, u8string defaultDirectory, u8string defaultPath, const TrackDesign* trackDesign)
+        bool isSave, LoadSaveType type, u8string defaultDirectory, u8string defaultPath)
     {
         u8string path = defaultDirectory;
         if (isSave)
@@ -556,7 +496,7 @@ namespace OpenRCT2::Ui::FileBrowser
             .Title = LanguageGetString(title),
             .InitialDirectory = defaultDirectory,
             .DefaultFilename = isSave ? path : u8string(),
-            .Filters = { GetFilterForType(type, isSave, trackDesign), { LanguageGetString(STR_ALL_FILES), "*" } },
+            .Filters = { GetFilterForType(type, isSave), { LanguageGetString(STR_ALL_FILES), "*" } },
         };
 
         return ContextOpenCommonFileDialog(desc);

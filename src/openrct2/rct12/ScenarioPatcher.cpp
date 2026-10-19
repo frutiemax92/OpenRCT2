@@ -11,6 +11,7 @@
 
 #include "../Context.h"
 #include "../Diagnostic.h"
+#include "../ride/ted/TrackElemType.h"
 #include "../PlatformEnvironment.h"
 #include "../actions/GameActionResult.h"
 #include "../actions/footpath/FootpathPlaceAction.h"

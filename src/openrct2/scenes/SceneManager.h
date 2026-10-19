@@ -25,8 +25,6 @@ namespace OpenRCT2
         virtual IScene* getPreloaderScene() = 0;
         virtual IScene* getScenarioEditorScene() = 0;
         virtual IScene* getTitleScene() = 0;
-        virtual IScene* getTrackDesignerScene() = 0;
-        virtual IScene* getTrackManagerScene() = 0;
 
         virtual void setActiveScene(IScene* scene) = 0;
     };

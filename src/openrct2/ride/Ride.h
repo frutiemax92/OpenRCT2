@@ -30,8 +30,6 @@
 struct IObjectManager;
 struct RideObjectEntry;
 struct ResultWithMessage;
-struct TrackDesign;
-struct TrackDesignState;
 
 namespace OpenRCT2
 {
@@ -538,7 +536,6 @@ namespace OpenRCT2
         static void updateAll();
         static bool nameExists(std::string_view name, RideId excludeRideId = RideId::GetNull());
 
-        [[nodiscard]] std::unique_ptr<TrackDesign> saveToTrackDesign(TrackDesignState& tds) const;
 
         RideModes getAvailableModes() const;
         const RideTypeDescriptor& getRideTypeDescriptor() const;

@@ -326,7 +326,7 @@ namespace OpenRCT2::Scripting
                         scriptEngine->ExecutePluginCall(plugin, callback.callback, { JSFromStdString(ctx, path) }, false);
                     }
                 },
-                true, nullptr);
+                true);
             return JS_UNDEFINED;
         }
 

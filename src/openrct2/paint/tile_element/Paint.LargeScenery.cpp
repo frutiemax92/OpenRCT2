@@ -20,7 +20,6 @@
 #include "../../localisation/StringIds.h"
 #include "../../object/LargeSceneryEntry.h"
 #include "../../profiling/Profiling.h"
-#include "../../ride/TrackDesign.h"
 #include "../../world/Banner.h"
 #include "../../world/tile_element/LargeSceneryElement.h"
 #include "../Boundbox.h"
@@ -339,12 +338,7 @@ void PaintLargeScenery(PaintSession& session, uint8_t direction, uint16_t height
 
     auto isGhost = false;
     ImageId imageTemplate;
-    if (gTrackDesignSaveMode && !TrackDesignSaveContainsTileElement(reinterpret_cast<const TileElement*>(&tileElement)))
-    {
-        imageTemplate = ImageId().WithRemap(FilterPaletteID::palette46);
-        isGhost = true;
-    }
-    else if (tileElement.isGhost())
+    if (tileElement.isGhost())
     {
         session.InteractionType = ViewportInteractionItem::none;
         imageTemplate = ImageId().WithRemap(FilterPaletteID::paletteGhost);

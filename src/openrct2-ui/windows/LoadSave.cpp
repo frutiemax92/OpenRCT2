@@ -75,7 +75,6 @@ namespace OpenRCT2::Ui::Windows
     static char _currentFilename[MAX_PATH];
     static u8string _extensionPattern;
     static u8string _defaultPath;
-    static TrackDesign* _trackDesign;
 
     enum WindowLoadSaveWidgetIdx : WidgetIndex
     {
@@ -342,7 +341,7 @@ namespace OpenRCT2::Ui::Windows
             if (!ShowPreviews())
                 return;
 
-            if (type == LoadSaveType::track || type == LoadSaveType::heightmap)
+            if (type == LoadSaveType::heightmap)
                 return;
 
             if (_listItems[selectedListItem].type == FileType::directory)
@@ -563,7 +562,7 @@ namespace OpenRCT2::Ui::Windows
             }
 
             // Populate file list
-            auto pattern = GetFilterPatternByType(type, isSave, _trackDesign);
+            auto pattern = GetFilterPatternByType(type, isSave);
             const auto path = GetDir(type);
             PopulateList(path, pattern);
             numListItems = static_cast<uint16_t>(_listItems.size());
@@ -806,10 +805,10 @@ namespace OpenRCT2::Ui::Windows
 
                 case WIDX_SYSTEM_BROWSER:
                 {
-                    u8string path = OpenSystemFileBrowser(isSave, type, _directory, _defaultPath, _trackDesign);
+                    u8string path = OpenSystemFileBrowser(isSave, type, _directory, _defaultPath);
                     if (!path.empty())
                     {
-                        Select(path.c_str(), action, type, _trackDesign);
+                        Select(path.c_str(), action, type);
                     }
                     else
                     {
@@ -879,9 +878,9 @@ namespace OpenRCT2::Ui::Windows
                         Path::Combine(_directory, _currentFilename), RemovePatternWildcard(_extensionPattern));
 
                     if (File::Exists(path))
-                        WindowOverwritePromptOpen(_currentFilename, path, action, type, _trackDesign);
+                        WindowOverwritePromptOpen(_currentFilename, path, action, type);
                     else
-                        Select(path.c_str(), action, type, _trackDesign);
+                        Select(path.c_str(), action, type);
                 }
             }
         }
@@ -1052,11 +1051,11 @@ namespace OpenRCT2::Ui::Windows
                 if (action == LoadSaveAction::save)
                 {
                     WindowOverwritePromptOpen(
-                        _listItems[selectedItem].name, _listItems[selectedItem].path, action, type, _trackDesign);
+                        _listItems[selectedItem].name, _listItems[selectedItem].path, action, type);
                 }
                 else
                 {
-                    Select(_listItems[selectedItem].path.c_str(), action, type, _trackDesign);
+                    Select(_listItems[selectedItem].path.c_str(), action, type);
                 }
             }
         }
@@ -1144,10 +1143,8 @@ namespace OpenRCT2::Ui::Windows
     };
 
     WindowBase* LoadsaveOpen(
-        LoadSaveAction action, LoadSaveType type, std::string_view defaultPath, LoadSaveCallback callback, bool isJsCallback,
-        TrackDesign* trackDesign)
+        LoadSaveAction action, LoadSaveType type, std::string_view defaultPath, LoadSaveCallback callback, bool isJsCallback)
     {
-        _trackDesign = trackDesign;
         _defaultPath = defaultPath;
 
         auto* windowMgr = GetWindowManager();

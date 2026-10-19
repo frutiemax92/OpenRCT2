@@ -15,6 +15,7 @@
 #include "../actions/ride/RideEntranceExitPlaceAction.h"
 #include "../actions/ride/RideEntranceExitRemoveAction.h"
 #include "../ride/RideConstruction.h"
+#include "../ride/ted/TrackElemType.h"
 #include "Map.h"
 #include "tile_element/EntranceElement.h"
 #include "tile_element/TrackElement.h"

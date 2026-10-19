@@ -15,7 +15,6 @@
 #include "../../interface/Viewport.h"
 #include "../../object/WallSceneryEntry.h"
 #include "../../profiling/Profiling.h"
-#include "../../ride/TrackDesign.h"
 #include "../../world/tile_element/WallElement.h"
 #include "Paint.TileElement.h"
 #include "Paint.Wall.h"
@@ -315,14 +314,6 @@ void PaintWall(PaintSession& session, uint8_t direction, int32_t height, const W
     PaintUtilSetGeneralSupportHeight(session, 8 * wallElement.clearanceHeight);
 
     auto isGhost = false;
-    if (gTrackDesignSaveMode)
-    {
-        if (!TrackDesignSaveContainsTileElement(reinterpret_cast<const TileElement*>(&wallElement)))
-        {
-            imageTemplate = ImageId().WithRemap(FilterPaletteID::palette46);
-            isGhost = true;
-        }
-    }
 
     if (wallElement.isGhost())
     {

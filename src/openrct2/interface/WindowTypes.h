@@ -110,7 +110,6 @@ namespace OpenRCT2
         park,
         landscape,
         scenario,
-        track,
         heightmap,
     };
 

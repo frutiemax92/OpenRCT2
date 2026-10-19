@@ -15,7 +15,6 @@
 #include "../../object/BannerSceneryEntry.h"
 #include "../../object/ObjectEntryManager.h"
 #include "../../profiling/Profiling.h"
-#include "../../ride/TrackDesign.h"
 #include "../../world/Banner.h"
 #include "../../world/tile_element/BannerElement.h"
 #include "Paint.Banner.h"
@@ -59,7 +58,7 @@ void PaintBanner(PaintSession& session, uint8_t direction, int32_t height, const
 {
     PROFILED_FUNCTION();
 
-    if (session.rt.zoom_level > ZoomLevel{ 1 } || gTrackDesignSaveMode
+    if (session.rt.zoom_level > ZoomLevel{ 1 }
         || session.ViewFlags.has(ViewportFlag::highlightPathIssues))
         return;
 
