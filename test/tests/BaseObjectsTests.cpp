@@ -428,3 +428,53 @@ TEST_F(LandTools, TileElementHeightFollowsTheTriangleSplit)
     EXPECT_EQ(MapGetSurfaceElementAt(TileCoordsXY{ 2, 2 })->getBaseZ(), TileElementHeight(CoordsXY{ 2 * 32 + 17, 2 * 32 + 3 }));
     EXPECT_EQ(kMinimumLandZ, TileElementHeight(CoordsXY{ -5, -5 }));
 }
+
+#include <openrct2/world/map_generator/MapGen.h>
+
+TEST_F(LandTools, GeneratedTerrainIsContinuousQuarterStepLand)
+{
+    SetUpMap();
+    World::MapGenerator::Settings settings;
+    settings.algorithm = World::MapGenerator::Algorithm::simplexNoise;
+    settings.mapSize = { 48, 48 };
+    settings.trees = false;
+    settings.beaches = false;
+    settings.smoothTileEdges = true;
+    World::MapGenerator::generate(&settings);
+
+    bool anyQuarter = false;
+    for (int y = 1; y < 47; y++)
+    {
+        for (int x = 1; x < 47; x++)
+        {
+            const auto* s = MapGetSurfaceElementAt(TileCoordsXY{ x, y });
+            ASSERT_TRUE(Terrain::IsValidShape(s->getTerrainShape())) << x << "," << y;
+            const auto sh = s->getTerrainShape();
+            anyQuarter |= (sh.north | sh.east | sh.south | sh.west) & 1;
+
+            // No cliffs towards the next tile in +x: the shared edge has the same heights.
+            if (x + 1 >= 47)
+                continue;
+            const auto* r = MapGetSurfaceElementAt(TileCoordsXY{ x + 1, y });
+            const auto rs = r->getTerrainShape();
+            EXPECT_EQ(s->baseHeight + sh.east, r->baseHeight + rs.south) << x << "," << y; // corner (x+1, y)
+            EXPECT_EQ(s->baseHeight + sh.north, r->baseHeight + rs.west) << x << "," << y; // corner (x+1, y+1)
+        }
+    }
+    EXPECT_TRUE(anyQuarter);
+}
+
+TEST_F(LandTools, GeneratedTerracesHaveFlatTilesWhenEdgesAreNotSmoothed)
+{
+    SetUpMap();
+    World::MapGenerator::Settings settings;
+    settings.algorithm = World::MapGenerator::Algorithm::simplexNoise;
+    settings.mapSize = { 40, 40 };
+    settings.trees = false;
+    settings.beaches = false;
+    settings.smoothTileEdges = false;
+    World::MapGenerator::generate(&settings);
+    for (int y = 1; y < 39; y++)
+        for (int x = 1; x < 39; x++)
+            ASSERT_EQ((Terrain::TerrainShape{ 0, 0, 0, 0 }), ShapeAt(x, y)) << x << "," << y;
+}

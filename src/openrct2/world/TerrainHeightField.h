@@ -47,6 +47,13 @@ namespace OpenRCT2::Terrain
         // Vertices changed by the last successful Raise or Lower.
         const std::vector<std::pair<int32_t, int32_t>>& GetChangedVertices() const { return _changed; }
 
+        // Makes every tile fit the shape model by lifting the lower vertices (smoothing), anywhere in the field.
+        void Smooth();
+
+        // Sets every vertex to the average of the base heights (Q) of the tiles that touch it, kept within
+        // maxDeviationQ of each of them, then smooths. tileBase has tilesX * tilesY entries, row by row (TER-017).
+        void SetFromTileHeights(std::span<const int32_t> tileBase, int32_t maxDeviationQ);
+
         // True when every tile fits the shape model.
         bool IsConsistent() const;
 

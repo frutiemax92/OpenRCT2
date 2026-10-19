@@ -183,8 +183,9 @@ namespace OpenRCT2::World::MapGenerator
         float freq = settings->simplex_base_freq / 100.0f * (1.0f / heightMap.width);
         int32_t octaves = settings->simplex_octaves;
 
-        int32_t low = settings->heightmapLow / 2;
-        int32_t high = settings->heightmapHigh / 2 - low;
+        // The height map is in quarter steps (TER-017).
+        int32_t low = settings->heightmapLow;
+        int32_t high = settings->heightmapHigh - low;
 
         NoiseRand();
         for (int32_t y = 0; y < heightMap.height; y++)
@@ -213,12 +214,6 @@ namespace OpenRCT2::World::MapGenerator
 
         // Set the game map to the height map
         setMapHeight(settings, heightMap);
-
-        if (settings->smoothTileEdges)
-        {
-            // Set the tile slopes so that there are no cliffs
-            smoothMap(settings->mapSize, smoothTileStrong);
-        }
 
         // Add the water
         setWaterLevel(settings->waterLevel);

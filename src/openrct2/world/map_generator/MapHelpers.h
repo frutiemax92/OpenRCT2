@@ -10,24 +10,18 @@
 #pragma once
 
 #include <cstdint>
-#include <functional>
 
 struct TileCoordsXY;
 
 namespace OpenRCT2::World::MapGenerator
 {
-    enum
+    enum class SmoothStrength : uint8_t
     {
-        SLOPE_S_THRESHOLD_FLAGS = (1 << 0),
-        SLOPE_W_THRESHOLD_FLAGS = (1 << 1),
-        SLOPE_N_THRESHOLD_FLAGS = (1 << 2),
-        SLOPE_E_THRESHOLD_FLAGS = (1 << 3)
+        strong, // tiles may move up to 4 Q from their own height
+        weak,   // up to 2 Q
     };
 
-    using SmoothFunction = std::function<int32_t(TileCoordsXY)>;
-
-    int32_t smoothTileStrong(TileCoordsXY tileCoords);
-    int32_t smoothTileWeak(TileCoordsXY tileCoords);
-
-    void smoothMap(TileCoordsXY mapSize, SmoothFunction smoothFunc);
+    // Turns the base heights of the interior tiles into continuous quarter-step terrain without cliffs (TER-017):
+    // each tile corner takes the average height of the tiles around it.
+    void smoothMap(TileCoordsXY mapSize, SmoothStrength strength);
 } // namespace OpenRCT2::World::MapGenerator

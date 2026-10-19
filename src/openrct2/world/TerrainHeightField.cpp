@@ -110,6 +110,45 @@ namespace OpenRCT2::Terrain
         }
     }
 
+    void HeightField::Smooth()
+    {
+        std::vector<std::pair<int32_t, int32_t>> queue;
+        for (int32_t vy = 0; vy <= _tilesY; vy++)
+            for (int32_t vx = 0; vx <= _tilesX; vx++)
+                queue.emplace_back(vx, vy);
+        Enforce(queue, true);
+    }
+
+    void HeightField::SetFromTileHeights(std::span<const int32_t> tileBase, int32_t maxDeviationQ)
+    {
+        assert(tileBase.size() == static_cast<size_t>(_tilesX) * static_cast<size_t>(_tilesY));
+        for (int32_t vy = 0; vy <= _tilesY; vy++)
+        {
+            for (int32_t vx = 0; vx <= _tilesX; vx++)
+            {
+                int32_t sum = 0, count = 0, lo = INT32_MIN, hi = INT32_MAX;
+                for (int32_t ty = vy - 1; ty <= vy; ty++)
+                {
+                    for (int32_t tx = vx - 1; tx <= vx; tx++)
+                    {
+                        if (tx < 0 || ty < 0 || tx >= _tilesX || ty >= _tilesY)
+                            continue;
+                        const int32_t h = tileBase[static_cast<size_t>(ty) * _tilesX + tx];
+                        sum += h;
+                        count++;
+                        lo = std::max(lo, h - maxDeviationQ);
+                        hi = std::min(hi, h + maxDeviationQ);
+                    }
+                }
+                int32_t value = (sum + count / 2) / count;
+                if (lo <= hi)
+                    value = std::clamp(value, lo, hi);
+                Set(vx, vy, std::clamp(value, _minHeightQ, _maxHeightQ));
+            }
+        }
+        Smooth();
+    }
+
     bool HeightField::Apply(std::span<const std::pair<int32_t, int32_t>> vertices, int32_t stepQ, bool raising)
     {
         _changed.clear();

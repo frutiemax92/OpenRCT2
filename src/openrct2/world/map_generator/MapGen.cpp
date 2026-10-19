@@ -15,6 +15,8 @@
 #include "../../object/TerrainEdgeObject.h"
 #include "../../object/TerrainSurfaceObject.h"
 #include "../Map.h"
+#include "../MapLimits.h"
+#include "../TerrainHeightField.h"
 #include "../tile_element/Slope.h"
 #include "../tile_element/SurfaceElement.h"
 #include "HeightMap.hpp"
@@ -146,43 +148,64 @@ namespace OpenRCT2::World::MapGenerator
      */
     void setMapHeight(Settings* settings, const HeightMap& heightMap)
     {
-        for (auto y = 1; y < heightMap.height / heightMap.density - 1; y++)
+        const int32_t tilesX = heightMap.width / heightMap.density, tilesY = heightMap.height / heightMap.density;
+
+        // Height of a grid vertex in quarter steps, like the height map.
+        auto vertexHeight = [&](int32_t vx, int32_t vy) {
+            const auto sx = std::min<int32_t>(vx * heightMap.density, heightMap.width - 1);
+            const auto sy = std::min<int32_t>(vy * heightMap.density, heightMap.height - 1);
+            int32_t height = std::max<int32_t>(2, heightMap[{ sx, sy }]);
+
+            // If it is below water level, lower it to create more natural shorelines
+            if (height >= 4 && height <= settings->waterLevel)
+                height -= 2;
+            return height;
+        };
+
+        // Interior tiles are tiles 1 .. size - 2.
+        const int32_t innerX = tilesX - 2, innerY = tilesY - 2;
+        if (innerX <= 0 || innerY <= 0)
+            return;
+
+        if (!settings->smoothTileEdges)
         {
-            for (auto x = 1; x < heightMap.width / heightMap.density - 1; x++)
+            // Flat tiles at the average height of their corners: terraces with cliffs between them.
+            for (int32_t y = 1; y < tilesY - 1; y++)
             {
-                auto heightX = x * heightMap.density;
-                auto heightY = y * heightMap.density;
+                for (int32_t x = 1; x < tilesX - 1; x++)
+                {
+                    auto* surfaceElement = MapGetSurfaceElementAt(TileCoordsXY{ x, y });
+                    if (surfaceElement == nullptr)
+                        continue;
+                    const int32_t sum = vertexHeight(x, y) + vertexHeight(x + 1, y) + vertexHeight(x, y + 1)
+                        + vertexHeight(x + 1, y + 1);
+                    surfaceElement->baseHeight = static_cast<uint8_t>(std::max(2, (sum + 2) / 4));
+                    surfaceElement->clearanceHeight = surfaceElement->baseHeight;
+                    surfaceElement->setTerrainShape({ 0, 0, 0, 0 });
+                }
+            }
+            return;
+        }
 
-                uint8_t q00 = heightMap[{ heightX + 0, heightY + 0 }];
-                uint8_t q01 = heightMap[{ heightX + 0, heightY + 1 }];
-                uint8_t q10 = heightMap[{ heightX + 1, heightY + 0 }];
-                uint8_t q11 = heightMap[{ heightX + 1, heightY + 1 }];
+        // Continuous terrain: tiles share their corner heights, so there are no cliffs.
+        Terrain::HeightField field(innerX, innerY, kMaximumLandHeight, kMinimumLandHeight);
+        for (int32_t vy = 0; vy <= innerY; vy++)
+            for (int32_t vx = 0; vx <= innerX; vx++)
+                field.Set(vx, vy, vertexHeight(vx + 1, vy + 1));
+        field.Smooth();
 
-                uint8_t baseHeight = (q00 + q01 + q10 + q11) / 4;
-
-                auto surfaceElement = MapGetSurfaceElementAt(TileCoordsXY{ x, y });
+        for (int32_t y = 0; y < innerY; y++)
+        {
+            for (int32_t x = 0; x < innerX; x++)
+            {
+                auto* surfaceElement = MapGetSurfaceElementAt(TileCoordsXY{ x + 1, y + 1 });
                 if (surfaceElement == nullptr)
                     continue;
-                surfaceElement->baseHeight = std::max(2, baseHeight * 2);
-
-                // If base height is below water level, lower it to create more natural shorelines
-                if (surfaceElement->baseHeight >= 4 && surfaceElement->baseHeight <= settings->waterLevel)
-                    surfaceElement->baseHeight -= 2;
-
-                surfaceElement->clearanceHeight = surfaceElement->baseHeight;
-
-                uint8_t currentSlope = surfaceElement->getSlope();
-
-                if (q00 > baseHeight)
-                    currentSlope |= kTileSlopeSCornerUp;
-                if (q01 > baseHeight)
-                    currentSlope |= kTileSlopeWCornerUp;
-                if (q10 > baseHeight)
-                    currentSlope |= kTileSlopeECornerUp;
-                if (q11 > baseHeight)
-                    currentSlope |= kTileSlopeNCornerUp;
-
-                surfaceElement->setSlope(currentSlope);
+                const auto [base, shape] = field.GetTile(x, y);
+                surfaceElement->baseHeight = static_cast<uint8_t>(base);
+                surfaceElement->clearanceHeight = static_cast<uint8_t>(
+                    base + std::max({ shape.north, shape.east, shape.south, shape.west }));
+                surfaceElement->setTerrainShape(shape);
             }
         }
     }

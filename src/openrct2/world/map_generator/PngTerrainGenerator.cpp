@@ -238,7 +238,7 @@ namespace OpenRCT2::World::MapGenerator
         if (settings->smoothTileEdges)
         {
             // Set the tile slopes so that there are no cliffs
-            smoothMap(flippedMapSize, smoothTileWeak);
+            smoothMap(flippedMapSize, SmoothStrength::weak);
         }
     }
 } // namespace OpenRCT2::World::MapGenerator

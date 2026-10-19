@@ -156,3 +156,61 @@ TEST(TerrainHeightField, TileRoundTrip)
     EXPECT_EQ(base, 20);
     EXPECT_EQ(shape, (TerrainShape{ 1, 4, 0, 2 }));
 }
+
+TEST(TerrainHeightField, SmoothLiftsLowVerticesUntilEveryTileFits)
+{
+    HeightField f(6, 6, 250);
+    for (int y = 0; y <= 6; y++)
+        for (int x = 0; x <= 6; x++)
+            f.Set(x, y, 10);
+    f.Set(3, 3, 40); // a spike
+    EXPECT_FALSE(f.IsConsistent());
+    f.Smooth();
+    EXPECT_TRUE(f.IsConsistent());
+    EXPECT_EQ(f.Get(3, 3), 40); // the peak stays, the ground around it rises
+    EXPECT_GE(f.Get(2, 2), 36);
+}
+
+TEST(TerrainHeightField, VerticesAverageTheTilesAroundThem)
+{
+    HeightField f(2, 2, 250, 2);
+    const int32_t base[4] = { 10, 12, 14, 16 }; // row by row
+    f.SetFromTileHeights(base, 4);
+    EXPECT_EQ(f.Get(1, 1), 13);                 // the shared corner: average of all four
+    EXPECT_EQ(f.Get(0, 0), 10);                 // a map corner touches one tile
+    EXPECT_EQ(f.Get(2, 0), 12);
+    EXPECT_TRUE(f.IsConsistent());
+
+    // A tight deviation keeps each vertex near the tiles it touches.
+    const int32_t gentle[4] = { 10, 11, 12, 11 };
+    HeightField tight(2, 2, 250, 2);
+    tight.SetFromTileHeights(gentle, 1);
+    EXPECT_EQ(tight.Get(1, 1), 11); // the only height within 1 of all four tiles
+    EXPECT_TRUE(tight.IsConsistent());
+
+    // When no height fits all the tiles the plain average is used.
+    HeightField loose(2, 2, 250, 2);
+    loose.SetFromTileHeights(base, 1);
+    EXPECT_EQ(loose.Get(1, 1), 13);
+}
+
+TEST(TerrainHeightField, SpikyTileHeightsStayConsistentAndRespectLimits)
+{
+    constexpr int kN = 12;
+    std::vector<int32_t> base(kN * kN);
+    unsigned seed = 5;
+    for (auto& b : base)
+    {
+        seed = seed * 1103515245u + 12345u;
+        b = 2 + ((seed >> 16) % 60);
+    }
+    HeightField f(kN, kN, 100, 2);
+    f.SetFromTileHeights(base, 4);
+    EXPECT_TRUE(f.IsConsistent());
+    for (int y = 0; y <= kN; y++)
+        for (int x = 0; x <= kN; x++)
+        {
+            EXPECT_GE(f.Get(x, y), 2);
+            EXPECT_LE(f.Get(x, y), 100);
+        }
+}
