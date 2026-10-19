@@ -30,7 +30,7 @@ constexpr uint8_t kMaximumWaterHeight = 254;
 constexpr int16_t kMapMinimumXY = (-kMaximumMapSizeTechnical);
 constexpr int32_t kMaximumTileStartXY = kMaximumMapSizeBig - kCoordsXYStep;
 constexpr int32_t kLandHeightStep = 2 * kCoordsZStep;
-constexpr int32_t kWaterHeightStep = 2 * kCoordsZStep;
+constexpr int32_t kWaterHeightStep = kCoordsZStep; // water is stored in quarter steps (WAT-001)
 constexpr int32_t kMinimumLandZ = kMinimumLandHeight * kCoordsZStep;
 
 // The land height that counts as 0 metres/feet for the land height labels and altitude graphs.

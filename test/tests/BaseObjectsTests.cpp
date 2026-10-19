@@ -12,6 +12,7 @@
 
 #include <gtest/gtest.h>
 #include <openrct2/Context.h>
+#include <openrct2/park/Legacy.h>
 #include <openrct2/actions/GameActionRunner.h>
 #include <openrct2/actions/terraform/LandLowerAction.h>
 #include <openrct2/actions/terraform/LandRaiseAction.h>
@@ -477,4 +478,51 @@ TEST_F(LandTools, GeneratedTerracesHaveFlatTilesWhenEdgesAreNotSmoothed)
     for (int y = 1; y < 39; y++)
         for (int x = 1; x < 39; x++)
             ASSERT_EQ((Terrain::TerrainShape{ 0, 0, 0, 0 }), ShapeAt(x, y)) << x << "," << y;
+}
+
+TEST_F(LandTools, WaterHeightIsStoredInQuarterSteps)
+{
+    SetUpMap();
+    auto* surface = MapGetSurfaceElementAt(TileCoordsXY{ 3, 3 });
+    for (int q = 1; q <= 9; q++)
+    {
+        surface->setWaterHeight(q * kCoordsZStep);
+        EXPECT_EQ(q * kCoordsZStep, surface->getWaterHeight()) << q; // odd quarter steps survive
+    }
+    surface->setWaterHeight(0);
+    EXPECT_EQ(0, surface->getWaterHeight());
+    EXPECT_EQ(kCoordsZStep, kWaterHeightStep);
+}
+
+TEST(LegacySurfaceLayout, OldParkSurfacesConvertToQuarterSteps)
+{
+    // Old layout bytes: type, flags, base, clearance, owner, slope, water, grass, ownership, style, edge, colour, edge
+    // colour, 3 padding.
+    TileElement el{};
+    auto* raw = reinterpret_cast<uint8_t*>(&el);
+    raw[0] = static_cast<uint8_t>(TileElementType::surface) << 2;
+    raw[2] = 20;
+    raw[3] = 22;
+    raw[5] = kTileSlopeNCornerUp | kTileSlopeECornerUp; // north-east side up
+    raw[6] = 10;                                        // water: 10 half steps
+    raw[9] = 7;                                         // surface style
+    convertLegacySurfaceLayout(el);
+
+    const auto* surface = el.asSurface();
+    EXPECT_EQ((Terrain::TerrainShape{ 2, 2, 0, 0 }), surface->getTerrainShape());
+    EXPECT_EQ(20, el.baseHeight);
+    EXPECT_EQ(10 * 2 * kCoordsZStep, surface->getWaterHeight()); // the same height in z units as before
+    for (uint8_t q = 0; q < 4; q++)
+        EXPECT_EQ(7, surface->getQuadrantSurfaceIndex(static_cast<Terrain::Quadrant>(q)));
+
+    // All corners raised: a higher base, flat.
+    TileElement raised{};
+    auto* rawRaised = reinterpret_cast<uint8_t*>(&raised);
+    rawRaised[0] = static_cast<uint8_t>(TileElementType::surface) << 2;
+    rawRaised[2] = 20;
+    rawRaised[3] = 20;
+    rawRaised[5] = kTileSlopeRaisedCornersMask;
+    convertLegacySurfaceLayout(raised);
+    EXPECT_EQ(22, raised.baseHeight);
+    EXPECT_EQ((Terrain::TerrainShape{ 0, 0, 0, 0 }), raised.asSurface()->getTerrainShape());
 }

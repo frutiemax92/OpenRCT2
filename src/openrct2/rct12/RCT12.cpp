@@ -106,7 +106,7 @@ OwnershipFlags RCT12SurfaceElement::GetOwnership() const
 
 uint32_t RCT12SurfaceElement::GetWaterHeight() const
 {
-    return (Terrain & kRCT12SurfaceElementWaterHeightMask) * kWaterHeightStep;
+    return (Terrain & kRCT12SurfaceElementWaterHeightMask) * 2 * kCoordsZStep; // RCT stored water in half steps
 }
 
 uint8_t RCT12SurfaceElement::GetParkFences() const

@@ -86,6 +86,10 @@ std::pair<uint8_t, uint8_t> splitCombinedNumDropsPoweredLifts(uint8_t combinedVa
 void updateSurfaceElementsColour(
     OpenRCT2::GameState_t& gameState, std::span<const TerrainSurfaceMapping> terrainSurfaceMap,
     std::span<const OpenRCT2::Drawing::Colour> terrainEdgeMap);
+// Converts a surface element read from a park file before kQuarterTerrainVersion to the quarter-step layout (TER-024):
+// the legacy slope becomes a terrain shape, the surface style is copied to all quadrants and the water height goes from
+// half to quarter steps.
+void convertLegacySurfaceLayout(OpenRCT2::TileElement& tileElement);
 OpenRCT2::Drawing::Colour convertPre63Colour(uint8_t colour);
 OpenRCT2::Drawing::Colour convertPre63Colour(OpenRCT2::Drawing::Colour colour);
 void readWriteColour(OpenRCT2::OrcaStream::ChunkStream& cs, OpenRCT2::Drawing::Colour& colourField, uint32_t parkFileVersion);

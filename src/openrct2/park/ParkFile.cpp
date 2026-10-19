@@ -104,21 +104,6 @@ namespace OpenRCT2
         // clang-format on
     };
 
-    // Before kQuarterTerrainVersion a surface element stored the legacy slope in byte 5 and the surface style in byte 9;
-    // byte 12 held the edge colour and bytes 13 to 15 were padding.
-    static void convertLegacySurfaceLayout(TileElement& tileElement)
-    {
-        auto* raw = reinterpret_cast<uint8_t*>(&tileElement);
-        uint8_t raiseQ = 0;
-        const auto shape = Terrain::ShapeFromLegacySlope(raw[5] & kTileSlopeMask, &raiseQ);
-        raw[2] += raiseQ; // base height
-        raw[3] += raiseQ; // clearance height
-        const auto code = Terrain::EncodeShape(shape);
-        raw[5] = code & 0xFF;
-        raw[12] = (code >> 8) & 0xF;
-        raw[13] = raw[14] = raw[15] = raw[9];
-    }
-
     constexpr auto kGridMap = std::to_array<std::pair<u8string_view, Drawing::Colour>>({
         { "#RCT2SIR", Drawing::Colour::brightRed },
         { "#RCT2SIY", Drawing::Colour::yellow },

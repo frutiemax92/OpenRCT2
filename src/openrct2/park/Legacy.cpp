@@ -24,10 +24,13 @@
 #include "../ride/Ride.h"
 #include "../ride/ted/TrackElemType.h"
 #include "../world/TileElementsView.h"
+#include "../world/TerrainShape.h"
+#include "../world/tile_element/Slope.h"
 #include "../world/tile_element/SurfaceElement.h"
 #include "../world/tile_element/TrackElement.h"
 #include "ParkFile.h"
 
+#include <algorithm>
 #include <array>
 #include <unordered_map>
 
@@ -3152,6 +3155,23 @@ std::pair<uint8_t, uint8_t> splitCombinedNumDropsPoweredLifts(uint8_t combinedVa
     uint8_t numPoweredLifts = combinedValue >> 6;
 
     return std::make_pair(numDrops, numPoweredLifts);
+}
+
+void convertLegacySurfaceLayout(TileElement& tileElement)
+{
+    // Before the change a surface element stored the legacy slope in byte 5 and the surface style in byte 9; byte 12
+    // held the edge colour and bytes 13 to 15 were padding.
+    auto* raw = reinterpret_cast<uint8_t*>(&tileElement);
+    uint8_t raiseQ = 0;
+    const auto shape = Terrain::ShapeFromLegacySlope(raw[5] & kTileSlopeMask, &raiseQ);
+    raw[2] += raiseQ; // base height
+    raw[3] += raiseQ; // clearance height
+    const auto code = Terrain::EncodeShape(shape);
+    raw[5] = code & 0xFF;
+    raw[12] = (code >> 8) & 0xF;
+    raw[13] = raw[14] = raw[15] = raw[9];
+    // Water was stored in half steps, it is now in quarter steps.
+    raw[6] = static_cast<uint8_t>(std::min(255, raw[6] * 2));
 }
 
 void updateSurfaceElementsColour(
