@@ -45,11 +45,19 @@ namespace OpenRCT2::Drawing
 
         explicit TerrainSpriteCache(size_t budgetBytes = kDefaultBudgetBytes, int32_t maxNewPerFrame = kDefaultMaxNewPerFrame);
 
+        // Called for each sprite just before it is dropped (eviction or Clear).
+        using EvictCallback = std::function<void(const TerrainSpriteKey&, TerrainSprite&)>;
+        void SetEvictCallback(EvictCallback callback);
+
+        // Applies a new budget at once. Not to be used while sprites of the current frame are still in use.
         void SetBudget(size_t budgetBytes);
+
+        // Starts a frame: resets the generation limit and evicts least recently used sprites down to the budget.
+        // Eviction only happens here, so every sprite handed out during a frame stays valid until the next one.
         void BeginFrame();
 
         // Returns the cached sprite, generating it with `generate` when missing and the frame limit allows. Returns
-        // nullptr when it is not cached and the limit was reached. The pointer stays valid until the next call.
+        // nullptr when it is not cached and the limit was reached. The pointer stays valid until the next BeginFrame.
         const TerrainSprite* Get(const TerrainSpriteKey& key, const std::function<TerrainSprite()>& generate);
 
         // Looks a sprite up without generating (still refreshes its recency).
@@ -73,6 +81,7 @@ namespace OpenRCT2::Drawing
         size_t _budget;
         int32_t _maxNewPerFrame;
         int32_t _newThisFrame = 0;
+        EvictCallback _onEvict;
         size_t _bytes = 0;
         List _lru; // front = most recently used
         std::unordered_map<TerrainSpriteKey, List::iterator, TerrainSpriteKeyHash> _entries;

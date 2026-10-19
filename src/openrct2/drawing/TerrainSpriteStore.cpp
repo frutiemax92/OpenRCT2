@@ -1,0 +1,117 @@
+/*****************************************************************************
+ * Copyright (c) 2014-2026 OpenRCT2 developers
+ *
+ * For a complete list of all authors, please refer to contributors.md
+ * Interested in contributing? Visit https://github.com/OpenRCT2/OpenRCT2
+ *
+ * OpenRCT2 is licensed under the GNU General Public License version 3.
+ *****************************************************************************/
+
+#include "TerrainSpriteStore.h"
+
+#include "../object/TerrainSurfaceObject.h"
+#include "../world/tile_element/SurfaceElement.h"
+#include "G1Element.h"
+#include "Image.h"
+#include "ImageImporter.h"
+
+namespace OpenRCT2::Drawing
+{
+    namespace
+    {
+        // The tile diamond is 32 pixels tall and the generator is relative to its centre; images are relative to the
+        // top corner.
+        constexpr int32_t kCentreToTopCorner = 16;
+
+        TerrainShadeTable BuildShades()
+        {
+            std::array<std::array<uint8_t, 3>, 256> rgb{};
+            for (size_t i = 0; i < rgb.size(); i++)
+                rgb[i] = { StandardPalette[i].red, StandardPalette[i].green, StandardPalette[i].blue };
+            return TerrainShadeTable::FromPalette(rgb);
+        }
+    } // namespace
+
+    TerrainSpriteStore& TerrainSpriteStore::Instance()
+    {
+        static TerrainSpriteStore store;
+        return store;
+    }
+
+    TerrainSpriteStore::TerrainSpriteStore()
+    {
+        _cache.SetEvictCallback([this](const TerrainSpriteKey& key, TerrainSprite&) {
+            auto it = _images.find(key);
+            if (it != _images.end())
+            {
+                GfxObjectFreeImages(it->second, 1);
+                _images.erase(it);
+            }
+        });
+    }
+
+    void TerrainSpriteStore::BeginFrame()
+    {
+        std::lock_guard lock(_mutex);
+        _cache.BeginFrame();
+    }
+
+    void TerrainSpriteStore::Clear()
+    {
+        std::lock_guard lock(_mutex);
+        _cache.Clear();
+    }
+
+    size_t TerrainSpriteStore::GetSpriteCount() const
+    {
+        std::lock_guard lock(_mutex);
+        return _cache.GetCount();
+    }
+
+    ImageIndex TerrainSpriteStore::GetImage(const SurfaceElement& surface, int32_t rotation)
+    {
+        const auto shape = surface.getTerrainShape();
+        const auto shapeIndex = Terrain::GetShapeIndex(shape);
+        if (shapeIndex == 0xFFFF)
+            return kImageIndexUndefined;
+
+        std::array<const TerrainTexture*, 4> textures{};
+        TerrainSpriteKey key{ shapeIndex, {}, static_cast<uint8_t>(rotation & 3), 0 };
+        for (uint8_t q = 0; q < 4; q++)
+        {
+            const auto surfaceIndex = surface.getQuadrantSurfaceIndex(static_cast<Terrain::Quadrant>(q));
+            const auto* object = TerrainSurfaceObject::GetById(surfaceIndex);
+            textures[q] = object != nullptr ? object->getTexture() : nullptr;
+            if (textures[q] == nullptr)
+                return kImageIndexUndefined;
+            key.quadrantSurfaces[q] = static_cast<uint8_t>(surfaceIndex);
+        }
+
+        std::lock_guard lock(_mutex);
+        if (!_shadesBuilt)
+        {
+            _shades = BuildShades();
+            _shadesBuilt = true;
+        }
+        const auto* sprite = _cache.Get(key, [&] { return GenerateTerrainSprite(shape, textures, _shades, rotation, 0); });
+        if (sprite == nullptr || sprite->pixels.empty())
+            return kImageIndexUndefined;
+
+        auto it = _images.find(key);
+        if (it != _images.end())
+            return it->second;
+
+        G1Element g1{};
+        g1.offset = const_cast<uint8_t*>(sprite->pixels.data());
+        g1.width = static_cast<int16_t>(sprite->width);
+        g1.height = static_cast<int16_t>(sprite->height);
+        g1.xOffset = static_cast<int16_t>(sprite->xOffset);
+        g1.yOffset = static_cast<int16_t>(sprite->yOffset + kCentreToTopCorner);
+        g1.flags = { G1Flag::hasTransparency };
+        const auto image = GfxObjectAllocateImages(&g1, 1);
+        if (image == kImageIndexUndefined)
+            return kImageIndexUndefined;
+        _images[key] = image;
+        return image;
+    }
+} // namespace OpenRCT2::Drawing

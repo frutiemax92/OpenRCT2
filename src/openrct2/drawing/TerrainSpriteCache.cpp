@@ -32,6 +32,11 @@ namespace OpenRCT2::Drawing
     {
     }
 
+    void TerrainSpriteCache::SetEvictCallback(EvictCallback callback)
+    {
+        _onEvict = std::move(callback);
+    }
+
     void TerrainSpriteCache::SetBudget(size_t budgetBytes)
     {
         _budget = budgetBytes;
@@ -41,6 +46,7 @@ namespace OpenRCT2::Drawing
     void TerrainSpriteCache::BeginFrame()
     {
         _newThisFrame = 0;
+        Evict();
     }
 
     const TerrainSprite* TerrainSpriteCache::Peek(const TerrainSpriteKey& key)
@@ -65,14 +71,16 @@ namespace OpenRCT2::Drawing
         _bytes += entry.bytes;
         _lru.push_front(std::move(entry));
         _entries[key] = _lru.begin();
-        Evict();
-        // The new entry is the most recent one, so it survives eviction unless it alone exceeds the budget.
-        auto it = _entries.find(key);
-        return it == _entries.end() ? nullptr : &it->second->sprite;
+        return &_lru.front().sprite;
     }
 
     void TerrainSpriteCache::Clear()
     {
+        if (_onEvict)
+        {
+            for (auto& entry : _lru)
+                _onEvict(entry.key, entry.sprite);
+        }
         _lru.clear();
         _entries.clear();
         _bytes = 0;
@@ -83,6 +91,8 @@ namespace OpenRCT2::Drawing
         while (_bytes > _budget && !_lru.empty())
         {
             auto& last = _lru.back();
+            if (_onEvict)
+                _onEvict(last.key, last.sprite);
             _bytes -= last.bytes;
             _entries.erase(last.key);
             _lru.pop_back();

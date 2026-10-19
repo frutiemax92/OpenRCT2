@@ -25,8 +25,10 @@
 #include <openrct2/object/TerrainEdgeObject.h>
 #include <openrct2/object/TerrainSurfaceObject.h>
 #include <openrct2/drawing/TerrainSpriteGenerator.h>
+#include <openrct2/drawing/TerrainSpriteStore.h>
 #include <openrct2/ui/UiContext.h>
 #include <openrct2/world/Map.h>
+#include <openrct2/world/tile_element/SurfaceElement.h>
 #include <string>
 #include <vector>
 
@@ -176,4 +178,58 @@ TEST_F(BaseObjects, TerrainIsDrawn)
             terrain++;
     }
     EXPECT_GT(terrain, pixels.size() / 2);
+}
+
+TEST_F(BaseObjects, QuarterStepTerrainIsDrawnProcedurally)
+{
+    auto& objectManager = GetContext()->GetObjectManager();
+    objectManager.UnloadAll();
+    for (auto identifier : kMinimumRequiredObjects)
+        ASSERT_NE(nullptr, objectManager.LoadObject(identifier)) << identifier;
+    gameStateInitAll(getGameState(), { 16, 16 });
+    Config::Get().general.multiThreading = false;
+
+    // A quarter-step slope on the tile under the view centre.
+    auto* surface = MapGetSurfaceElementAt(TileCoordsXY{ 8, 8 });
+    ASSERT_NE(nullptr, surface);
+    surface->setTerrainShape({ 1, 3, 0, 2 });
+
+    constexpr int32_t kWidth = 128;
+    constexpr int32_t kHeight = 64;
+    Drawing::X8DrawingEngine engine(GetContext()->GetUiContext());
+    std::vector<Drawing::PaletteIndex> pixels(kWidth * kHeight);
+    Drawing::RenderTarget rt;
+    rt.DrawingEngine = &engine;
+    rt.bits = pixels.data();
+    rt.width = kWidth;
+    rt.height = kHeight;
+
+    const CoordsXYZ centre{ 8 * kCoordsXYStep + 16, 8 * kCoordsXYStep + 16, TileElementHeight({ 8 * kCoordsXYStep, 8 * kCoordsXYStep }) };
+    const auto screen = Translate3DTo2DWithZ(0, centre);
+    Viewport viewport;
+    viewport.width = kWidth;
+    viewport.height = kHeight;
+    viewport.viewPos = { screen.x - kWidth / 2, screen.y - kHeight / 2 };
+    viewport.isVisible = true;
+
+    auto& store = Drawing::TerrainSpriteStore::Instance();
+    store.Clear();
+    store.BeginFrame();
+    engine.BeginDraw();
+    ViewportRender(rt, &viewport);
+    engine.EndDraw();
+    // The sloped tile and its flat neighbours were generated and registered as images.
+    EXPECT_GE(store.GetSpriteCount(), 2u);
+
+    // Rendering the same view again reuses the cached sprites.
+    const auto count = store.GetSpriteCount();
+    store.BeginFrame();
+    engine.BeginDraw();
+    ViewportRender(rt, &viewport);
+    engine.EndDraw();
+    EXPECT_EQ(count, store.GetSpriteCount());
+
+    // Unloading the terrain objects drops them.
+    objectManager.UnloadAll();
+    EXPECT_EQ(0u, store.GetSpriteCount());
 }

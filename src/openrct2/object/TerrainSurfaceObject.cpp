@@ -21,6 +21,7 @@
 #include "../drawing/Image.h"
 #include "../drawing/PaletteMap.h"
 #include "../drawing/RenderTarget.h"
+#include "../drawing/TerrainSpriteStore.h"
 #include "../interface/ScreenCoords.hpp"
 #include "../world/Location.hpp"
 #include "ObjectManager.h"
@@ -105,6 +106,7 @@ namespace OpenRCT2
         {
             EntryBaseImageId = IconImageId + 1;
         }
+        Drawing::TerrainSpriteStore::Instance().Clear();
         const auto imageCount = static_cast<uint32_t>(GetImageTable().GetCount()) - (HasTexture ? 1 : 0);
         NumEntries = (imageCount - (EntryBaseImageId - IconImageId)) / kNumImagesInEntry;
         if (HasTexture)
@@ -130,6 +132,7 @@ namespace OpenRCT2
 
     void TerrainSurfaceObject::Unload()
     {
+        Drawing::TerrainSpriteStore::Instance().Clear();
         LanguageFreeObjectString(NameStringId);
         UnloadImages();
         if (Flags.has(TerrainSurfaceFlag::hasPrimaryColour))

@@ -19,6 +19,7 @@
 #include "../../entity/PatrolArea.h"
 #include "../../entity/Staff.h"
 #include "../../interface/Viewport.h"
+#include "../../drawing/TerrainSpriteStore.h"
 #include "../../object/TerrainEdgeObject.h"
 #include "../../object/TerrainSurfaceObject.h"
 #include "../../paint/Paint.h"
@@ -1050,6 +1051,21 @@ void PaintSurface(PaintSession& session, uint8_t direction, uint16_t height, con
         if (session.SelectedElement == elementPtr)
         {
             imageId = imageId.WithRemap(FilterPaletteID::paletteGhost);
+        }
+
+        // Procedural terrain (TER-031). Grid lines and sprites not generated yet fall back to the slope images.
+        if (!showGridlines)
+        {
+            const auto proceduralImage = Drawing::TerrainSpriteStore::Instance().GetImage(tileElement, rotation);
+            if (proceduralImage != kImageIndexUndefined)
+            {
+                auto procedural = ImageId(proceduralImage);
+                if (session.ViewFlags.hasAny(ViewportFlag::undergroundInside, ViewportFlag::hideBase))
+                    procedural = procedural.WithTransparency(FilterPaletteID::paletteDarken1);
+                if (session.SelectedElement == elementPtr)
+                    procedural = procedural.WithRemap(FilterPaletteID::paletteGhost);
+                imageId = procedural;
+            }
         }
 
         PaintAddImageAsParent(session, imageId, { 0, 0, height }, { 32, 32, -1 });

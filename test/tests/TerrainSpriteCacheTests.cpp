@@ -69,6 +69,8 @@ TEST(TerrainSpriteCacheTest, EvictsLeastRecentlyUsedWhenOverBudget)
     cache.Get(Key(2), gen);
     cache.Peek(Key(1)); // 1 is now more recent than 2
     cache.Get(Key(3), gen);
+    EXPECT_EQ(cache.GetCount(), 3u); // nothing is evicted in the middle of a frame
+    cache.BeginFrame();
     EXPECT_NE(cache.Peek(Key(1)), nullptr);
     EXPECT_EQ(cache.Peek(Key(2)), nullptr);
     EXPECT_NE(cache.Peek(Key(3)), nullptr);
@@ -93,7 +95,9 @@ TEST(TerrainSpriteCacheTest, FrameLimitReturnsNullInsteadOfGenerating)
 TEST(TerrainSpriteCacheTest, SpriteLargerThanTheBudgetIsNotKept)
 {
     TerrainSpriteCache cache(100, 10);
-    EXPECT_EQ(cache.Get(Key(1), [] { return Sprite(5000); }), nullptr);
+    EXPECT_NE(cache.Get(Key(1), [] { return Sprite(5000); }), nullptr); // usable for the rest of the frame
+    EXPECT_EQ(cache.GetCount(), 1u);
+    cache.BeginFrame();
     EXPECT_EQ(cache.GetCount(), 0u);
     EXPECT_EQ(cache.GetBytesUsed(), 0u);
 }
@@ -110,4 +114,23 @@ TEST(TerrainSpriteCacheTest, ShrinkingTheBudgetEvictsAndClearEmpties)
     cache.Clear();
     EXPECT_EQ(cache.GetCount(), 0u);
     EXPECT_EQ(cache.GetBytesUsed(), 0u);
+}
+
+TEST(TerrainSpriteCacheTest, EvictCallbackSeesEveryDroppedSprite)
+{
+    TerrainSpriteCache cache(sizeof(TerrainSprite) * 4 + 3000, 100);
+    std::vector<uint16_t> evicted;
+    cache.SetEvictCallback([&](const TerrainSpriteKey& key, TerrainSprite& sprite) {
+        EXPECT_FALSE(sprite.pixels.empty()); // still intact when the callback runs
+        evicted.push_back(key.shapeIndex);
+    });
+    for (uint16_t i = 0; i < 6; i++)
+        cache.Get(Key(i), [] { return Sprite(1000); });
+    EXPECT_TRUE(evicted.empty());
+    cache.BeginFrame();
+    ASSERT_FALSE(evicted.empty());
+    EXPECT_EQ(evicted.front(), 0); // least recently used first
+    const auto before = evicted.size();
+    cache.Clear();
+    EXPECT_EQ(evicted.size(), before + cache.GetCount() + (6 - before)); // Clear reports the remaining ones
 }
