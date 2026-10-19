@@ -847,12 +847,15 @@ namespace OpenRCT2
     {
         PROFILED_FUNCTION();
 
-        if (session.ViewFlags.hasAny(
-                ViewportFlag::hideVertical, ViewportFlag::hideBase, ViewportFlag::undergroundInside, ViewportFlag::clipView)
-            && !session.ViewFlags.has(ViewportFlag::transparentBackground))
+        // Always clear: areas without anything painted (outside the map, or terrain without images yet) would
+        // otherwise keep the previous frame and smear moving windows.
+        if (!session.ViewFlags.has(ViewportFlag::transparentBackground))
         {
-            PaletteIndex colour = PaletteIndex::pi10;
-            if (session.ViewFlags.has(ViewportFlag::hideEntities))
+            PaletteIndex colour = kViewportVoidColour;
+            if (session.ViewFlags.has(ViewportFlag::hideEntities)
+                && session.ViewFlags.hasAny(
+                    ViewportFlag::hideVertical, ViewportFlag::hideBase, ViewportFlag::undergroundInside,
+                    ViewportFlag::clipView))
             {
                 colour = PaletteIndex::transparent;
             }

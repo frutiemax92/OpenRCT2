@@ -10,6 +10,7 @@
 #pragma once
 
 #include "../core/FlagHolder.hpp"
+#include "../drawing/PaletteIndex.h"
 #include "../interface/ScreenCoords.hpp"
 #include "../interface/ViewportFlags.h"
 #include "../interface/ZoomLevel.h"
@@ -163,6 +164,9 @@ namespace OpenRCT2
     void ViewportUpdateSmartFollowGuest(WindowBase* window, const Guest& peep);
     void ViewportRotateSingle(WindowBase* window, int32_t direction);
     void ViewportRotateAll(int32_t direction);
+    // Colour of viewport areas where nothing is painted.
+    constexpr Drawing::PaletteIndex kViewportVoidColour = Drawing::PaletteIndex::pi10;
+
     void ViewportRender(Drawing::RenderTarget& rt, const Viewport* viewport);
 
     CoordsXYZ ViewportAdjustForMapHeight(const ScreenCoordsXY& startCoords, uint8_t rotation);
