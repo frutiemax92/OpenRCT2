@@ -96,25 +96,13 @@ namespace OpenRCT2
             {
                 auto rangeString = s.substr(rangeStart, rangeEnd - rangeStart + 1);
                 auto range = ParseRange(rangeString);
-                if (IsCsgLoaded())
+                // RCT1 CSG images are not supported: insert empty images.
+                std::string id(context->GetObjectIdentifier());
+                LOG_WARNING("CSG images are not supported, inserting placeholder images for %s", id.c_str());
+                result.resize(range.size());
+                for (auto& res : result)
                 {
-                    for (auto i : range)
-                    {
-                        result.push_back(
-                            std::make_unique<RequiredImage>(
-                                static_cast<uint32_t>(SPR_CSG_BEGIN + i),
-                                [](uint32_t idx) -> const G1Element* { return GfxGetG1Element(idx); }));
-                    }
-                }
-                else
-                {
-                    std::string id(context->GetObjectIdentifier());
-                    LOG_WARNING("CSG not loaded inserting placeholder images for %s", id.c_str());
-                    result.resize(range.size());
-                    for (auto& res : result)
-                    {
-                        res = std::make_unique<RequiredImage>();
-                    }
+                    res = std::make_unique<RequiredImage>();
                 }
             }
         }
@@ -524,7 +512,7 @@ namespace OpenRCT2
             // First gather all the required images from inspecting the JSON
             std::vector<std::unique_ptr<RequiredImage>> allImages;
             auto jsonImages = root["images"];
-            if (!IsCsgLoaded() && root.contains("noCsgImages"))
+            if (root.contains("noCsgImages"))
             {
                 jsonImages = root["noCsgImages"];
                 usesFallbackSprites = true;

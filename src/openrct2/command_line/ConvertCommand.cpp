@@ -90,8 +90,6 @@ namespace OpenRCT2
         // Validate the source type
         switch (sourceFileType)
         {
-            case FileExtension::sc4:
-            case FileExtension::sv4:
             case FileExtension::sc6:
             case FileExtension::sv6:
                 break;
@@ -103,7 +101,7 @@ namespace OpenRCT2
                 }
                 break;
             default:
-                Console::Error::WriteLine("Only conversion from .SC4, .SV4, .SC6, .SV6, or .PARK is supported.");
+                Console::Error::WriteLine("Only conversion from .SC6, .SV6, or .PARK is supported.");
                 return ExitCode::fail;
         }
 
@@ -133,7 +131,7 @@ namespace OpenRCT2
             return ExitCode::fail;
         }
 
-        if (sourceFileType == FileExtension::sc4 || sourceFileType == FileExtension::sc6)
+        if (sourceFileType == FileExtension::sc6)
         {
             // We are converting a scenario, so reset the park
             ScenarioBegin(gameState);
@@ -176,10 +174,6 @@ namespace OpenRCT2
     {
         switch (fileType)
         {
-            case FileExtension::sc4:
-                return "RollerCoaster Tycoon 1 scenario";
-            case FileExtension::sv4:
-                return "RollerCoaster Tycoon 1 saved game";
             case FileExtension::sc6:
                 return "RollerCoaster Tycoon 2 scenario";
             case FileExtension::sv6:

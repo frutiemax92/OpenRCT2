@@ -46,7 +46,6 @@
 #include <openrct2/localisation/StringWithArgs.h>
 #include <openrct2/network/Network.h>
 #include <openrct2/platform/Platform.h>
-#include <openrct2/rct1/Csg.h>
 #include <openrct2/ride/RideAudio.h>
 #include <openrct2/scenario/Scenario.h>
 #include <openrct2/scenes/title/TitleScene.h>
@@ -231,13 +230,7 @@ namespace OpenRCT2::Ui::Windows
         WIDX_DEFAULT_INSPECTION_INTERVAL_DROPDOWN,
 
         // Advanced
-        WIDX_GROUP_RCT1_PATH = WIDX_PAGE_START,
-        WIDX_PATH_TO_RCT1_LABEL,
-        WIDX_PATH_TO_RCT1_PATH,
-        WIDX_PATH_TO_RCT1_BROWSE,
-        WIDX_PATH_TO_RCT1_CLEAR,
-
-        WIDX_GROUP_SAVING,
+        WIDX_GROUP_SAVING = WIDX_PAGE_START,
         WIDX_EXPORT_CUSTOM_OBJECTS_CHECKBOX,
         WIDX_ALWAYS_NATIVE_LOADSAVE,
         WIDX_AUTOSAVE_FREQUENCY_LABEL,
@@ -432,18 +425,11 @@ namespace OpenRCT2::Ui::Windows
         makeWidget({288, kTweaksStart + 77}, { 11, 12}, WidgetType::button,       WindowColour::secondary, STR_DROPDOWN_GLYPH,       STR_DEFAULT_INSPECTION_INTERVAL_TIP       )  // Default inspection time dropdown button
     );
 
-    constexpr int32_t kRCT1Start = 53;
-    constexpr int32_t kSavingStart = kRCT1Start + 54;
+    constexpr int32_t kSavingStart = 53;
     constexpr int32_t kAdvancedStart = kSavingStart + 84;
 
     static constexpr auto window_options_advanced_widgets = makeWidgets(
         kMainOptionsWidgets,
-        makeWidget        ({  5, kRCT1Start +  0}, {300, 50}, WidgetType::groupbox,     WindowColour::secondary, STR_GROUP_RCT1                                                                          ),
-        makeWidget        ({ 10, kRCT1Start + 16}, {276, 12}, WidgetType::label,        WindowColour::secondary, STR_PATH_TO_RCT1,                          STR_PATH_TO_RCT1_TIP                         ), // RCT 1 path label
-        makeWidget        ({ 10, kRCT1Start + 30}, {290, 14}, WidgetType::label,        WindowColour::secondary, kStringIdNone,                             STR_STRING_TOOLTIP                           ), // RCT 1 path path
-        makeWidget        ({239, kRCT1Start + 15}, { 60, 14}, WidgetType::button,       WindowColour::secondary, STR_BROWSE                                                                              ), // RCT 1 path browse
-        makeWidget        ({249, kRCT1Start + 15}, { 50, 14}, WidgetType::button,       WindowColour::secondary, STR_CLEAR_BUTTON,                          STR_PATH_TO_RCT1_CLEAR_TIP                   ), // RCT 1 path clear
-
         makeWidget        ({  5, kSavingStart +  0}, {300, 82}, WidgetType::groupbox,     WindowColour::secondary, STR_GROUP_SAVING                                                                        ),
         makeWidget        ({ 10, kSavingStart + 16}, {290, 12}, WidgetType::checkbox,     WindowColour::tertiary,  STR_SAVE_PLUGIN_DATA,                      STR_SAVE_PLUGIN_DATA_TIP                     ), // Export plug-in objects with saved games
         makeWidget        ({ 10, kSavingStart + 30}, {290, 12}, WidgetType::checkbox,     WindowColour::secondary, STR_ALWAYS_NATIVE_LOADSAVE,                STR_ALWAYS_NATIVE_LOADSAVE_TIP               ), // Use native load/save window
@@ -690,9 +676,6 @@ namespace OpenRCT2::Ui::Windows
 
         StringWithArgs onTooltip(WidgetIndex widgetIndex, StringId fallback) override
         {
-            if (page == WINDOW_OPTIONS_PAGE_ADVANCED)
-                return AdvancedTooltip(widgetIndex, fallback);
-
             if (page == WINDOW_OPTIONS_PAGE_CONTROLS)
             {
                 if (widgetIndex == WIDX_GAMEPAD_DEADZONE)
@@ -1420,14 +1403,10 @@ namespace OpenRCT2::Ui::Windows
                     break;
                 case WIDX_TITLE_MUSIC_DROPDOWN:
                 {
-                    const bool rct1MusicThemeIsAvailable = isRCT1TitleMusicAvailable();
                     int32_t numItems{};
                     int32_t checkedIndex{};
                     for (auto theme : TitleThemeOptions)
                     {
-                        if (theme.Kind == TitleMusicKind::RCT1 && !rct1MusicThemeIsAvailable)
-                            continue;
-
                         if (Config::Get().sound.titleMusic == theme.Kind)
                             checkedIndex = numItems;
 
@@ -1467,15 +1446,6 @@ namespace OpenRCT2::Ui::Windows
                     break;
                 case WIDX_TITLE_MUSIC_DROPDOWN:
                 {
-                    // HACK: When RCT1 is not available, it's not in the dropdown, so indices higher than it should be
-                    // incremented
-                    const bool rct1MusicThemeIsAvailable = isRCT1TitleMusicAvailable();
-                    for (size_t i = 0; i < std::size(TitleThemeOptions) && static_cast<int32_t>(i) <= dropdownIndex; i++)
-                    {
-                        if (TitleThemeOptions[i].Kind == TitleMusicKind::RCT1 && !rct1MusicThemeIsAvailable)
-                            dropdownIndex++;
-                    }
-
                     Config::Get().sound.titleMusic = TitleThemeOptions[dropdownIndex].Kind;
                     Config::Save();
                     invalidate();
@@ -1976,50 +1946,6 @@ namespace OpenRCT2::Ui::Windows
                     Config::Save();
                     invalidate();
                     break;
-                case WIDX_PATH_TO_RCT1_BROWSE:
-                {
-                    auto rct1path = GetContext()->GetUiContext().ShowDirectoryDialog(
-                        LanguageGetString(STR_PATH_TO_RCT1_BROWSER));
-                    if (!rct1path.empty())
-                    {
-                        // Check if this directory actually contains RCT1
-                        if (Csg1datPresentAtLocation(rct1path))
-                        {
-                            if (Csg1idatPresentAtLocation(rct1path))
-                            {
-                                if (CsgAtLocationIsUsable(rct1path))
-                                {
-                                    Config::Get().general.rct1Path = std::move(rct1path);
-                                    Config::Get().interface.scenarioSelectLastTab = 0;
-                                    Config::Save();
-                                    ContextShowError(STR_RESTART_REQUIRED, kStringIdNone, {});
-                                }
-                                else
-                                {
-                                    ContextShowError(STR_PATH_TO_RCT1_IS_WRONG_VERSION, kStringIdNone, {});
-                                }
-                            }
-                            else
-                            {
-                                ContextShowError(STR_PATH_TO_RCT1_DOES_NOT_CONTAIN_CSG1I_DAT, kStringIdNone, {});
-                            }
-                        }
-                        else
-                        {
-                            ContextShowError(STR_PATH_TO_RCT1_WRONG_ERROR, kStringIdNone, {});
-                        }
-                    }
-                    invalidate();
-                    break;
-                }
-                case WIDX_PATH_TO_RCT1_CLEAR:
-                    if (!Config::Get().general.rct1Path.empty())
-                    {
-                        Config::Get().general.rct1Path.clear();
-                        Config::Save();
-                    }
-                    invalidate();
-                    break;
                 case WIDX_ASSET_PACKS:
                     ContextOpenWindow(WindowClass::assetPacks);
                     break;
@@ -2085,33 +2011,6 @@ namespace OpenRCT2::Ui::Windows
 
         void AdvancedPrepareDraw()
         {
-            if (!Config::Get().general.rct1Path.empty())
-            {
-                widgets[WIDX_PATH_TO_RCT1_PATH].setVisible();
-                widgets[WIDX_PATH_TO_RCT1_BROWSE].setHidden();
-                widgets[WIDX_PATH_TO_RCT1_CLEAR].setVisible();
-
-                // Get 'Clear' button string width
-                auto clearLabel = LanguageGetString(STR_CLEAR_BUTTON);
-                auto clearLabelWidth = getStringWidth(clearLabel, FontStyle::medium) + 12;
-
-                widgets[WIDX_PATH_TO_RCT1_CLEAR].right = widgets[WIDX_PAGE_BACKGROUND].right - 12;
-                widgets[WIDX_PATH_TO_RCT1_CLEAR].left = widgets[WIDX_PATH_TO_RCT1_BROWSE].right - clearLabelWidth;
-            }
-            else
-            {
-                widgets[WIDX_PATH_TO_RCT1_PATH].setHidden();
-                widgets[WIDX_PATH_TO_RCT1_BROWSE].setVisible();
-                widgets[WIDX_PATH_TO_RCT1_CLEAR].setHidden();
-
-                // Get 'Browse' button string width
-                auto browseLabel = LanguageGetString(STR_BROWSE);
-                auto browseLabelWidth = getStringWidth(browseLabel, FontStyle::medium) + 12;
-
-                widgets[WIDX_PATH_TO_RCT1_BROWSE].right = widgets[WIDX_PAGE_BACKGROUND].right - 12;
-                widgets[WIDX_PATH_TO_RCT1_BROWSE].left = widgets[WIDX_PATH_TO_RCT1_BROWSE].right - browseLabelWidth;
-            }
-
             setCheckboxValue(WIDX_EXPORT_CUSTOM_OBJECTS_CHECKBOX, Config::Get().general.savePluginData);
             setCheckboxValue(WIDX_ALWAYS_NATIVE_LOADSAVE, Config::Get().general.useNativeBrowseDialog);
             widgets[WIDX_AUTOSAVE_FREQUENCY].text = AutosaveNames[Config::Get().general.autosaveFrequency];
@@ -2136,39 +2035,6 @@ namespace OpenRCT2::Ui::Windows
             drawText(
                 rt, windowPos + ScreenCoordsXY{ widgets[WIDX_AUTOSAVE_AMOUNT].left + 1, widgets[WIDX_AUTOSAVE_AMOUNT].top + 1 },
                 STR_WINDOW_COLOUR_2_COMMA32, ft, { colours[1] });
-
-            // Format RCT1 path
-            const auto normalisedPath = Platform::StrDecompToPrecomp(Config::Get().general.rct1Path);
-            ft = Formatter();
-            ft.Add<StringId>(STR_STRING);
-            ft.Add<const utf8*>(normalisedPath.c_str());
-
-            auto& pathWidget = widgets[WIDX_PATH_TO_RCT1_PATH];
-            int32_t widgetHeight = pathWidget.bottom - pathWidget.top;
-
-            // Apply vertical alignment if font height requires it
-            int32_t lineHeight = FontGetLineHeight(FontStyle::medium);
-            int32_t padding = widgetHeight > lineHeight ? (widgetHeight - lineHeight) / 2 : 0;
-
-            auto screenCoords = windowPos + ScreenCoordsXY{ pathWidget.left + 1, pathWidget.top + padding };
-            drawTextEllipsised(rt, screenCoords, pathWidget.width() - 1, STR_BLACK_STRING, ft);
-        }
-
-        StringWithArgs AdvancedTooltip(WidgetIndex widgetIndex, StringId fallback)
-        {
-            if (widgetIndex == WIDX_PATH_TO_RCT1_PATH)
-            {
-                if (Config::Get().general.rct1Path.empty())
-                {
-                    // No tooltip if the path is empty
-                    return { kStringIdNone, {} };
-                }
-
-                auto ft = Formatter();
-                ft.Add<utf8*>(Config::Get().general.rct1Path.c_str());
-                return { fallback, ft };
-            }
-            return { fallback, {} };
         }
 
 #pragma endregion
@@ -2271,13 +2137,6 @@ namespace OpenRCT2::Ui::Windows
             widgetScrollUpdateThumbs(*this, widgetIndex);
         }
 
-        static bool isRCT1TitleMusicAvailable()
-        {
-            auto& env = GetContext()->GetPlatformEnvironment();
-            auto rct1path = env.GetDirectoryPath(DirBase::rct1);
-            return !rct1path.empty();
-        }
-
         static constexpr StringId AutosaveNames[] = {
             STR_SAVE_EVERY_MINUTE,    STR_SAVE_EVERY_5MINUTES, STR_SAVE_EVERY_15MINUTES,
             STR_SAVE_EVERY_30MINUTES, STR_SAVE_EVERY_HOUR,     STR_SAVE_NEVER,
@@ -2290,7 +2149,6 @@ namespace OpenRCT2::Ui::Windows
         } TitleThemeOptions[] = {
             { TitleMusicKind::none, STR_OPTIONS_MUSIC_VALUE_NONE },
             { TitleMusicKind::OpenRCT2, STR_OPENRCT2_DROPDOWN },
-            { TitleMusicKind::RCT1, STR_ROLLERCOASTER_TYCOON_1_DROPDOWN },
             { TitleMusicKind::RCT2, STR_ROLLERCOASTER_TYCOON_2_DROPDOWN },
             { TitleMusicKind::random, STR_OPTIONS_MUSIC_VALUE_RANDOM },
         };

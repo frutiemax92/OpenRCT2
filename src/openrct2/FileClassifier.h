@@ -15,9 +15,6 @@ enum class FileExtension
 {
     unknown,
     dat,
-    sc4,
-    sv4,
-    td4,
     sc6,
     sv6,
     td6,
@@ -47,7 +44,6 @@ struct ClassifiedFileInfo
     uint32_t Version = 0;
 };
 
-constexpr uint32_t kFileTypeS4Cutoff = 2;
 bool TryClassifyFile(const std::string& path, ClassifiedFileInfo* result);
 bool TryClassifyFile(OpenRCT2::IStream* stream, ClassifiedFileInfo* result);
 

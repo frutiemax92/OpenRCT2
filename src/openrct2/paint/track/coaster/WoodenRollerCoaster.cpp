@@ -13629,3 +13629,10 @@ TrackPaintFunction WoodenRC::GetTrackPaintFunctionClassicWoodenRCFallback(TrackE
 {
     return GetTrackPaintFunctionWoodenAndClassicWoodenRC<true>(trackType);
 }
+
+// The classic wooden roller coaster's own banked pieces came from the RCT1 CSG images, which are not loaded:
+// all its pieces are drawn as wooden roller coaster pieces with the classic paint scheme.
+TrackPaintFunction GetTrackPaintFunctionClassicWoodenRC(TrackElemType trackType)
+{
+    return WoodenRC::GetTrackPaintFunctionClassicWoodenRCFallback(trackType);
+}

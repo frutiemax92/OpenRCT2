@@ -160,16 +160,13 @@ void FASTCALL
 constexpr const char* kBaseGraphicsFileName = "base.gx";
 bool GfxLoadBaseGraphics(const OpenRCT2::IPlatformEnvironment& env);
 void GfxLoadPalettesFontsTracks();
-bool GfxLoadCsg();
 void GfxUnloadBaseGraphics();
 void GfxUnloadPalettesFontsTracks();
-void GfxUnloadCsg();
 const OpenRCT2::G1Element* GfxGetG1Element(ImageId imageId);
 const OpenRCT2::G1Element* GfxGetG1Element(ImageIndex image_id);
 const OpenRCT2::G1Palette* GfxGetG1Palette(ImageIndex imageId);
 void GfxSetG1Element(ImageIndex imageId, const OpenRCT2::G1Element* g1);
 std::optional<OpenRCT2::Gx> GfxLoadGx(const std::vector<uint8_t>& buffer);
-bool IsCsgLoaded();
 
 // sprite blitting
 void FASTCALL GfxSpriteToBuffer(OpenRCT2::Drawing::RenderTarget& rt, const DrawSpriteArgs& args);

@@ -29,7 +29,6 @@ namespace OpenRCT2::Config
     struct General
     {
         // Paths
-        u8string rct1Path;
         u8string rct2Path;
 
         // Display

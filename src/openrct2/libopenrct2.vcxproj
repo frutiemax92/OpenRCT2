@@ -465,11 +465,6 @@
     <ClInclude Include="rct12\Limits.h" />
     <ClInclude Include="rct12\RCT12.h" />
     <ClInclude Include="rct12\TD46.h" />
-    <ClInclude Include="rct1\Csg.h" />
-    <ClInclude Include="rct1\Limits.h" />
-    <ClInclude Include="rct1\RCT1.h" />
-    <ClInclude Include="rct1\RCT1File.h" />
-    <ClInclude Include="rct1\Tables.h" />
     <ClInclude Include="rct2\DATLimits.h" />
     <ClInclude Include="rct2\Limits.h" />
     <ClInclude Include="rct2\RCT2.h" />
@@ -1046,9 +1041,6 @@
     <ClCompile Include="paint\track\coaster\AirPoweredVerticalCoaster.cpp" />
     <ClCompile Include="paint\track\coaster\AlpineCoaster.cpp" />
     <ClCompile Include="paint\track\coaster\BobsleighCoaster.cpp" />
-    <ClCompile Include="paint\track\coaster\ClassicStandUpRollerCoaster.cpp" />
-    <ClCompile Include="paint\track\coaster\ClassicWoodenRollerCoaster.cpp" />
-    <ClCompile Include="paint\track\coaster\ClassicWoodenTwisterRollerCoaster.cpp" />
     <ClCompile Include="paint\track\coaster\CompactInvertedCoaster.cpp" />
     <ClCompile Include="paint\track\coaster\CorkscrewRollerCoaster.cpp" />
     <ClCompile Include="paint\track\coaster\FlyingRollerCoaster.cpp" />
@@ -1158,11 +1150,6 @@
     <ClCompile Include="rct12\RCT12.cpp" />
     <ClCompile Include="rct12\ScenarioPatcher.cpp" />
     <ClCompile Include="rct12\TD46.cpp" />
-    <ClCompile Include="rct1\Csg.cpp" />
-    <ClCompile Include="rct1\RCT1File.cpp" />
-    <ClCompile Include="rct1\S4Importer.cpp" />
-    <ClCompile Include="rct1\T4Importer.cpp" />
-    <ClCompile Include="rct1\Tables.cpp" />
     <ClCompile Include="rct2\RCT2.cpp" />
     <ClCompile Include="rct2\S6Importer.cpp" />
     <ClCompile Include="rct2\SeaDecrypt.cpp" />

@@ -15,7 +15,6 @@
 #include "core/Path.hpp"
 #include "core/String.hpp"
 #include "park/ParkFile.h"
-#include "rct1/RCT1File.h"
 #include "rct2/RCT2.h"
 #include "sawyer_coding/SawyerChunkReader.h"
 #include "sawyer_coding/SawyerCoding.h"
@@ -25,7 +24,6 @@ using namespace OpenRCT2::SawyerCoding;
 
 static bool TryClassifyAsPark(IStream* stream, ClassifiedFileInfo* result);
 static bool TryClassifyAsS6(IStream* stream, ClassifiedFileInfo* result);
-static bool TryClassifyAsS4(IStream* stream, ClassifiedFileInfo* result);
 static bool TryClassifyAsTD4_TD6(IStream* stream, ClassifiedFileInfo* result);
 
 bool TryClassifyFile(const std::string& path, ClassifiedFileInfo* result)
@@ -56,12 +54,6 @@ bool TryClassifyFile(IStream* stream, ClassifiedFileInfo* result)
 
     // S6 detection
     if (TryClassifyAsS6(stream, result))
-    {
-        return true;
-    }
-
-    // S4 detection
-    if (TryClassifyAsS4(stream, result))
     {
         return true;
     }
@@ -126,39 +118,6 @@ static bool TryClassifyAsS6(IStream* stream, ClassifiedFileInfo* result)
     return success;
 }
 
-static bool TryClassifyAsS4(IStream* stream, ClassifiedFileInfo* result)
-{
-    bool success = false;
-    uint64_t originalPosition = stream->GetPosition();
-    try
-    {
-        size_t dataLength = static_cast<size_t>(stream->GetLength());
-        auto data = stream->ReadArray<uint8_t>(dataLength);
-        stream->SetPosition(originalPosition);
-        auto fileTypeVersion = RCT1::detectFileType(data.get(), dataLength);
-
-        if (fileTypeVersion.fileType == RCT1::RCT1FileType::sv4)
-        {
-            result->Type = FileType::savedGame;
-            result->Version = EnumValue(fileTypeVersion.version);
-            success = true;
-        }
-        else if (fileTypeVersion.fileType == RCT1::RCT1FileType::sc4)
-        {
-            result->Type = FileType::scenario;
-            result->Version = EnumValue(fileTypeVersion.version);
-            success = true;
-        }
-    }
-    catch (const std::exception& e)
-    {
-        Console::Error::WriteLine(e.what());
-    }
-
-    stream->SetPosition(originalPosition);
-    return success;
-}
-
 static bool TryClassifyAsTD4_TD6(IStream* stream, ClassifiedFileInfo* result)
 {
     bool success = false;
@@ -199,12 +158,6 @@ FileExtension GetFileExtensionType(u8string_view path)
     auto extension = Path::GetExtension(path);
     if (String::iequals(extension, ".dat") || String::iequals(extension, ".pob"))
         return FileExtension::dat;
-    if (String::iequals(extension, ".sc4"))
-        return FileExtension::sc4;
-    if (String::iequals(extension, ".sv4"))
-        return FileExtension::sv4;
-    if (String::iequals(extension, ".td4"))
-        return FileExtension::td4;
     if (String::iequals(extension, ".sc6"))
         return FileExtension::sc6;
     if (String::iequals(extension, ".sea"))

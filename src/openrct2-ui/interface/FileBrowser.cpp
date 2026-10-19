@@ -183,18 +183,18 @@ namespace OpenRCT2::Ui::FileBrowser
         switch (type)
         {
             case LoadSaveType::park:
-                return isSave ? "*.park" : "*.park;*.sv6;*.sc6;*.sc4;*.sv4;*.sv7;*.sea";
+                return isSave ? "*.park" : "*.park;*.sv6;*.sc6;*.sv7;*.sea";
 
             case LoadSaveType::landscape:
-                return isSave ? "*.park" : "*.park;*.sc6;*.sv6;*.sc4;*.sv4;*.sv7;*.sea";
+                return isSave ? "*.park" : "*.park;*.sc6;*.sv6;*.sv7;*.sea";
 
             case LoadSaveType::scenario:
-                return isSave ? "*.park" : "*.park;*.sc6;*.sc4";
+                return isSave ? "*.park" : "*.park;*.sc6";
 
             case LoadSaveType::track:
             {
                 if (!isSave)
-                    return "*.td6;*.td4;*.td7";
+                    return "*.td6;*.td7";
 
                 if (trackDesign == nullptr)
                     return "*.td6";

@@ -225,7 +225,6 @@ public:
         switch (base)
         {
             default:
-            case DirBase::rct1:
                 if (basePath.empty())
                     return {};
 
@@ -294,17 +293,6 @@ public:
         }
 
         auto path = ResolveOriginalGameDataPath(base, dataPath, fileName);
-        if (base == DirBase::rct1 && did == DirId::data && !File::Exists(path))
-        {
-            // Special case, handle RCT1 steam layout where some data files are under a CD root
-            auto basePath = GetDirectoryPath(base);
-            auto alternativePath = Path::ResolveCasing(Path::Combine(basePath, "RCTdeluxe_install", "Data", fileName));
-            if (File::Exists(alternativePath))
-            {
-                path = alternativePath;
-            }
-        }
-
         return path;
     }
 
@@ -334,7 +322,7 @@ private:
      */
     u8string ResolveOriginalGameDataPath(DirBase base, const u8string& dataPath, u8string_view fileName) const
     {
-        const auto isOriginalGameData = base == DirBase::rct1 || base == DirBase::rct2;
+        const auto isOriginalGameData = base == DirBase::rct2;
         const auto isPlainFileName = fileName.find_first_of("/\\") == u8string_view::npos;
         if (!isOriginalGameData || !isPlainFileName || dataPath.empty())
         {
@@ -399,10 +387,6 @@ std::unique_ptr<IPlatformEnvironment> OpenRCT2::CreatePlatformEnvironment()
     basePaths[EnumValue(DirBase::documentation)] = Platform::GetDocsPath();
 
     // Override paths that have been specified via the command line
-    if (!gCustomRCT1DataPath.empty())
-    {
-        basePaths[EnumValue(DirBase::rct1)] = gCustomRCT1DataPath;
-    }
     if (!gCustomRCT2DataPath.empty())
     {
         basePaths[EnumValue(DirBase::rct2)] = gCustomRCT2DataPath;
@@ -432,17 +416,12 @@ std::unique_ptr<IPlatformEnvironment> OpenRCT2::CreatePlatformEnvironment()
     {
         Config::SaveToPath(configPath);
     }
-    if (gCustomRCT1DataPath.empty())
-    {
-        env->SetBasePath(DirBase::rct1, Config::Get().general.rct1Path);
-    }
     if (gCustomRCT2DataPath.empty())
     {
         env->SetBasePath(DirBase::rct2, Config::Get().general.rct2Path);
     }
 
     // Log base paths
-    LOG_VERBOSE("DirBase::rct1    : %s", env->GetDirectoryPath(DirBase::rct1).c_str());
     LOG_VERBOSE("DirBase::rct2    : %s", env->GetDirectoryPath(DirBase::rct2).c_str());
     LOG_VERBOSE("DirBase::openrct2: %s", env->GetDirectoryPath(DirBase::openrct2).c_str());
     LOG_VERBOSE("DirBase::user    : %s", env->GetDirectoryPath(DirBase::user).c_str());

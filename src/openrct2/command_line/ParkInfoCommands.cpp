@@ -80,11 +80,6 @@ namespace OpenRCT2
         {
             parkImporter = ParkImporter::CreateParkFile(objectRepository);
         }
-        else if (info.Version <= kFileTypeS4Cutoff)
-        {
-            // Save is an S4 (RCT1 format)
-            parkImporter = ParkImporter::CreateS4();
-        }
         else
         {
             // Save is an S6 (RCT2 format)

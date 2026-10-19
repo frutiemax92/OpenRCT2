@@ -13,7 +13,6 @@
 #include "../core/String.hpp"
 #include "../localisation/FormatCodes.h"
 #include "../object/ObjectList.h"
-#include "../rct1/Tables.h"
 #include "../rct12/CSStringConverter.h"
 #include "../rct2/RCT2.h"
 #include "../ride/Ride.h"
@@ -187,20 +186,6 @@ bool RCT12PathElement::AdditionIsGhost() const
 uint8_t RCT12PathElement::GetAdditionStatus() const
 {
     return AdditionStatus;
-}
-
-uint8_t RCT12PathElement::GetRCT1PathType() const
-{
-    uint8_t pathColour = type & 3;
-    uint8_t pathType2 = (EntryIndex & RCT12_FOOTPATH_PROPERTIES_TYPE_MASK) >> 2;
-
-    pathType2 = pathType2 | pathColour;
-    return pathType2;
-}
-
-uint8_t RCT12PathElement::GetRCT1SupportType() const
-{
-    return (flags & 0b01100000) >> 5;
 }
 
 RCT12::TrackElemType RCT12TrackElement::GetTrackType() const
@@ -399,39 +384,6 @@ bool RCT12WallElement::IsAcrossTrack() const
 bool RCT12WallElement::AnimationIsBackwards() const
 {
     return (Animation & WALL_ANIMATION_FLAG_DIRECTION_BACKWARD) != 0;
-}
-
-int32_t RCT12WallElement::GetRCT1WallType(int32_t edge) const
-{
-    uint8_t var_05 = Colour3;
-    uint16_t var_06 = Colour1 | (Animation << 8);
-
-    int32_t typeA = (var_05 >> (edge * 2)) & 3;
-    int32_t typeB = (var_06 >> (edge * 4)) & 0x0F;
-
-    if (typeB != 0x0F)
-    {
-        int32_t index = typeA | (typeB << 2);
-
-        auto slope = GetRCT1Slope();
-        auto edgeSlope = GetWallSlopeFromEdgeSlope(slope, edge & 3);
-        if (edgeSlope & (EDGE_SLOPE_UPWARDS | EDGE_SLOPE_DOWNWARDS))
-            index = RCT1::MapSlopedWall(index);
-
-        return index;
-    }
-
-    return -1;
-}
-
-Drawing::Colour RCT12WallElement::GetRCT1WallColour() const
-{
-    return static_cast<Drawing::Colour>(((type & 0xC0) >> 3) | ((EntryIndex & 0xE0) >> 5));
-}
-
-uint8_t RCT12WallElement::GetRCT1Slope() const
-{
-    return EntryIndex & 0b00011111;
 }
 
 OpenRCT2::EntranceType RCT12EntranceElement::GetEntranceType() const

@@ -26,9 +26,9 @@ static constexpr TrackPaintFunctionGetter kPaintFunctionMap[] = {
     GetTrackPaintFunctionCarRide,                  // carRide
     GetTrackPaintFunctionChairlift,                // chairlift
     GetTrackPaintFunctionCircus,                   // circus
-    GetTrackPaintFunctionClassicStandUpRC,         // classicStandUpRollerCoaster
+    GetTrackPaintFunctionStandUpRC,                // classicStandUpRollerCoaster (RCT1 images not loaded)
     GetTrackPaintFunctionClassicWoodenRC,          // classicWoodenRollerCoaster
-    GetTrackPaintFunctionClassicWoodenTwisterRC,   // classicWoodenTwisterRollerCoaster
+    GetTrackPaintFunctionWoodenRC,                 // classicWoodenTwisterRollerCoaster (RCT1 images not loaded)
     GetTrackPaintFunctionCompactInvertedRC,        // compactInvertedCoaster
     GetTrackPaintFunctionCorkscrewRC,              // corkscrewRollerCoaster
     GetTrackPaintFunctionCrookedHouse,             // crookedHouse

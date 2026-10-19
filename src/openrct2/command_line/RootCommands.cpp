@@ -59,7 +59,6 @@ namespace OpenRCT2
     static u8string _password = {};
     static u8string _userDataPath = {};
     static u8string _openrct2DataPath = {};
-    static u8string _rct1DataPath = {};
     static u8string _rct2DataPath = {};
     static bool _silentBreakpad = false;
 
@@ -81,7 +80,6 @@ namespace OpenRCT2
         { CMDLINE_TYPE_STRING,  &_password,         kNAC, "password",           "password needed to join the server"                         },
         { CMDLINE_TYPE_STRING,  &_userDataPath,     kNAC, "user-data-path",     "path to the user data directory (containing config.ini)"    },
         { CMDLINE_TYPE_STRING,  &_openrct2DataPath, kNAC, "openrct2-data-path", "path to the OpenRCT2 data directory (containing languages)" },
-        { CMDLINE_TYPE_STRING,  &_rct1DataPath,     kNAC, "rct1-data-path",     "path to the RollerCoaster Tycoon 1 data directory (containing data/csg1.dat)" },
         { CMDLINE_TYPE_STRING,  &_rct2DataPath,     kNAC, "rct2-data-path",     "path to the RollerCoaster Tycoon 2 data directory (containing data/g1.dat)" },
     #ifdef USE_BREAKPAD
         { CMDLINE_TYPE_SWITCH,  &_silentBreakpad,  kNAC, "silent-breakpad",   "make breakpad crash reporting silent"                       },
@@ -209,11 +207,6 @@ namespace OpenRCT2
         if (!_openrct2DataPath.empty())
         {
             gCustomOpenRCT2DataPath = Path::GetAbsolute(_openrct2DataPath);
-        }
-
-        if (!_rct1DataPath.empty())
-        {
-            gCustomRCT1DataPath = Path::GetAbsolute(_rct1DataPath);
         }
 
         if (!_rct2DataPath.empty())

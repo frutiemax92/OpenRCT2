@@ -29,9 +29,7 @@ data/language/zh-CN.txt 1
 data/language/zh-TW.txt 1
 src/openrct2/PlatformEnvironment.h 1
 src/openrct2/SpriteIds.h 2
-src/openrct2/command_line/RootCommands.cpp 5
-src/openrct2/drawing/Drawing.Sprite.cpp 2
+src/openrct2/command_line/RootCommands.cpp 4
 src/openrct2/object/ResourceTable.cpp 2
 src/openrct2/platform/Platform.Android.cpp 1
 src/openrct2/platform/Platform.Common.cpp 4
-src/openrct2/rct1/Csg.cpp 3

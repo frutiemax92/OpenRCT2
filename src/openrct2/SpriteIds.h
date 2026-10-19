@@ -11,7 +11,6 @@
 
 #include "drawing/ImageIndexType.h"
 #include "drawing/ScrollingText.h"
-#include "rct1/Limits.h"
 
 #include <cstddef>
 
@@ -2248,8 +2247,9 @@ enum : ImageIndex
     SPR_TRACKS_SINGLE_RAIL_GENTLE_DIAG_BRAKE = SPR_TRACKS_HYBRID_GENTLE_DIAG_BRAKE + 4,
     SPR_TRACKS_END = SPR_TRACKS_SINGLE_RAIL_GENTLE_DIAG_BRAKE + 4,
 
+    // Reserved: formerly the RCT1 CSG images, which are no longer loaded. Kept so that later indices do not move.
     SPR_CSG_BEGIN = SPR_TRACKS_END,
-    SPR_CSG_END = SPR_CSG_BEGIN + OpenRCT2::RCT1::Limits::kNumLLCsgEntries,
+    SPR_CSG_END = SPR_CSG_BEGIN + 69917,
 
     SPR_SCROLLING_TEXT_START = SPR_CSG_END,
     SPR_SCROLLING_TEXT_END = SPR_SCROLLING_TEXT_START + OpenRCT2::Drawing::ScrollingText::kMaxEntries,

@@ -28,7 +28,7 @@ namespace OpenRCT2::ParkImporter
         }
         else if (ExtensionIsRCT1(extension))
         {
-            parkImporter = CreateS4();
+            throw std::runtime_error("RollerCoaster Tycoon 1 parks are not supported.");
         }
         else
         {
@@ -49,6 +49,6 @@ namespace OpenRCT2::ParkImporter
 
     bool ExtensionIsScenario(std::string_view extension)
     {
-        return String::iequals(extension, ".sc4") || String::iequals(extension, ".sc6") || String::iequals(extension, ".sea");
+        return String::iequals(extension, ".sc6") || String::iequals(extension, ".sea");
     }
 } // namespace OpenRCT2::ParkImporter

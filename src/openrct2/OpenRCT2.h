@@ -39,7 +39,6 @@ extern StartupAction gOpenRCT2StartupAction;
 extern utf8 gOpenRCT2StartupActionPath[512];
 extern u8string gCustomUserDataPath;
 extern u8string gCustomOpenRCT2DataPath;
-extern u8string gCustomRCT1DataPath;
 extern u8string gCustomRCT2DataPath;
 extern u8string gCustomPassword;
 extern bool gOpenRCT2Headless;

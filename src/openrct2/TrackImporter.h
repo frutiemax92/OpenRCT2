@@ -31,7 +31,6 @@ public:
 namespace OpenRCT2::TrackImporter
 {
     [[nodiscard]] std::unique_ptr<ITrackImporter> Create(const std::string& hintPath);
-    [[nodiscard]] std::unique_ptr<ITrackImporter> CreateTD4();
     [[nodiscard]] std::unique_ptr<ITrackImporter> CreateTD6();
 
     bool ExtensionIsRCT1(const std::string& extension);

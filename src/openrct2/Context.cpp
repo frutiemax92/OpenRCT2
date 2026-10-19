@@ -212,7 +212,6 @@ namespace OpenRCT2
             }
 
             GfxObjectCheckAllImagesFreed();
-            GfxUnloadCsg();
             GfxUnloadPalettesFontsTracks();
             GfxUnloadBaseGraphics();
             Audio::Close();
@@ -741,11 +740,6 @@ namespace OpenRCT2
                 {
                     parkImporter = ParkImporter::CreateParkFile(*_objectRepository);
                 }
-                else if (info.Version <= kFileTypeS4Cutoff)
-                {
-                    // Save is an S4 (RCT1 format)
-                    parkImporter = ParkImporter::CreateS4();
-                }
                 else
                 {
                     // Save is an S6 (RCT2 format)
@@ -963,7 +957,6 @@ namespace OpenRCT2
                 return false;
             }
             GfxLoadPalettesFontsTracks();
-            GfxLoadCsg();
             FontSpriteInitialiseCharacters();
             return true;
         }

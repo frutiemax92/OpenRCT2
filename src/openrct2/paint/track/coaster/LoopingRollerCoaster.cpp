@@ -101,19 +101,12 @@ static void LoopingRCTrackStation(
     PaintSession& session, const Ride& ride, [[maybe_unused]] uint8_t trackSequence, uint8_t direction, int32_t height,
     const TrackElement& trackElement, SupportType supportType)
 {
-    static constexpr ImageIndex imageIdsFrictionWheels[4] = {
-        SPR_LOOPING_RC_BOOSTER_NE_SW,
-        SPR_LOOPING_RC_BOOSTER_NW_SE,
-        SPR_LOOPING_RC_BOOSTER_NE_SW,
-        SPR_LOOPING_RC_BOOSTER_NW_SE,
-    };
-    static constexpr ImageIndex imageIdsShuttleLaunch[4] = {
+    static constexpr ImageIndex imageIds[4] = {
         SPR_LOOPING_RC_FLAT_CHAINED_SW_NE,
         SPR_LOOPING_RC_FLAT_CHAINED_NW_SE,
         SPR_LOOPING_RC_FLAT_CHAINED_SW_NE,
         SPR_LOOPING_RC_FLAT_CHAINED_NW_SE,
     };
-    const auto& imageIds = IsCsgLoaded() ? imageIdsFrictionWheels : imageIdsShuttleLaunch;
 
     PaintAddImageAsParentRotated(
         session, direction, session.TrackColours.WithIndex(imageIds[direction]), { 0, 0, height },

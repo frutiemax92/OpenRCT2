@@ -88,11 +88,6 @@ namespace OpenRCT2
             info.Kind = SourceKind::csg;
             // info.Path = env->FindFile(DirBase::rct2, DirId::data, "g1.dat");
         }
-        else if (String::startsWith(base, "$RCT1:DATA/"))
-        {
-            info.Kind = SourceKind::data;
-            info.Path = env.FindFile(DirBase::rct1, DirId::data, fileName);
-        }
         else if (String::startsWith(base, "$RCT2:DATA/"))
         {
             info.Kind = SourceKind::data;

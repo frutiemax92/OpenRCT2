@@ -122,14 +122,13 @@ class ScenarioFileIndex final : public FileIndex<ScenarioIndexEntry>
 private:
     static constexpr uint32_t kMagicNumber = 0x58444953; // SIDX
     static constexpr uint16_t kVersion = 9;
-    static constexpr auto kPattern = "*.sc4;*.sc6;*.sea;*.park";
+    static constexpr auto kPattern = "*.sc6;*.sea;*.park";
 
 public:
     explicit ScenarioFileIndex(const IPlatformEnvironment& env)
         : FileIndex(
               "scenario index", kMagicNumber, kVersion, env.GetFilePath(PathId::cacheScenarios), std::string(kPattern),
               std::vector<std::string>({
-                  env.GetDirectoryPath(DirBase::rct1, DirId::scenarios),
                   env.GetDirectoryPath(DirBase::rct2, DirId::scenarios),
                   env.GetDirectoryPath(DirBase::user, DirId::scenarios),
               }))
@@ -230,11 +229,6 @@ private:
                 importer = ParkImporter::CreateParkFile(objRepository);
                 importer->LoadScenario(path, true);
             }
-            else if (String::iequals(extension, ".sc4"))
-            {
-                importer = ParkImporter::CreateS4();
-                importer->LoadScenario(path, true);
-            }
             else
             {
                 importer = ParkImporter::CreateS6(objRepository);
@@ -288,7 +282,6 @@ public:
 
     void Scan(int32_t language) override
     {
-        ImportMegaPark();
 
         // Reload scenarios from index
         _scenarios.clear();
@@ -447,45 +440,6 @@ private:
     {
         const ScenarioRepository* repo = this;
         return const_cast<ScenarioIndexEntry*>(repo->GetByPath(path));
-    }
-
-    /**
-     * Mega Park from RollerCoaster Tycoon 1 is stored in an encrypted hidden file: mp.dat.
-     * Decrypt the file and save it as sc21.sc4 in the user's scenario directory.
-     */
-    void ImportMegaPark()
-    {
-        auto mpdatPath = _env.FindFile(DirBase::rct1, DirId::data, "mp.dat");
-        if (File::Exists(mpdatPath))
-        {
-            auto scenarioDirectory = _env.GetDirectoryPath(DirBase::user, DirId::scenarios);
-            auto expectedSc21Path = Path::Combine(scenarioDirectory, "sc21.sc4");
-            auto sc21Path = Path::ResolveCasing(expectedSc21Path);
-            if (!File::Exists(sc21Path))
-            {
-                ConvertMegaPark(mpdatPath, expectedSc21Path);
-            }
-        }
-    }
-
-    /**
-     * Converts Mega Park to normalised file location (mp.dat to sc21.sc4)
-     * @param srcPath Full path to mp.dat
-     * @param dstPath Full path to sc21.dat
-     */
-    void ConvertMegaPark(const std::string& srcPath, const std::string& dstPath)
-    {
-        Path::CreateDirectory(Path::GetDirectory(dstPath));
-
-        auto mpdat = File::ReadAllBytes(srcPath);
-
-        // Rotate each byte of mp.dat left by 4 bits to convert
-        for (size_t i = 0; i < mpdat.size(); i++)
-        {
-            mpdat[i] = Numerics::rol8(mpdat[i], 4);
-        }
-
-        File::WriteAllBytes(dstPath, mpdat.data(), mpdat.size());
     }
 
     void AddScenario(const ScenarioIndexEntry& entry)

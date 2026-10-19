@@ -22,7 +22,7 @@ namespace OpenRCT2::TrackImporter
         std::string extension = Path::GetExtension(hintPath);
         if (ExtensionIsRCT1(extension))
         {
-            trackImporter = CreateTD4();
+            throw std::runtime_error("RollerCoaster Tycoon 1 track designs are not supported.");
         }
         else
         {

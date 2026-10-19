@@ -15,7 +15,6 @@ StartupAction gOpenRCT2StartupAction = StartupAction::title;
 utf8 gOpenRCT2StartupActionPath[512] = { 0 };
 u8string gCustomUserDataPath = {};
 u8string gCustomOpenRCT2DataPath = {};
-u8string gCustomRCT1DataPath = {};
 u8string gCustomRCT2DataPath = {};
 u8string gCustomPassword = {};
 u8string gSilentRecordingName = {};

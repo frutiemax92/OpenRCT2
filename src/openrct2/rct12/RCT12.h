@@ -752,8 +752,6 @@ public:
     uint8_t GetAddition() const;
     bool AdditionIsGhost() const;
     uint8_t GetAdditionStatus() const;
-    uint8_t GetRCT1PathType() const;
-    uint8_t GetRCT1SupportType() const;
 
     bool IsBroken() const;
 
@@ -857,9 +855,6 @@ public:
     uint8_t GetBannerIndex() const;
     bool IsAcrossTrack() const;
     bool AnimationIsBackwards() const;
-    int32_t GetRCT1WallType(int32_t edge) const;
-    OpenRCT2::Drawing::Colour GetRCT1WallColour() const;
-    uint8_t GetRCT1Slope() const;
 };
 static_assert(sizeof(RCT12WallElement) == 8);
 struct RCT12EntranceElement : RCT12TileElementBase

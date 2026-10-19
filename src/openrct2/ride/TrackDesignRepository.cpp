@@ -54,14 +54,13 @@ class TrackDesignFileIndex final : public FileIndex<TrackRepositoryItem>
 private:
     static constexpr uint32_t kMagicNumber = 0x58444954; // TIDX
     static constexpr uint16_t kVersion = 5;
-    static constexpr auto kPattern = "*.td4;*.td6;*.td7";
+    static constexpr auto kPattern = "*.td6;*.td7";
 
 public:
     explicit TrackDesignFileIndex(const IPlatformEnvironment& env)
         : FileIndex(
               "track design index", kMagicNumber, kVersion, env.GetFilePath(PathId::cacheTracks), std::string(kPattern),
               std::vector<std::string>({
-                  env.GetDirectoryPath(DirBase::rct1, DirId::trackDesigns),
                   env.GetDirectoryPath(DirBase::rct2, DirId::trackDesigns),
                   env.GetDirectoryPath(DirBase::user, DirId::trackDesigns),
               }))

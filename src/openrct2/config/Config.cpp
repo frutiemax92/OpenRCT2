@@ -29,7 +29,6 @@
 #include "../network/Network.h"
 #include "../paint/VirtualFloor.h"
 #include "../platform/Platform.h"
-#include "../rct1/Csg.h"
 #include "../ride/Ride.h"
 #include "../scenario/Scenario.h"
 #include "../ui/UiContext.h"
@@ -196,7 +195,6 @@ namespace OpenRCT2::Config
             model->fullscreenMode = reader->GetInt32("fullscreen_mode", 0);
             model->fullscreenHeight = reader->GetInt32("fullscreen_height", -1);
             model->fullscreenWidth = reader->GetInt32("fullscreen_width", -1);
-            model->rct1Path = reader->GetString("rct1_path", "");
             model->rct2Path = reader->GetString("game_path", "");
             model->landscapeSmoothing = reader->GetBoolean("landscape_smoothing", true);
             model->language = reader->GetEnum<int32_t>("language", Platform::GetLocaleLanguage(), Enum_LanguageEnum);
@@ -307,7 +305,6 @@ namespace OpenRCT2::Config
         writer->WriteInt32("fullscreen_mode", model->fullscreenMode);
         writer->WriteInt32("fullscreen_height", model->fullscreenHeight);
         writer->WriteInt32("fullscreen_width", model->fullscreenWidth);
-        writer->WriteString("rct1_path", model->rct1Path);
         writer->WriteString("game_path", model->rct2Path);
         writer->WriteBoolean("landscape_smoothing", model->landscapeSmoothing);
         writer->WriteEnum<int32_t>("language", model->language, Enum_LanguageEnum);

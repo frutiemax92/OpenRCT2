@@ -21,7 +21,6 @@
 #include "../core/Path.hpp"
 #include "../interface/ZoomLevel.h"
 #include "../platform/Platform.h"
-#include "../rct1/Csg.h"
 #include "../ui/UiContext.h"
 #include "Drawing.h"
 #include "RenderTarget.h"
@@ -182,9 +181,7 @@ static Gx _base = {};
 static Gx _fonts = {};
 static Gx _palettes = {};
 static Gx _tracks = {};
-static Gx _csg = {};
 static G1Element _scrollingText[ScrollingText::kMaxEntries]{};
-static bool _csgLoaded = false;
 
 static G1Element _g1Temp[kTempSpriteCount] = {};
 static std::vector<G1Element> _imageListElements;
@@ -262,14 +259,6 @@ void GfxUnloadPalettesFontsTracks()
     _tracks.elements.shrink_to_fit();
 }
 
-void GfxUnloadCsg()
-{
-    _csg.data.reset();
-    _csg.elements.clear();
-    _csg.elements.shrink_to_fit();
-    _csgLoaded = false;
-}
-
 static bool GfxLoadOpenRCT2Gx(std::string filename, Gx& target, size_t expectedNumItems)
 {
     LOG_VERBOSE("GfxLoadOpenRCT2Gx(\"%s\")", filename.c_str());
@@ -342,71 +331,6 @@ void GfxLoadPalettesFontsTracks()
     GfxLoadOpenRCT2Gx("palettes.dat", _palettes, kPalettesDatSpriteCount);
     GfxLoadOpenRCT2Gx("fonts.dat", _fonts, kFontsDatSpriteCount);
     GfxLoadOpenRCT2Gx("tracks.dat", _tracks, kTracksDatSpriteCount);
-}
-
-bool GfxLoadCsg()
-{
-    LOG_VERBOSE("GfxLoadCsg()");
-
-    if (Config::Get().general.rct1Path.empty())
-    {
-        LOG_VERBOSE("  unable to load CSG, RCT1 path not set");
-        return false;
-    }
-
-    auto pathHeaderPath = FindCsg1idatAtLocation(Config::Get().general.rct1Path);
-    auto pathDataPath = FindCsg1datAtLocation(Config::Get().general.rct1Path);
-    try
-    {
-        auto fileHeader = FileStream(pathHeaderPath, FileMode::open);
-        auto fileData = FileStream(pathDataPath, FileMode::open);
-        size_t fileHeaderSize = fileHeader.GetLength();
-        size_t fileDataSize = fileData.GetLength();
-
-        _csg.header.numEntries = static_cast<uint32_t>(fileHeaderSize / sizeof(StoredG1Element));
-        _csg.header.totalSize = static_cast<uint32_t>(fileDataSize);
-
-        if (!CsgIsUsable(_csg))
-        {
-            LOG_WARNING("Cannot load CSG1.DAT, it has too few entries. Only CSG1.DAT from Loopy Landscapes will work.");
-            return false;
-        }
-
-        // Read element headers
-        _csg.elements.resize(_csg.header.numEntries);
-        ReadAndConvertGxDat(&fileHeader, _csg.header.numEntries, _csg.elements.data());
-
-        // Read element data
-        _csg.data = fileData.ReadArray<uint8_t>(_csg.header.totalSize);
-
-        // Fix entry data offsets
-        for (uint32_t i = 0; i < _csg.header.numEntries; i++)
-        {
-            if (_csg.elements[i].offset == nullptr)
-            {
-                _csg.elements[i].offset = _csg.data.get();
-            }
-            else
-            {
-                _csg.elements[i].offset += reinterpret_cast<uintptr_t>(_csg.data.get());
-            }
-            // RCT1 used zoomed offsets that counted from the beginning of the file, rather than from the current sprite.
-            if (_csg.elements[i].flags.has(G1Flag::hasZoomSprite))
-            {
-                _csg.elements[i].zoomedOffset = i - _csg.elements[i].zoomedOffset;
-            }
-        }
-        _csgLoaded = true;
-        return true;
-    }
-    catch (const std::exception&)
-    {
-        _csg.elements.clear();
-        _csg.elements.shrink_to_fit();
-
-        LOG_ERROR("Unable to load csg graphics");
-        return false;
-    }
 }
 
 std::optional<Gx> GfxLoadGx(const std::vector<uint8_t>& buffer)
@@ -817,16 +741,8 @@ const G1Element* GfxGetG1Element(ImageIndex image_id)
     }
     else if (offset < SPR_CSG_END)
     {
-        if (IsCsgLoaded())
-        {
-            size_t idx = offset - SPR_CSG_BEGIN;
-            if (idx < _csg.header.numEntries)
-            {
-                return &_csg.elements[idx];
-            }
-
-            LOG_WARNING("Invalid entry in csg.dat requested, idx = %u.", idx);
-        }
+        // Reserved range, nothing is loaded there.
+        return nullptr;
     }
     else if (offset < SPR_SCROLLING_TEXT_END)
     {
@@ -898,10 +814,6 @@ void GfxSetG1Element(ImageIndex imageId, const G1Element* g1)
     }
 }
 
-bool IsCsgLoaded()
-{
-    return _csgLoaded;
-}
 
 size_t G1CalculateDataSize(const G1Element* g1)
 {

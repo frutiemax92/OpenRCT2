@@ -17,7 +17,6 @@ namespace OpenRCT2
 {
     enum class DirBase : size_t
     {
-        rct1,          // Base directory for original RollerCoaster Tycoon 1 content.
         rct2,          // Base directory for original RollerCoaster Tycoon 2 content.
         openrct2,      // Base directory for OpenRCT2 installation.
         user,          // Base directory for OpenRCT2 user content.
@@ -25,7 +24,7 @@ namespace OpenRCT2
         cache,         // Base directory for OpenRCT2 cache files.
         documentation, // Base directory for OpenRCT2 doc files.
     };
-    constexpr size_t kDirBaseCount = 7;
+    constexpr size_t kDirBaseCount = 6;
     using DirBaseValues = u8string[kDirBaseCount];
 
     enum class DirId
