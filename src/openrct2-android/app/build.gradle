@@ -85,7 +85,6 @@ tasks.register('prepareOpenRCT2Assets', Exec) {
     inputs.file("${rootProject.projectDir}/../../resources/fonts/sprites.json")
     inputs.file("${rootProject.projectDir}/../../resources/g2/sprites.json")
     inputs.file("${rootProject.projectDir}/../../resources/palettes/sprites.json")
-    inputs.file("${rootProject.projectDir}/../../resources/tracks/sprites.json")
     inputs.dir("${rootProject.projectDir}/../../data/language")
     inputs.dir("${rootProject.projectDir}/../../data/shaders")
     inputs.dir("${rootProject.projectDir}/../../data/scenario_patches")

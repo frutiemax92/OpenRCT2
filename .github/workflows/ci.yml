@@ -207,7 +207,6 @@ jobs:
             g2.dat
             palettes.dat
             fonts.dat
-            tracks.dat
   windows:
     name: Windows
     runs-on: ${{ matrix.runs_on }}

@@ -24,7 +24,7 @@
 #include "../drawing/ImageIndexType.h"
 #include "../entity/Guest.h"
 #include "../localisation/StringIds.h"
-#include "../paint/track/Support.h"
+#include "../paint/support/TrackSupport.h"
 #include "Ride.h"
 #include "RideAudio.h"
 #include "RideEntry.h"

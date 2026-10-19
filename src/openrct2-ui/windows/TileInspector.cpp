@@ -21,6 +21,7 @@
 #include <openrct2/core/Guard.hpp>
 #include <openrct2/drawing/ColourMap.h>
 #include <openrct2/drawing/Rectangle.h>
+#include <openrct2/drawing/RenderTarget.h>
 #include <openrct2/drawing/Text.h>
 #include <openrct2/interface/Viewport.h>
 #include <openrct2/localisation/Formatter.h>

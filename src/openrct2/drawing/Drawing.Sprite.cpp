@@ -180,7 +180,6 @@ static void MaskMagnify(
 static Gx _base = {};
 static Gx _fonts = {};
 static Gx _palettes = {};
-static Gx _tracks = {};
 static G1Element _scrollingText[ScrollingText::kMaxEntries]{};
 
 static G1Element _g1Temp[kTempSpriteCount] = {};
@@ -244,7 +243,7 @@ void GfxUnloadBaseGraphics()
     _base.header = {};
 }
 
-void GfxUnloadPalettesFontsTracks()
+void GfxUnloadPalettesFonts()
 {
     _palettes.data.reset();
     _palettes.elements.clear();
@@ -253,10 +252,6 @@ void GfxUnloadPalettesFontsTracks()
     _fonts.data.reset();
     _fonts.elements.clear();
     _fonts.elements.shrink_to_fit();
-
-    _tracks.data.reset();
-    _tracks.elements.clear();
-    _tracks.elements.shrink_to_fit();
 }
 
 static bool GfxLoadOpenRCT2Gx(std::string filename, Gx& target, size_t expectedNumItems)
@@ -326,11 +321,10 @@ static bool GfxLoadOpenRCT2Gx(std::string filename, Gx& target, size_t expectedN
     return false;
 }
 
-void GfxLoadPalettesFontsTracks()
+void GfxLoadPalettesFonts()
 {
     GfxLoadOpenRCT2Gx("palettes.dat", _palettes, kPalettesDatSpriteCount);
     GfxLoadOpenRCT2Gx("fonts.dat", _fonts, kFontsDatSpriteCount);
-    GfxLoadOpenRCT2Gx("tracks.dat", _tracks, kTracksDatSpriteCount);
 }
 
 std::optional<Gx> GfxLoadGx(const std::vector<uint8_t>& buffer)
@@ -729,19 +723,9 @@ const G1Element* GfxGetG1Element(ImageIndex image_id)
 
         LOG_WARNING("Invalid entry in fonts.dat requested, idx = %u. You may have to update your fonts.dat.", idx);
     }
-    else if (offset < SPR_TRACKS_END)
-    {
-        size_t idx = offset - SPR_TRACKS_BEGIN;
-        if (idx < _tracks.header.numEntries)
-        {
-            return &_tracks.elements[idx];
-        }
-
-        LOG_WARNING("Invalid entry in tracks.dat requested, idx = %u. You may have to update your tracks.dat.", idx);
-    }
     else if (offset < SPR_CSG_END)
     {
-        // Reserved range, nothing is loaded there.
+        // Reserved ranges (formerly ride track and RCT1 images), nothing is loaded there.
         return nullptr;
     }
     else if (offset < SPR_SCROLLING_TEXT_END)

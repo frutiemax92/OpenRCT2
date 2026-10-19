@@ -35,6 +35,7 @@
 #include <openrct2/config/Config.h>
 #include <openrct2/core/Numerics.hpp>
 #include <openrct2/drawing/Drawing.h>
+#include <openrct2/drawing/RenderTarget.h>
 #include <openrct2/drawing/Text.h>
 #include <openrct2/interface/Viewport.h>
 #include <openrct2/interface/WidgetIndexGlobals.h>
@@ -42,6 +43,7 @@
 #include <openrct2/localisation/Formatting.h>
 #include <openrct2/network/Network.h>
 #include <openrct2/object/ObjectManager.h>
+#include <openrct2/paint/Paint.h>
 #include <openrct2/paint/VirtualFloor.h>
 #include <openrct2/paint/tile_element/Paint.TileElement.h>
 #include <openrct2/platform/Platform.h>

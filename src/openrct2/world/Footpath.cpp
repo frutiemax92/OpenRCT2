@@ -21,6 +21,7 @@
 #include "../object/FootpathRailingsObject.h"
 #include "../object/FootpathSurfaceObject.h"
 #include "../object/ObjectManager.h"
+#include "../paint/tile_element/Paint.TileElement.h"
 #include "../ride/RideData.h"
 #include "../ride/TrackData.h"
 #include "../ride/ted/TrackElementDescriptor.h"

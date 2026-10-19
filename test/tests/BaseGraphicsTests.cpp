@@ -123,3 +123,17 @@ TEST_F(BaseGraphicsTests, NoRct2PathIsNeeded)
     BuildPack(R"([ { "slot": 0, "path": "logo.png" } ])");
     ASSERT_TRUE(GfxLoadBaseGraphics(*_env));
 }
+
+TEST_F(BaseGraphicsTests, TrackAndCsgRangesAreEmpty)
+{
+    // ARC-002: ride track images (formerly tracks.dat) and RCT1 CSG images are never loaded; their index ranges stay
+    // reserved so later indices do not move.
+    BuildPack(R"([ { "slot": 0, "path": "logo.png" } ])");
+    ASSERT_TRUE(GfxLoadBaseGraphics(*_env));
+
+    for (ImageIndex index : { ImageIndex{ SPR_TRACKS_BEGIN }, ImageIndex{ SPR_TRACKS_END - 1 }, ImageIndex{ SPR_CSG_BEGIN },
+                              ImageIndex{ SPR_CSG_END - 1 } })
+    {
+        ASSERT_EQ(nullptr, GfxGetG1Element(index)) << index;
+    }
+}

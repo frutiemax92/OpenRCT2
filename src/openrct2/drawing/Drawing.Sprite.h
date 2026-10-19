@@ -159,9 +159,9 @@ void FASTCALL
 // Base graphics pack (AST-002): the images of the g1 and g2 index ranges of SpriteIds.h, built from resources/base.
 constexpr const char* kBaseGraphicsFileName = "base.gx";
 bool GfxLoadBaseGraphics(const OpenRCT2::IPlatformEnvironment& env);
-void GfxLoadPalettesFontsTracks();
+void GfxLoadPalettesFonts();
 void GfxUnloadBaseGraphics();
-void GfxUnloadPalettesFontsTracks();
+void GfxUnloadPalettesFonts();
 const OpenRCT2::G1Element* GfxGetG1Element(ImageId imageId);
 const OpenRCT2::G1Element* GfxGetG1Element(ImageIndex image_id);
 const OpenRCT2::G1Palette* GfxGetG1Palette(ImageIndex imageId);

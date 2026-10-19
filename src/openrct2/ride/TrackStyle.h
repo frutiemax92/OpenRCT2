@@ -9,7 +9,6 @@
 
 #pragma once
 
-#include "TrackPaint.h"
 
 #include <cstdint>
 
@@ -99,5 +98,3 @@ enum class TrackStyle : uint8_t
 
     null = 255,
 };
-
-TrackPaintFunction GetTrackPaintFunction(TrackStyle trackStyle, OpenRCT2::TrackElemType trackType);

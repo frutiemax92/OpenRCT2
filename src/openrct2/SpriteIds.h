@@ -1611,6 +1611,7 @@ enum : ImageIndex
     SPR_FONTS_GLYPH_COUNT = (SPR_FONTS_EYE - SPR_FONTS_BEGIN) + 1,
     SPR_FONTS_END = SPR_FONTS_BEGIN + SPR_FONTS_GLYPH_COUNT * 3,
 
+    // Ride track images, formerly tracks.dat. No longer loaded (ARC-002); the indices stay so later ones do not move.
     SPR_TRACKS_BEGIN = SPR_FONTS_END,
 
     SPR_TRACKS_JUNIOR_RC_BEGIN = SPR_TRACKS_BEGIN,
@@ -2262,4 +2263,3 @@ enum : ImageIndex
 constexpr size_t kG2SpriteCount = SPR_G2_END - SPR_G2_BEGIN;
 constexpr size_t kPalettesDatSpriteCount = SPR_PALETTE_END - SPR_PALETTE_START;
 constexpr size_t kFontsDatSpriteCount = SPR_FONTS_END - SPR_FONTS_BEGIN;
-constexpr size_t kTracksDatSpriteCount = SPR_TRACKS_END - SPR_TRACKS_BEGIN;

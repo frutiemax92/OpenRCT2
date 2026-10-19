@@ -212,7 +212,7 @@ namespace OpenRCT2
             }
 
             GfxObjectCheckAllImagesFreed();
-            GfxUnloadPalettesFontsTracks();
+            GfxUnloadPalettesFonts();
             GfxUnloadBaseGraphics();
             Audio::Close();
 
@@ -943,7 +943,7 @@ namespace OpenRCT2
             {
                 return false;
             }
-            GfxLoadPalettesFontsTracks();
+            GfxLoadPalettesFonts();
             FontSpriteInitialiseCharacters();
             return true;
         }
