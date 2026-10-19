@@ -51,6 +51,10 @@ namespace OpenRCT2::Drawing
         // kImageIndexUndefined when there is no water or the sprite is not ready yet.
         ImageIndex GetWaterImage(const SurfaceElement& surface, WaterPattern pattern, int32_t rotation);
 
+        // An overlay following the surface of a tile (TER-034), or the same overlay on a flat tile for drawing on water
+        // (flat = true). kImageIndexUndefined when it is not ready yet.
+        ImageIndex GetOverlayImage(const Terrain::TerrainShape& shape, const TerrainOverlay& overlay, int32_t rotation);
+
         size_t GetSpriteCount() const;
 
     private:

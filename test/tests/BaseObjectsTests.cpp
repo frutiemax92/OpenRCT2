@@ -526,3 +526,49 @@ TEST(LegacySurfaceLayout, OldParkSurfacesConvertToQuarterSteps)
     EXPECT_EQ(22, raised.baseHeight);
     EXPECT_EQ((Terrain::TerrainShape{ 0, 0, 0, 0 }), raised.asSurface()->getTerrainShape());
 }
+
+TEST_F(LandTools, GridLinesAndSelectionsAreDrawnProceduralOverlays)
+{
+    SetUpMap();
+    MapGetSurfaceElementAt(TileCoordsXY{ 8, 8 })->setTerrainShape({ 1, 2, 0, 3 });
+
+    constexpr int32_t kWidth = 128, kHeight = 64;
+    Drawing::X8DrawingEngine engine(GetContext()->GetUiContext());
+    std::vector<Drawing::PaletteIndex> pixels(kWidth * kHeight);
+    Drawing::RenderTarget rt;
+    rt.DrawingEngine = &engine;
+    rt.bits = pixels.data();
+    rt.width = kWidth;
+    rt.height = kHeight;
+    const CoordsXYZ centre{ 8 * kCoordsXYStep + 16, 8 * kCoordsXYStep + 16, MapGetSurfaceElementAt(TileCoordsXY{ 8, 8 })->getBaseZ() };
+    const auto screen = Translate3DTo2DWithZ(0, centre);
+    Viewport viewport;
+    viewport.width = kWidth;
+    viewport.height = kHeight;
+    viewport.viewPos = { screen.x - kWidth / 2, screen.y - kHeight / 2 };
+    viewport.isVisible = true;
+
+    auto& store = Drawing::TerrainSpriteStore::Instance();
+    auto render = [&] {
+        store.BeginFrame();
+        engine.BeginDraw();
+        ViewportRender(rt, &viewport);
+        engine.EndDraw();
+    };
+    store.Clear();
+    render();
+    const auto plain = store.GetSpriteCount();
+
+    viewport.flags.set(ViewportFlag::gridlines);
+    render();
+    const auto withGrid = store.GetSpriteCount();
+    EXPECT_GT(withGrid, plain); // grid outlines were generated for the visible tiles
+
+    gMapSelectFlags.set(MapSelectFlag::enable);
+    gMapSelectPositionA = { 8 * kCoordsXYStep, 8 * kCoordsXYStep };
+    gMapSelectPositionB = gMapSelectPositionA;
+    gMapSelectType = MapSelectType::corner1;
+    render();
+    EXPECT_GT(store.GetSpriteCount(), withGrid); // and the corner highlight
+    gMapSelectFlags.clearAll();
+}

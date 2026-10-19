@@ -19,6 +19,7 @@
 namespace OpenRCT2::Drawing
 {
     constexpr uint16_t kEdgeFaceShapeIndex = 0xFFFE;
+    constexpr uint16_t kOverlayShapeIndexBase = 0x2000; // plus the shape index, for overlay sprites
     constexpr uint16_t kWaterShapeIndexBase = 0x4000; // plus the shape index, for water surface sprites
 
     // Key of a generated terrain sprite (TER-032).
@@ -49,7 +50,7 @@ namespace OpenRCT2::Drawing
     {
     public:
         static constexpr size_t kDefaultBudgetBytes = 64u * 1024u * 1024u;
-        static constexpr int32_t kDefaultMaxNewPerFrame = 64;
+        static constexpr int32_t kDefaultMaxNewPerFrame = 256;
 
         explicit TerrainSpriteCache(size_t budgetBytes = kDefaultBudgetBytes, int32_t maxNewPerFrame = kDefaultMaxNewPerFrame);
 

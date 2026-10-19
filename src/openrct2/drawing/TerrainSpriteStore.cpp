@@ -142,6 +142,21 @@ namespace OpenRCT2::Drawing
         return RegisterImage(key, *sprite);
     }
 
+    ImageIndex TerrainSpriteStore::GetOverlayImage(const Terrain::TerrainShape& shape, const TerrainOverlay& overlay, int32_t rotation)
+    {
+        const auto shapeIndex = Terrain::GetShapeIndex(shape);
+        if (shapeIndex == 0xFFFF)
+            return kImageIndexUndefined;
+        TerrainSpriteKey key{ static_cast<uint16_t>(kOverlayShapeIndexBase + shapeIndex), {}, static_cast<uint8_t>(rotation & 3), 0 };
+        key.quadrantSurfaces = { static_cast<uint8_t>(overlay.kind), overlay.index, overlay.colour, 0 };
+
+        std::lock_guard lock(_mutex);
+        const auto* sprite = _cache.Get(key, [&] { return GenerateTerrainOverlaySprite(shape, overlay, rotation, 0); });
+        if (sprite == nullptr || sprite->pixels.empty())
+            return kImageIndexUndefined;
+        return RegisterImage(key, *sprite);
+    }
+
     ImageIndex TerrainSpriteStore::GetImage(const SurfaceElement& surface, const CoordsXY& tilePos, int32_t rotation)
     {
         const auto shape = surface.getTerrainShape();
