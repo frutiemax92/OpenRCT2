@@ -28,7 +28,6 @@
 #include "entity/Paint.MoneyEffect.h"
 #include "entity/Paint.Staff.h"
 #include "entity/Paint.SteamParticle.h"
-#include "entity/Paint.Vehicle.h"
 #include "entity/Paint.VehicleCrashParticle.h"
 
 #include <cassert>
@@ -132,11 +131,7 @@ void EntityPaintSetup(PaintSession& session, const CoordsXY& pos)
         switch (entity->type)
         {
             case EntityType::vehicle:
-                PaintVehicle(session, *entity->cast<Vehicle>(), image_direction);
-                if (LightFx::ForVehiclesIsAvailable())
-                {
-                    LightFx::AddLightsMagicVehicle(entity->cast<Vehicle>());
-                }
+                // Ride vehicles are not drawn (ARC-002: vehicle paint removed).
                 break;
             case EntityType::guest:
                 PaintGuest(session, *entity->cast<Guest>(), image_direction);

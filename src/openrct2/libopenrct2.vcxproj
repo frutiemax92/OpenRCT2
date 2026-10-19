@@ -417,7 +417,6 @@
     <ClInclude Include="paint\entity\Paint.Peep.h" />
     <ClInclude Include="paint\entity\Paint.Staff.h" />
     <ClInclude Include="paint\entity\Paint.SteamParticle.h" />
-    <ClInclude Include="paint\entity\Paint.Vehicle.h" />
     <ClInclude Include="paint\entity\Paint.VehicleCrashParticle.h" />
     <ClInclude Include="paint\support\MetalSupports.h" />
     <ClInclude Include="paint\support\TrackSupport.h" />
@@ -434,8 +433,6 @@
     <ClInclude Include="paint\tile_element\Paint.Tunnel.h" />
     <ClInclude Include="paint\tile_element\Paint.Wall.h" />
     <ClInclude Include="paint\tile_element\Segment.h" />
-    <ClInclude Include="paint\vehicle\Vehicle.MiniGolf.h" />
-    <ClInclude Include="paint\vehicle\VehiclePaint.h" />
     <ClInclude Include="paint\VirtualFloor.h" />
     <ClInclude Include="ParkImporter.h" />
     <ClInclude Include="park\Legacy.h" />
@@ -1019,7 +1016,6 @@
     <ClCompile Include="paint\entity\Paint.Peep.cpp" />
     <ClCompile Include="paint\entity\Paint.Staff.cpp" />
     <ClCompile Include="paint\entity\Paint.SteamParticle.cpp" />
-    <ClCompile Include="paint\entity\Paint.Vehicle.cpp" />
     <ClCompile Include="paint\entity\Paint.VehicleCrashParticle.cpp" />
     <ClCompile Include="paint\support\MetalSupports.cpp" />
     <ClCompile Include="paint\support\WoodenSupports.cpp" />
@@ -1033,17 +1029,6 @@
     <ClCompile Include="paint\tile_element\Paint.TileElement.cpp" />
     <ClCompile Include="paint\tile_element\Paint.Wall.cpp" />
     <ClCompile Include="paint\tile_element\Paint.Tunnel.cpp" />
-    <ClCompile Include="paint\vehicle\VehiclePaint.cpp" />
-    <ClCompile Include="paint\vehicle\Vehicle.LaunchedFreefall.cpp" />
-    <ClCompile Include="paint\vehicle\Vehicle.MiniGolf.cpp" />
-    <ClCompile Include="paint\vehicle\Vehicle.ObservationTower.cpp" />
-    <ClCompile Include="paint\vehicle\Vehicle.ReverserRollerCoaster.cpp" />
-    <ClCompile Include="paint\vehicle\Vehicle.RiverRapids.cpp" />
-    <ClCompile Include="paint\vehicle\Vehicle.RotoDrop.cpp" />
-    <ClCompile Include="paint\vehicle\Vehicle.SplashBoats.cpp" />
-    <ClCompile Include="paint\vehicle\Vehicle.ClassicMiniSpinning.cpp" />
-    <ClCompile Include="paint\vehicle\Vehicle.Submarine.cpp" />
-    <ClCompile Include="paint\vehicle\Vehicle.VirginiaReel.cpp" />
     <ClCompile Include="paint\VirtualFloor.cpp" />
     <ClCompile Include="ParkImporter.cpp" />
     <ClCompile Include="park\Legacy.cpp" />

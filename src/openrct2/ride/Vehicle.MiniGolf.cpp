@@ -14,7 +14,6 @@
 #include "../core/Speed.hpp"
 #include "../entity/EntityRegistry.h"
 #include "../entity/Guest.h"
-#include "../paint/vehicle/Vehicle.MiniGolf.h"
 #include "../scenario/Scenario.h"
 #include "../world/Map.h"
 #include "../world/tile_element/TileElement.h"
@@ -28,6 +27,10 @@
 #include "ted/TrackElementDescriptor.h"
 
 using namespace OpenRCT2;
+
+// Number of frames of each MiniGolfAnimation of the mini golf player.
+static constexpr size_t kMiniGolfPeepAnimationLengths[] = { 6, 4, 15, 7, 15, 4, 10, 15, 10 };
+static_assert(std::size(kMiniGolfPeepAnimationLengths) == EnumValue(MiniGolfAnimation::putt) + 1);
 using namespace OpenRCT2::RideVehicle;
 using namespace OpenRCT2::TrackMetadata;
 
