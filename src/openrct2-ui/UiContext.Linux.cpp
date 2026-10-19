@@ -17,6 +17,7 @@
     #include <algorithm>
     #include <dlfcn.h>
     #include <openrct2/Diagnostic.h>
+    #include <openrct2/Version.h>
     #include <openrct2/core/Path.hpp>
     #include <openrct2/core/String.hpp>
     #include <openrct2/core/StringBuilder.h>
@@ -108,7 +109,7 @@ namespace OpenRCT2::Ui
                 case DialogType::kdialog:
                 {
                     const char* args[] = {
-                        executablePath.c_str(), "--title", "OpenRCT2", "--msgbox", message.c_str(), nullptr
+                        executablePath.c_str(), "--title", OPENRCT2_NAME, "--msgbox", message.c_str(), nullptr
                     };
                     Platform::Execute(args);
                     break;
@@ -116,13 +117,13 @@ namespace OpenRCT2::Ui
                 case DialogType::zenity:
                 {
                     const char* args[] = {
-                        executablePath.c_str(), "--title=OpenRCT2", "--info", "--text", message.c_str(), nullptr
+                        executablePath.c_str(), "--title=" OPENRCT2_NAME, "--info", "--text", message.c_str(), nullptr
                     };
                     Platform::Execute(args);
                     break;
                 }
                 default:
-                    SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_WARNING, "OpenRCT2", message.c_str(), window);
+                    SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_WARNING, OPENRCT2_NAME, message.c_str(), window);
                     break;
             }
         }
