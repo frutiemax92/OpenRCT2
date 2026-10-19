@@ -544,3 +544,51 @@ TEST(TerrainEdgeTest, DarkerThanTheFlatSurfaceAndNeverOverEmptyPixels)
         EXPECT_GT(CountCovered(s), 0u);
     }
 }
+
+TEST(TerrainWaterTest, WaterShowsOnlyWhereTheTerrainIsBelowIt)
+{
+    auto cover = [](const TerrainShape& sh, int base, WaterPattern p = WaterPattern::mask, int rot = 0, int zoom = 0) {
+        return static_cast<double>(CountCovered(GenerateTerrainWaterSprite(sh, base, p, rot, zoom)));
+    };
+    const double diamond = 64.0 * 32.0 / 2.0;
+    EXPECT_NEAR(cover({ 0, 0, 0, 0 }, -8), diamond, 64.0);  // flat, under water
+    EXPECT_EQ(cover({ 0, 0, 0, 0 }, 0), 0.0);               // exactly at the water level: dry
+    EXPECT_EQ(cover({ 0, 0, 0, 0 }, 8), 0.0);               // above
+    // Rising 16 z over the tile along +x (east and north corners up): half of it is under a level 16 above the base.
+    EXPECT_NEAR(cover({ 2, 2, 0, 0 }, -16), diamond, 64.0); // the highest point reaches the level: all of it is below
+    EXPECT_NEAR(cover({ 4, 4, 0, 0 }, -16), diamond * 0.5, 96.0);
+    // A rotation shows the same amount of water.
+    for (int rot = 1; rot < 4; rot++)
+        EXPECT_NEAR(cover({ 4, 4, 0, 0 }, -16, WaterPattern::mask, rot), diamond * 0.5, 96.0) << rot;
+    // Zoomed out: a quarter of the pixels per zoom step.
+    EXPECT_NEAR(cover({ 0, 0, 0, 0 }, -8, WaterPattern::mask, 0, 1), diamond / 4, 32.0);
+}
+
+TEST(TerrainWaterTest, PatternsUseTheAnimatedWaterPaletteIndices)
+{
+    const TerrainShape flat{ 0, 0, 0, 0 };
+    auto mask = GenerateTerrainWaterSprite(flat, -8, WaterPattern::mask, 0, 0);
+    auto sparse = GenerateTerrainWaterSprite(flat, -8, WaterPattern::sparse, 0, 0);
+    auto opaque = GenerateTerrainWaterSprite(flat, -8, WaterPattern::opaque, 0, 0);
+    for (auto p : mask.pixels)
+        ASSERT_TRUE(p == 0 || p == 1);
+    for (auto p : sparse.pixels)
+        ASSERT_TRUE(p == 0 || (p >= 230 && p <= 239));
+    for (auto p : opaque.pixels)
+        ASSERT_TRUE(p == 0 || (p >= 230 && p <= 239));
+    EXPECT_EQ(CountCovered(opaque), CountCovered(mask)); // opaque water covers the whole mask
+    EXPECT_LT(CountCovered(sparse), CountCovered(mask) / 2); // transparent water is mostly clear
+    EXPECT_GT(CountCovered(sparse), 0u);
+    // Deterministic.
+    EXPECT_EQ(sparse.pixels, GenerateTerrainWaterSprite(flat, -8, WaterPattern::sparse, 0, 0).pixels);
+}
+
+TEST(TerrainWaterTest, EveryShapeGenerates)
+{
+    for (uint16_t i = 0; i < kShapeCount; i += 5)
+        for (int rot = 0; rot < 4; rot++)
+        {
+            auto s = GenerateTerrainWaterSprite(GetShapeFromIndex(i), -16, WaterPattern::opaque, rot, 0);
+            ASSERT_EQ(s.pixels.size(), static_cast<size_t>(s.width) * s.height);
+        }
+}

@@ -9,6 +9,8 @@
 
 #include "TerrainSpriteStore.h"
 
+#include <algorithm>
+
 #include "../config/Config.h"
 #include "../object/TerrainEdgeObject.h"
 #include "../object/TerrainSurfaceObject.h"
@@ -110,6 +112,31 @@ namespace OpenRCT2::Drawing
             _shadesBuilt = true;
         }
         const auto* sprite = _cache.Get(key, [&] { return GenerateTerrainEdgeSprite(*texture, face, _shades, rotation, 0); });
+        if (sprite == nullptr || sprite->pixels.empty())
+            return kImageIndexUndefined;
+        return RegisterImage(key, *sprite);
+    }
+
+    ImageIndex TerrainSpriteStore::GetWaterImage(const SurfaceElement& surface, WaterPattern pattern, int32_t rotation)
+    {
+        const int32_t waterZ = surface.getWaterHeight();
+        const auto shape = surface.getTerrainShape();
+        const auto shapeIndex = Terrain::GetShapeIndex(shape);
+        if (waterZ <= 0 || shapeIndex == 0xFFFF)
+            return kImageIndexUndefined;
+        const int32_t rel = surface.getBaseZ() - waterZ;
+        const int32_t highest = rel + std::max({ shape.north, shape.east, shape.south, shape.west }) * Terrain::kQuarterStepZ;
+        if (rel >= 0)
+            return kImageIndexUndefined; // the whole tile is dry
+        (void)highest;
+
+        TerrainSpriteKey key{ static_cast<uint16_t>(kWaterShapeIndexBase + shapeIndex), {}, static_cast<uint8_t>(rotation & 3), 0 };
+        key.quadrantSurfaces[0] = static_cast<uint8_t>(pattern);
+        key.edgeData[0] = static_cast<int16_t>(std::clamp(rel, -4000, 0));
+
+        std::lock_guard lock(_mutex);
+        const auto* sprite = _cache.Get(
+            key, [&] { return GenerateTerrainWaterSprite(shape, key.edgeData[0], pattern, rotation, 0); });
         if (sprite == nullptr || sprite->pixels.empty())
             return kImageIndexUndefined;
         return RegisterImage(key, *sprite);

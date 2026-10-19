@@ -527,4 +527,95 @@ namespace OpenRCT2::Drawing
         }
         return sprite;
     }
+
+    TerrainSprite GenerateTerrainWaterSprite(
+        const TerrainShape& shape, int32_t terrainBaseZ, WaterPattern pattern, int32_t rotation, int32_t zoom)
+    {
+        assert(zoom >= 0 && zoom < kTerrainZoomLevels);
+        rotation &= 3;
+
+        const Vertex vS = MakeVertex(0, 0, 0, rotation), vE = MakeVertex(kTile, 0, 0, rotation);
+        const Vertex vN = MakeVertex(kTile, kTile, 0, rotation), vW = MakeVertex(0, kTile, 0, rotation);
+        const Vertex tris[2][3] = { { vS, vE, vN }, { vS, vN, vW } };
+
+        const int64_t step = int64_t{ 1 } << zoom;
+        int64_t minX = INT64_MAX, minY = INT64_MAX, maxX = INT64_MIN, maxY = INT64_MIN;
+        for (const auto& v : { vS, vE, vN, vW })
+        {
+            minX = std::min(minX, v.sx);
+            maxX = std::max(maxX, v.sx);
+            minY = std::min(minY, v.sy);
+            maxY = std::max(maxY, v.sy);
+        }
+        TerrainSprite sprite;
+        sprite.xOffset = FloorDiv(minX, step);
+        sprite.yOffset = FloorDiv(minY, step);
+        sprite.width = CeilDiv(maxX, step) - sprite.xOffset;
+        sprite.height = CeilDiv(maxY, step) - sprite.yOffset;
+        sprite.pixels.assign(static_cast<size_t>(sprite.width) * static_cast<size_t>(sprite.height), kTerrainTransparent);
+
+        constexpr uint8_t kWaves = 230, kWaveCount = 5, kSparkles = 235, kSparkleCount = 5;
+        for (const auto& tri : tris)
+        {
+            const Vertex &a = tri[0], &b = tri[1], &c = tri[2];
+            int64_t area = Edge(2 * a.sx, 2 * a.sy, 2 * b.sx, 2 * b.sy, 2 * c.sx, 2 * c.sy);
+            const Vertex* pb = &b;
+            const Vertex* pc = &c;
+            if (area == 0)
+                continue;
+            if (area < 0)
+            {
+                std::swap(pb, pc);
+                area = -area;
+            }
+            const int64_t bias0 = IsTopLeft(2 * pb->sx, 2 * pb->sy, 2 * pc->sx, 2 * pc->sy) ? 0 : -1;
+            const int64_t bias1 = IsTopLeft(2 * pc->sx, 2 * pc->sy, 2 * a.sx, 2 * a.sy) ? 0 : -1;
+            const int64_t bias2 = IsTopLeft(2 * a.sx, 2 * a.sy, 2 * pb->sx, 2 * pb->sy) ? 0 : -1;
+            const int64_t tminX = std::min({ a.sx, pb->sx, pc->sx }), tmaxX = std::max({ a.sx, pb->sx, pc->sx });
+            const int64_t tminY = std::min({ a.sy, pb->sy, pc->sy }), tmaxY = std::max({ a.sy, pb->sy, pc->sy });
+            for (int32_t py = FloorDiv(tminY, step); py < CeilDiv(tmaxY, step); py++)
+            {
+                for (int32_t px = FloorDiv(tminX, step); px < CeilDiv(tmaxX, step); px++)
+                {
+                    const int64_t cx = (2 * static_cast<int64_t>(px) + 1) * step;
+                    const int64_t cy = (2 * static_cast<int64_t>(py) + 1) * step;
+                    const int64_t w0 = Edge(2 * pb->sx, 2 * pb->sy, 2 * pc->sx, 2 * pc->sy, cx, cy);
+                    const int64_t w1 = Edge(2 * pc->sx, 2 * pc->sy, 2 * a.sx, 2 * a.sy, cx, cy);
+                    const int64_t w2 = Edge(2 * a.sx, 2 * a.sy, 2 * pb->sx, 2 * pb->sy, cx, cy);
+                    if (w0 + bias0 < 0 || w1 + bias1 < 0 || w2 + bias2 < 0)
+                        continue;
+
+                    const int64_t lx = (w0 * a.lx + w1 * pb->lx + w2 * pc->lx) * 256 / area;
+                    const int64_t ly = (w0 * a.ly + w1 * pb->ly + w2 * pc->ly) * 256 / area;
+                    const int32_t ix = static_cast<int32_t>(std::clamp<int64_t>(lx >> 8, 0, kTile - 1));
+                    const int32_t iy = static_cast<int32_t>(std::clamp<int64_t>(ly >> 8, 0, kTile - 1));
+                    // Water only shows where the terrain is below its level.
+                    if (GetSurfaceZAt(terrainBaseZ, shape, ix, iy) >= 0)
+                        continue;
+
+                    uint8_t colour = 1; // mask: any opaque index
+                    if (pattern != WaterPattern::mask)
+                    {
+                        // Diagonal wave bands with a fixed hash for scattered sparkles; same pattern on every tile.
+                        const uint32_t noise = DitherNoise(ix, iy);
+                        const bool sparkle = noise < 6;
+                        const bool wave = ((ix + 2 * iy) / 2 + (noise >> 6)) % 4 == 0;
+                        if (sparkle)
+                            colour = static_cast<uint8_t>(kSparkles + noise % kSparkleCount);
+                        else if (pattern == WaterPattern::opaque)
+                            colour = static_cast<uint8_t>(kWaves + ((ix + iy) / 4 + (wave ? 2 : 0)) % kWaveCount);
+                        else if (wave && noise < 96)
+                            colour = static_cast<uint8_t>(kWaves + noise % kWaveCount);
+                        else
+                            continue;
+                    }
+                    const int32_t ox = px - sprite.xOffset, oy = py - sprite.yOffset;
+                    if (ox < 0 || oy < 0 || ox >= sprite.width || oy >= sprite.height)
+                        continue;
+                    sprite.pixels[static_cast<size_t>(oy) * sprite.width + ox] = colour;
+                }
+            }
+        }
+        return sprite;
+    }
 } // namespace OpenRCT2::Drawing

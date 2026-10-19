@@ -19,6 +19,7 @@
 namespace OpenRCT2::Drawing
 {
     constexpr uint16_t kEdgeFaceShapeIndex = 0xFFFE;
+    constexpr uint16_t kWaterShapeIndexBase = 0x4000; // plus the shape index, for water surface sprites
 
     // Key of a generated terrain sprite (TER-032).
     struct TerrainSpriteKey

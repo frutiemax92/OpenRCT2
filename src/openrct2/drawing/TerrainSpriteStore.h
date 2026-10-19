@@ -47,6 +47,10 @@ namespace OpenRCT2::Drawing
         // The image of a vertical edge face of a tile (TER-060), or kImageIndexUndefined without an edge texture.
         ImageIndex GetEdgeImage(ObjectEntryIndex edgeObject, const TerrainEdgeFace& face, int32_t rotation);
 
+        // The water surface of a tile (WAT-001), drawn at the water level: only where the terrain is below it. Returns
+        // kImageIndexUndefined when there is no water or the sprite is not ready yet.
+        ImageIndex GetWaterImage(const SurfaceElement& surface, WaterPattern pattern, int32_t rotation);
+
         size_t GetSpriteCount() const;
 
     private:

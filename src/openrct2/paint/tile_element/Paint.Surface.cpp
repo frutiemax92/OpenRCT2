@@ -144,10 +144,6 @@ static_assert(std::size(kTunnels) == kTunnelTypeCount);
 // clang-format on
 // tunnel offset
 
-static constexpr uint8_t Byte97B740[] = {
-    0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 3, 0, 1, 4, 0,
-};
-
 struct TileDescriptor
 {
     TileCoordsXY tile_coords;
@@ -1369,22 +1365,22 @@ void PaintSurface(PaintSession& session, uint8_t direction, uint16_t height, con
         // Loc6615A9: (water height)
         session.InteractionType = ViewportInteractionItem::water;
 
-        const uint16_t localHeight = height + 16;
-
         session.WaterHeight = waterHeight;
 
-        int32_t image_offset = 0;
-        if (waterHeight <= localHeight)
+        // Procedural water (WAT-001): the water plane where the terrain is under it. The mask tints what is below; the
+        // overlay adds the waves, fully opaque unless the water is transparent.
+        auto& store = Drawing::TerrainSpriteStore::Instance();
+        const auto maskImage = store.GetWaterImage(tileElement, Drawing::WaterPattern::mask, rotation);
+        if (maskImage != kImageIndexUndefined)
         {
-            image_offset = Byte97B740[surfaceShape & 0xF];
+            PaintAddImageAsParent(
+                session, ImageId(maskImage, FilterPaletteID::paletteWater).WithBlended(true), { 0, 0, waterHeight },
+                { 32, 32, -1 });
+            const auto overlayImage = store.GetWaterImage(
+                tileElement, waterIsTransparent ? Drawing::WaterPattern::sparse : Drawing::WaterPattern::opaque, rotation);
+            if (overlayImage != kImageIndexUndefined)
+                PaintAttachToPreviousPS(session, ImageId(overlayImage), 0, 0);
         }
-
-        const auto image_id = ImageId(SPR_WATER_MASK + image_offset, FilterPaletteID::paletteWater).WithBlended(true);
-        PaintAddImageAsParent(session, image_id, { 0, 0, waterHeight }, { 32, 32, -1 });
-
-        const uint32_t overlayStart = waterIsTransparent ? EnumValue(SPR_WATER_OVERLAY)
-                                                         : EnumValue(SPR_G2_OPAQUE_WATER_OVERLAY);
-        PaintAttachToPreviousPS(session, ImageId(overlayStart + image_offset), 0, 0);
 
         if (!session.ViewFlags.has(ViewportFlag::hideVertical))
         {

@@ -102,4 +102,18 @@ namespace OpenRCT2::Drawing
 
     // True when the vertical face of the tile edge points towards the viewer for the rotation.
     bool IsEdgeFacingViewer(Terrain::Quadrant edge, int32_t rotation);
+
+    // Procedural water surface (WAT-001, WAT-002): the flat plane of the water over a tile, kept only where the terrain
+    // is below it. Palette indices are the animated water ones, so the palette cycling makes it move.
+    enum class WaterPattern : uint8_t
+    {
+        mask,   // plain coverage, drawn blended to tint what is under the water
+        sparse, // scattered waves and sparkles, over transparent water
+        opaque, // full waves, for opaque water
+    };
+
+    // terrainBaseZ is the tile's base height relative to the water level (z units, negative when the tile is below it).
+    // The sprite is positioned like the surface sprites, with the water level as base height.
+    TerrainSprite GenerateTerrainWaterSprite(
+        const Terrain::TerrainShape& shape, int32_t terrainBaseZ, WaterPattern pattern, int32_t rotation, int32_t zoom);
 } // namespace OpenRCT2::Drawing
