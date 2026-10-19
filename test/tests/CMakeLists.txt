@@ -9,6 +9,7 @@ install(CODE "execute_process(COMMAND \"${CMAKE_COMMAND}\" -E create_symlink \"\
 set(test_files
    "${CMAKE_CURRENT_SOURCE_DIR}/AssertHelpers.hpp"
    "${CMAKE_CURRENT_SOURCE_DIR}/BaseGraphicsTests.cpp"
+   "${CMAKE_CURRENT_SOURCE_DIR}/BaseObjectsTests.cpp"
    "${CMAKE_CURRENT_SOURCE_DIR}/BitSetTests.cpp"
    "${CMAKE_CURRENT_SOURCE_DIR}/BundledFontTests.cpp"
    "${CMAKE_CURRENT_SOURCE_DIR}/CircularBuffer.cpp"
@@ -69,6 +70,9 @@ if (Python3_Interpreter_FOUND)
         WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/../..")
     add_test(NAME SoundGeneratorTests
         COMMAND ${Python3_EXECUTABLE} -I "${CMAKE_CURRENT_SOURCE_DIR}/../scripts/test_sounds.py"
+        WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/../..")
+    add_test(NAME ObjectGeneratorTests
+        COMMAND ${Python3_EXECUTABLE} -I "${CMAKE_CURRENT_SOURCE_DIR}/../scripts/test_objects.py"
         WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/../..")
     add_test(NAME PlaceholderGeneratorTests
         COMMAND ${Python3_EXECUTABLE} -I "${CMAKE_CURRENT_SOURCE_DIR}/../scripts/test_placeholders.py"

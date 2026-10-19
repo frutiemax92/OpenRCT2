@@ -22,6 +22,8 @@
 #include "../../interface/Screenshot.h"
 #include "../../interface/Window.h"
 #include "../../network/NetworkBase.h"
+#include "../../object/DefaultObjects.h"
+#include "../../object/ObjectManager.h"
 #include "../../scenes/SceneManager.h"
 #include "../../ui/UiContext.h"
 #include "../../ui/WindowManager.h"
@@ -45,7 +47,13 @@ void TitleScene::Load()
 #ifndef DISABLE_NETWORK
     GetContext().GetNetwork().Close();
 #endif
-    // The title screen shows an empty map behind the menu.
+    // The title screen shows an empty map behind the menu, made of the default terrain.
+    auto& objectManager = GetContext().GetObjectManager();
+    objectManager.UnloadAll();
+    for (const auto& identifier : kMinimumRequiredObjects)
+    {
+        objectManager.LoadObject(identifier);
+    }
     gameStateInitAll(getGameState(), kDefaultMapSize);
     ContextResetSubsystems();
     ContextOpenWindow(WindowClass::mainWindow);

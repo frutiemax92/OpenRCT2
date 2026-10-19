@@ -96,9 +96,9 @@ namespace OpenRCT2::Editor
      */
     std::pair<ObjectType, StringId> CheckObjectSelection()
     {
+        // Only the terrain is required for now. Rides, stations, footpaths, the park entrance, water, peep names and peep
+        // animations were required for theme parks; the golf objects that replace them come with their phases.
         constexpr std::pair<ObjectType, StringId> kBasicCheckPairs[] = {
-            { ObjectType::ride, STR_AT_LEAST_ONE_RIDE_OBJECT_MUST_BE_SELECTED },
-            { ObjectType::station, STR_AT_LEAST_ONE_STATION_OBJECT_MUST_BE_SELECTED },
             { ObjectType::terrainSurface, STR_AT_LEAST_ONE_TERRAIN_SURFACE_OBJECT_MUST_BE_SELECTED },
             { ObjectType::terrainEdge, STR_AT_LEAST_ONE_TERRAIN_EDGE_OBJECT_MUST_BE_SELECTED },
         };
@@ -108,54 +108,6 @@ namespace OpenRCT2::Editor
             if (!CheckObjectGroupAtLeastOneSelected(pair.first))
             {
                 return { pair.first, pair.second };
-            }
-        }
-
-        // No checks beyond this point apply to the track designer or track designs manager.
-        const bool isTrackDesignerManager = isInTrackDesignerOrManager();
-        if (isTrackDesignerManager)
-        {
-            return { ObjectType::none, kStringIdNone };
-        }
-
-        if (!CheckObjectGroupAtLeastOneSurfaceSelected(false))
-        {
-            return { ObjectType::footpathSurface, STR_AT_LEAST_ONE_FOOTPATH_NON_QUEUE_SURFACE_OBJECT_MUST_BE_SELECTED };
-        }
-        if (!CheckObjectGroupAtLeastOneSurfaceSelected(true))
-        {
-            return { ObjectType::footpathSurface, STR_AT_LEAST_ONE_FOOTPATH_QUEUE_SURFACE_OBJECT_MUST_BE_SELECTED };
-        }
-
-        constexpr std::pair<ObjectType, StringId> kParkCheckPairs[] = {
-            { ObjectType::footpathRailings, STR_AT_LEAST_ONE_FOOTPATH_RAILING_OBJECT_MUST_BE_SELECTED },
-            { ObjectType::parkEntrance, STR_PARK_ENTRANCE_TYPE_MUST_BE_SELECTED },
-            { ObjectType::water, STR_WATER_TYPE_MUST_BE_SELECTED },
-            { ObjectType::peepNames, STR_AT_LEAST_ONE_PEEP_NAMES_OBJECT_MUST_BE_SELECTED },
-        };
-
-        for (auto& pair : kParkCheckPairs)
-        {
-            if (!CheckObjectGroupAtLeastOneSelected(pair.first))
-            {
-                return { pair.first, pair.second };
-            }
-        }
-
-        using OpenRCT2::AnimationPeepType;
-        constexpr std::pair<AnimationPeepType, StringId> kPeepCheckPairs[] = {
-            { AnimationPeepType::guest, STR_AT_LEAST_ONE_GUEST_PEEP_ANIMATIONS_OBJECT_MUST_BE_SELECTED },
-            { AnimationPeepType::handyman, STR_AT_LEAST_ONE_HANDYMAN_PEEP_ANIMATIONS_OBJECT_MUST_BE_SELECTED },
-            { AnimationPeepType::mechanic, STR_AT_LEAST_ONE_MECHANIC_PEEP_ANIMATIONS_OBJECT_MUST_BE_SELECTED },
-            { AnimationPeepType::security, STR_AT_LEAST_ONE_SECURITY_PEEP_ANIMATIONS_OBJECT_MUST_BE_SELECTED },
-            { AnimationPeepType::entertainer, STR_AT_LEAST_ONE_ENTERTAINER_PEEP_ANIMATIONS_OBJECT_MUST_BE_SELECTED },
-        };
-
-        for (auto& pair : kPeepCheckPairs)
-        {
-            if (!CheckObjectGroupAtLeastOneOfPeepTypeSelected(EnumValue(pair.first)))
-            {
-                return { ObjectType::peepAnimations, pair.second };
             }
         }
 
@@ -635,12 +587,6 @@ namespace OpenRCT2::Editor
                 ObjectSelectionSelectObject(
                     0, { InputFlag::select, InputFlag::unk1, InputFlag::selectObjectsInSceneryGroup },
                     ObjectEntryDescriptor(designerSelectedObject));
-            }
-            for (auto defaultSelectedObject : kDefaultScenarioObjects)
-            {
-                ObjectSelectionSelectObject(
-                    0, { InputFlag::select, InputFlag::unk1, InputFlag::selectObjectsInSceneryGroup },
-                    ObjectEntryDescriptor(defaultSelectedObject));
             }
         }
     }

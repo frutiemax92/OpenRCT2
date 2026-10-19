@@ -104,7 +104,7 @@ namespace OpenRCT2
         {
             EntryBaseImageId = IconImageId + 1;
         }
-        NumEntries = (GetImageTable().GetCount() - EntryBaseImageId) / kNumImagesInEntry;
+        NumEntries = (GetImageTable().GetCount() - (EntryBaseImageId - IconImageId)) / kNumImagesInEntry;
     }
 
     void TerrainSurfaceObject::Unload()

@@ -22,22 +22,18 @@ namespace OpenRCT2
     /**
      * Used by Scenario Editor, Track Designer and Track Designs Manager.
      */
-    extern const std::array<std::string_view, 3> kMinimumRequiredObjects;
+    extern const std::array<std::string_view, 2> kMinimumRequiredObjects;
 
     /**
      * Used by Track Designer and Track Designs Manager.
      */
-    extern const std::array<std::string_view, 3> kMinimumRequiredObjectsDesigner;
+    extern const std::array<std::string_view, 2> kMinimumRequiredObjectsDesigner;
 
     /**
      * Used by the Scenario Editor and Track Designer.
      */
-    extern const std::array<std::string_view, 82> kCommonScenarioAndTrackDesignerObjects;
+    extern const std::array<std::string_view, 12> kCommonScenarioAndTrackDesignerObjects;
 
-    /**
-     * Used only by the Scenario Editor.
-     */
-    extern const std::array<std::string_view, 37> kDefaultScenarioObjects;
 
     ObjectEntryIndex GetDefaultStationObject(IObjectManager& objectManager);
 } // namespace OpenRCT2

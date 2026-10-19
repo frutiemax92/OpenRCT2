@@ -15,9 +15,13 @@
 #include <openrct2/GameState.h>
 #include <openrct2/OpenRCT2.h>
 #include <openrct2/entity/EntityRegistry.h>
+#include <openrct2/object/DefaultObjects.h>
+#include <openrct2/object/TerrainEdgeObject.h>
+#include <openrct2/object/TerrainSurfaceObject.h>
 #include <openrct2/ride/RideManager.hpp>
 #include <openrct2/scenes/SceneManager.h>
 #include <openrct2/world/Map.h>
+#include <openrct2/world/tile_element/SurfaceElement.h>
 
 using namespace OpenRCT2;
 
@@ -56,4 +60,12 @@ TEST_F(TitleScene, LoadsAnEmptyMap)
     EXPECT_TRUE(gCurrentLoadedPath.empty());
     EXPECT_EQ(0u, RideManager(gameState).size());
     EXPECT_EQ(0u, getGameState().entities.getEntityListCount(EntityType::guest));
+
+    // The map is made of the default terrain objects.
+    auto* surface = MapGetSurfaceElementAt(CoordsXY{ 32 * 10, 32 * 10 });
+    ASSERT_NE(nullptr, surface);
+    ASSERT_NE(nullptr, surface->getSurfaceObject());
+    EXPECT_EQ(kMinimumRequiredObjects[0], surface->getSurfaceObject()->GetIdentifier());
+    ASSERT_NE(nullptr, surface->getEdgeObject());
+    EXPECT_EQ(kMinimumRequiredObjects[1], surface->getEdgeObject()->GetIdentifier());
 }

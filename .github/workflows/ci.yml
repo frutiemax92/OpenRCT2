@@ -170,6 +170,8 @@ jobs:
         run: python3 -I test/scripts/test_base_pack.py
       - name: Test sound generator
         run: python3 -I test/scripts/test_sounds.py
+      - name: Test object generator
+        run: python3 -I test/scripts/test_objects.py
   check-changelog-formatting:
     name: Check changelog formatting
     runs-on: ubuntu-slim
