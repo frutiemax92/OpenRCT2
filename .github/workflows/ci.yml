@@ -148,6 +148,22 @@ jobs:
         with:
           comment: 'Please commit the suggested changes from clang-format.'
           event: 'REQUEST_CHANGES'
+  check-asset-independence:
+    name: Check asset independence
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          # The upstream OpenRCT2 tree the fork started from is needed to fingerprint its assets.
+          fetch-depth: 0
+      - name: Run check-asset-independence
+        run: python3 -I scripts/check-asset-independence.py
+      - name: Test check-asset-independence
+        run: python3 -I test/scripts/test_check_asset_independence.py
   check-changelog-formatting:
     name: Check changelog formatting
     runs-on: ubuntu-slim

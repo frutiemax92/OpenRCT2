@@ -51,3 +51,13 @@ gtest_discover_tests(OpenRCT2Tests
     WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
     DISCOVERY_MODE PRE_TEST)
 
+
+# Script tests (Python unittest), run with the rest of the suite.
+find_package(Python3 COMPONENTS Interpreter)
+if (Python3_Interpreter_FOUND)
+    add_test(NAME AssetIndependenceScriptTests
+        COMMAND ${Python3_EXECUTABLE} -I "${CMAKE_CURRENT_SOURCE_DIR}/../scripts/test_check_asset_independence.py"
+        WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/../..")
+else ()
+    message(WARNING "Python 3 not found: script tests are not registered")
+endif ()

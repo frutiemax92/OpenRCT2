@@ -1,0 +1,40 @@
+# References to g1.dat / g2.dat / csg1*.dat that remain while the engine moves to the base asset
+# pack (AST-002, AST-006). This list may only shrink: regenerate it with
+#   scripts/check-asset-independence.py --update-baseline
+# after removing references. The goal is an empty list.
+CMakeLists.txt 2
+data/language/ar-EG.txt 1
+data/language/ca-ES.txt 1
+data/language/cs-CZ.txt 1
+data/language/da-DK.txt 1
+data/language/de-DE.txt 1
+data/language/en-GB.txt 1
+data/language/eo-ZZ.txt 1
+data/language/es-ES.txt 1
+data/language/fi-FI.txt 1
+data/language/fr-FR.txt 1
+data/language/gl-ES.txt 1
+data/language/hu-HU.txt 1
+data/language/it-IT.txt 1
+data/language/ja-JP.txt 1
+data/language/ko-KR.txt 1
+data/language/nb-NO.txt 1
+data/language/nl-NL.txt 1
+data/language/pl-PL.txt 1
+data/language/pt-BR.txt 1
+data/language/ru-RU.txt 1
+data/language/sv-SE.txt 1
+data/language/uk-UA.txt 1
+data/language/vi-VN.txt 1
+data/language/zh-CN.txt 1
+data/language/zh-TW.txt 1
+src/openrct2-ui/CMakeLists.txt 2
+src/openrct2/PlatformEnvironment.h 1
+src/openrct2/SpriteIds.h 2
+src/openrct2/command_line/RootCommands.cpp 5
+src/openrct2/config/Config.cpp 1
+src/openrct2/drawing/Drawing.Sprite.cpp 12
+src/openrct2/object/ResourceTable.cpp 2
+src/openrct2/platform/Platform.Android.cpp 1
+src/openrct2/platform/Platform.Common.cpp 4
+src/openrct2/rct1/Csg.cpp 3
