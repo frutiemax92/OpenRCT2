@@ -1267,7 +1267,11 @@ namespace OpenRCT2
     static void MapExtendBoundarySurfaceExtendTile(
         const SurfaceElement& sourceTile, SurfaceElement& destTile, const Direction direction)
     {
-        destTile.setSurfaceObjectIndex(sourceTile.getSurfaceObjectIndex());
+        for (uint8_t q = 0; q < 4; q++)
+        {
+            const auto quadrant = static_cast<Terrain::Quadrant>(q);
+            destTile.setQuadrantSurfaceIndex(quadrant, sourceTile.getQuadrantSurfaceIndex(quadrant));
+        }
         destTile.setPrimarySurfaceColour(sourceTile.getPrimarySurfaceColour());
         destTile.setEdgeObjectIndex(sourceTile.getEdgeObjectIndex());
         destTile.setPrimaryEdgeColour(sourceTile.getPrimaryEdgeColour());

@@ -58,6 +58,7 @@
 #include "../world/tile_element/BannerElement.h"
 #include "../world/tile_element/LargeSceneryElement.h"
 #include "../world/tile_element/PathElement.h"
+#include "../world/tile_element/Slope.h"
 #include "../world/tile_element/SmallSceneryElement.h"
 #include "../world/tile_element/SurfaceElement.h"
 #include "../world/tile_element/TrackElement.h"
@@ -102,6 +103,21 @@ namespace OpenRCT2
         packedObjects           = 0x80
         // clang-format on
     };
+
+    // Before kQuarterTerrainVersion a surface element stored the legacy slope in byte 5 and the surface style in byte 9;
+    // byte 12 held the edge colour and bytes 13 to 15 were padding.
+    static void convertLegacySurfaceLayout(TileElement& tileElement)
+    {
+        auto* raw = reinterpret_cast<uint8_t*>(&tileElement);
+        uint8_t raiseQ = 0;
+        const auto shape = Terrain::ShapeFromLegacySlope(raw[5] & kTileSlopeMask, &raiseQ);
+        raw[2] += raiseQ; // base height
+        raw[3] += raiseQ; // clearance height
+        const auto code = Terrain::EncodeShape(shape);
+        raw[5] = code & 0xFF;
+        raw[12] = (code >> 8) & 0xF;
+        raw[13] = raw[14] = raw[15] = raw[9];
+    }
 
     constexpr auto kGridMap = std::to_array<std::pair<u8string_view, Drawing::Colour>>({
         { "#RCT2SIR", Drawing::Colour::brightRed },
@@ -1281,9 +1297,18 @@ namespace OpenRCT2
                     std::vector<TileElement> tileElements;
                     tileElements.resize(numElements);
                     cs.read(tileElements.data(), tileElements.size() * sizeof(TileElement));
-                    SetTileElements(gameState, std::move(tileElements));
 
                     auto targetVersion = os.getHeader().targetVersion;
+                    if (targetVersion < kQuarterTerrainVersion)
+                    {
+                        for (auto& tileElement : tileElements)
+                        {
+                            if (tileElement.getType() == TileElementType::surface)
+                                convertLegacySurfaceLayout(tileElement);
+                        }
+                    }
+                    SetTileElements(gameState, std::move(tileElements));
+
                     TileElementIterator it;
                     TileElementIteratorBegin(&it);
                     while (TileElementIteratorNext(&it))

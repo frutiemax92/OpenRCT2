@@ -12,6 +12,9 @@
 #include <cstdlib>
 #include <gtest/gtest.h>
 #include <openrct2/world/TerrainShape.h>
+#include <openrct2/world/tile_element/Slope.h>
+#include <openrct2/world/tile_element/SurfaceElement.h>
+#include <openrct2/world/tile_element/TileElement.h>
 #include <set>
 
 using namespace OpenRCT2::Terrain;
@@ -195,4 +198,70 @@ TEST(TerrainShape, NormalTiltsAwayFromTheRise)
     const auto n = GetSurfaceNormalAt({ 4, 4, 0, 0 }, 16, 10);
     EXPECT_LT(n.x, 0);
     EXPECT_EQ(n.y, 0);
+}
+
+TEST(TerrainShape, LegacySlopesRoundTripThroughShapes)
+{
+    for (uint8_t slope = 0; slope <= OpenRCT2::kTileSlopeMask; slope++)
+    {
+        const auto shape = ShapeFromLegacySlope(slope);
+        EXPECT_TRUE(IsValidShape(shape)) << int(slope);
+        EXPECT_EQ(ShapeFromLegacySlope(LegacySlopeFromShape(shape)), shape) << int(slope);
+    }
+    // Legacy steps are two quarters.
+    EXPECT_EQ(ShapeFromLegacySlope(OpenRCT2::kTileSlopeNCornerUp), (TerrainShape{ 2, 0, 0, 0 }));
+    EXPECT_EQ(LegacySlopeFromShape({ 0, 0, 0, 0 }), OpenRCT2::kTileSlopeFlat);
+}
+
+TEST(TerrainShape, QuarterShapesApproximateToALegacySlope)
+{
+    EXPECT_EQ(LegacySlopeFromShape({ 1, 0, 0, 0 }), OpenRCT2::kTileSlopeFlat);
+    EXPECT_EQ(LegacySlopeFromShape({ 3, 0, 0, 0 }), OpenRCT2::kTileSlopeNCornerUp);
+}
+
+TEST(SurfaceElementLayout, StaysSixteenBytesAndStoresShapeAndQuadrants)
+{
+    static_assert(sizeof(OpenRCT2::SurfaceElement) == 16);
+    OpenRCT2::TileElement el{};
+    el.setType(OpenRCT2::TileElementType::surface);
+    auto* surface = el.asSurface();
+    for (const auto& sh : AllShapes())
+    {
+        surface->setTerrainShape(sh);
+        EXPECT_EQ(surface->getTerrainShape(), sh);
+    }
+    surface->setSurfaceObjectIndex(7);
+    for (uint8_t q = 0; q < 4; q++)
+        EXPECT_EQ(surface->getQuadrantSurfaceIndex(static_cast<Quadrant>(q)), 7);
+    surface->setQuadrantSurfaceIndex(Quadrant::southWest, 200);
+    EXPECT_EQ(surface->getQuadrantSurfaceIndex(Quadrant::southWest), 200);
+    EXPECT_EQ(surface->getQuadrantSurfaceIndex(Quadrant::northEast), 7);
+    EXPECT_EQ(surface->getQuadrantSurfaceIndex(Quadrant::southEast), 7);
+    EXPECT_EQ(surface->getQuadrantSurfaceIndex(Quadrant::northWest), 7);
+    surface->setTerrainShape({ 1, 2, 0, 3 });
+    EXPECT_EQ(surface->getQuadrantSurfaceIndex(Quadrant::southWest), 200); // shape and quadrants do not overlap
+    EXPECT_EQ(surface->getTerrainShape(), (TerrainShape{ 1, 2, 0, 3 }));
+}
+
+TEST(SurfaceElementLayout, LegacySlopeAccessorsMapToShapes)
+{
+    OpenRCT2::TileElement el{};
+    el.setType(OpenRCT2::TileElementType::surface);
+    auto* surface = el.asSurface();
+    surface->setSlope(OpenRCT2::kTileSlopeECornerUp);
+    EXPECT_EQ(surface->getTerrainShape(), (TerrainShape{ 0, 2, 0, 0 }));
+    EXPECT_EQ(surface->getSlope(), OpenRCT2::kTileSlopeECornerUp);
+}
+
+TEST(SurfaceElementLayout, AllCornersRaisedSlopeBecomesAHigherBase)
+{
+    OpenRCT2::TileElement el{};
+    el.setType(OpenRCT2::TileElementType::surface);
+    el.baseHeight = 10;
+    el.clearanceHeight = 12;
+    auto* surface = el.asSurface();
+    surface->setSlope(OpenRCT2::kTileSlopeRaisedCornersMask);
+    EXPECT_EQ(surface->getTerrainShape(), (TerrainShape{ 0, 0, 0, 0 }));
+    EXPECT_EQ(el.baseHeight, 12);
+    EXPECT_EQ(el.clearanceHeight, 14);
 }

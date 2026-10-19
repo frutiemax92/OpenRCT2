@@ -17,6 +17,7 @@
 #include "../../scenario/Scenario.h"
 #include "../Map.h"
 #include "Slope.h"
+#include <algorithm>
 #include "TileElement.h"
 
 namespace OpenRCT2
@@ -45,7 +46,35 @@ namespace OpenRCT2
 
     void SurfaceElement::setSurfaceObjectIndex(ObjectEntryIndex newStyle)
     {
-        surfaceStyle = static_cast<ObjectEntryIndex>(newStyle);
+        surfaceStyle = static_cast<uint8_t>(newStyle);
+        quadrantSurface[0] = quadrantSurface[1] = quadrantSurface[2] = surfaceStyle;
+    }
+
+    ObjectEntryIndex SurfaceElement::getQuadrantSurfaceIndex(Terrain::Quadrant quadrant) const
+    {
+        const auto q = static_cast<size_t>(quadrant);
+        return q == 0 ? surfaceStyle : quadrantSurface[q - 1];
+    }
+
+    void SurfaceElement::setQuadrantSurfaceIndex(Terrain::Quadrant quadrant, ObjectEntryIndex index)
+    {
+        const auto q = static_cast<size_t>(quadrant);
+        if (q == 0)
+            surfaceStyle = static_cast<uint8_t>(index);
+        else
+            quadrantSurface[q - 1] = static_cast<uint8_t>(index);
+    }
+
+    Terrain::TerrainShape SurfaceElement::getTerrainShape() const
+    {
+        return Terrain::DecodeShape(static_cast<uint16_t>(shapeLow | ((shapeHigh & 0xF) << 8)));
+    }
+
+    void SurfaceElement::setTerrainShape(const Terrain::TerrainShape& shape)
+    {
+        const auto code = Terrain::EncodeShape(shape);
+        shapeLow = code & 0xFF;
+        shapeHigh = (code >> 8) & 0xF;
     }
 
     void SurfaceElement::setEdgeObjectIndex(ObjectEntryIndex newIndex)
@@ -135,9 +164,9 @@ namespace OpenRCT2
         // if there is an object placed on top of it.
 
         int32_t baseZ = getBaseZ();
-        int32_t clearZ = getBaseZ() + kLandHeightStep;
-        if (slope & kTileSlopeDiagonalFlag)
-            clearZ += kLandHeightStep;
+        const auto shape = getTerrainShape();
+        const int32_t highest = std::max({ shape.north, shape.east, shape.south, shape.west });
+        int32_t clearZ = getBaseZ() + std::max<int32_t>(kLandHeightStep, highest * Terrain::kQuarterStepZ);
 
         // Check objects above grass
         TileElement* tileElementAbove = reinterpret_cast<TileElement*>(this);
@@ -222,12 +251,16 @@ namespace OpenRCT2
 
     uint8_t SurfaceElement::getSlope() const
     {
-        return slope;
+        return Terrain::LegacySlopeFromShape(getTerrainShape());
     }
 
     void SurfaceElement::setSlope(uint8_t newSlope)
     {
-        slope = newSlope;
+        uint8_t raiseQ = 0;
+        setTerrainShape(Terrain::ShapeFromLegacySlope(newSlope, &raiseQ));
+        // Slopes raising all four corners become a higher base height.
+        baseHeight += raiseQ;
+        clearanceHeight += raiseQ;
     }
 
     bool SurfaceElement::hasTrackThatNeedsWater() const
@@ -255,12 +288,11 @@ namespace OpenRCT2
 
     Drawing::Colour SurfaceElement::getPrimaryEdgeColour() const
     {
-        return edgeColour1;
+        return Drawing::Colour::black;
     }
 
     void SurfaceElement::setPrimaryEdgeColour(Drawing::Colour newColour)
     {
-        newColour = (newColour == Drawing::Colour::invisible) ? Drawing::Colour::black : clampColour(newColour);
-        edgeColour1 = newColour;
+        (void)newColour;
     }
 } // namespace OpenRCT2

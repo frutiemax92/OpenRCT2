@@ -11,6 +11,7 @@
 
 #include "../../object/ObjectTypes.h"
 #include "../MapOwnership.h"
+#include "../TerrainShape.h"
 #include "TileElementBase.h"
 
 namespace OpenRCT2
@@ -47,24 +48,34 @@ namespace OpenRCT2
     {
         static constexpr TileElementType kElementType = TileElementType::surface;
 
+        // TER-024 layout. The base height is in the element base header.
+        // Offsets from the base: shape low 8 bits, water, grass, ownership, quadrant 0 surface, edge, colour,
+        // shape high 4 bits, then the surfaces of quadrants 1 to 3.
     private:
-        uint8_t slope;
+        uint8_t shapeLow;
         uint8_t waterHeight;
         uint8_t grassLength;
         uint8_t ownership;
-        uint8_t surfaceStyle;
+        uint8_t surfaceStyle; // surface of quadrant 0
         uint8_t edgeObjectIndex;
         Drawing::Colour surfaceColour1;
-        Drawing::Colour edgeColour1;
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wunused-private-field"
-        uint8_t pad0D[3];
-#pragma clang diagnostic pop
+        uint8_t shapeHigh;
+        uint8_t quadrantSurface[3]; // surfaces of quadrants 1 to 3
 
     public:
+        // Quarter-step terrain shape: 4 corner offsets of 0..4 Q above the base height (TER-010).
+        Terrain::TerrainShape getTerrainShape() const;
+        void setTerrainShape(const Terrain::TerrainShape& shape);
+
+        // Legacy slope bit flags, converted from and to the terrain shape. Remove once all users are migrated (TER-016).
         uint8_t getSlope() const;
         void setSlope(uint8_t newSlope);
 
+        // Surface object of each of the 4 quadrants (TER-021), indexed by Terrain::Quadrant.
+        ObjectEntryIndex getQuadrantSurfaceIndex(Terrain::Quadrant quadrant) const;
+        void setQuadrantSurfaceIndex(Terrain::Quadrant quadrant, ObjectEntryIndex index);
+
+        // Surface of quadrant 0; setting it paints the whole tile.
         ObjectEntryIndex getSurfaceObjectIndex() const;
         TerrainSurfaceObject* getSurfaceObject() const;
         void setSurfaceObjectIndex(ObjectEntryIndex newStyle);
@@ -95,6 +106,7 @@ namespace OpenRCT2
         Drawing::Colour getPrimarySurfaceColour() const;
         void setPrimarySurfaceColour(Drawing::Colour newColour);
 
+        // Edge colours are gone with the quarter-step layout: edges are textured. Kept as stubs until the callers go.
         Drawing::Colour getPrimaryEdgeColour() const;
         void setPrimaryEdgeColour(Drawing::Colour newColour);
     };

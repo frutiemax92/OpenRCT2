@@ -83,6 +83,14 @@ namespace OpenRCT2::Terrain
 
     TileCornersZ GetCornerHeights(int32_t baseZ, const TerrainShape& s);
 
+    // Migration helpers for the old slope bit flags (TER-016). To be removed at the end of Phase 1.
+    // The conversion to a legacy slope is exact for even offsets that match a legacy slope, and approximated
+    // (corners raised by 2 Q or more count as raised) otherwise.
+    // Legacy slopes 15 and 31 raise all four corners; the result is normalised and the raise (in Q) is returned in
+    // baseOffsetQ when given, to be added to the base height.
+    TerrainShape ShapeFromLegacySlope(uint8_t legacySlope, uint8_t* baseOffsetQ = nullptr);
+    uint8_t LegacySlopeFromShape(const TerrainShape& shape);
+
     // xl, yl are the position inside the tile, 0..31.
     int32_t GetSurfaceZAt(int32_t baseZ, const TerrainShape& s, int32_t xl, int32_t yl);
     int32_t GetSurfaceZAt(int32_t baseZ, const TerrainShape& s, const CoordsXY& worldPos);

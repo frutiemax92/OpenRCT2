@@ -9,6 +9,8 @@
 
 #include "TerrainShape.h"
 
+#include "tile_element/Slope.h"
+
 #include <algorithm>
 #include <cassert>
 #include <vector>
@@ -147,6 +149,36 @@ namespace OpenRCT2::Terrain
     int32_t GetSurfaceZAt(int32_t baseZ, const TerrainShape& s, const CoordsXY& worldPos)
     {
         return GetSurfaceZAt(baseZ, s, worldPos.x & (kTile - 1), worldPos.y & (kTile - 1));
+    }
+
+    TerrainShape ShapeFromLegacySlope(uint8_t legacySlope, uint8_t* baseOffsetQ)
+    {
+        const auto rel = GetSlopeRelativeCornerHeights(legacySlope);
+        // Same corner naming as GetSlopeCornerHeights: north = bottom, east = left, south = top, west = right.
+        const auto lowest = std::min({ rel.bottom, rel.left, rel.top, rel.right });
+        if (baseOffsetQ != nullptr)
+            *baseOffsetQ = static_cast<uint8_t>(lowest * 2);
+        return { static_cast<uint8_t>((rel.bottom - lowest) * 2), static_cast<uint8_t>((rel.left - lowest) * 2),
+                 static_cast<uint8_t>((rel.top - lowest) * 2), static_cast<uint8_t>((rel.right - lowest) * 2) };
+    }
+
+    uint8_t LegacySlopeFromShape(const TerrainShape& shape)
+    {
+        const bool even = shape.north % 2 == 0 && shape.east % 2 == 0 && shape.south % 2 == 0 && shape.west % 2 == 0;
+        if (even)
+        {
+            for (uint8_t slope = 0; slope <= kTileSlopeMask; slope++)
+            {
+                if (ShapeFromLegacySlope(slope) == shape)
+                    return slope;
+            }
+        }
+        uint8_t mask = 0;
+        mask |= shape.north >= 2 ? kTileSlopeNCornerUp : 0;
+        mask |= shape.east >= 2 ? kTileSlopeECornerUp : 0;
+        mask |= shape.south >= 2 ? kTileSlopeSCornerUp : 0;
+        mask |= shape.west >= 2 ? kTileSlopeWCornerUp : 0;
+        return mask == kTileSlopeRaisedCornersMask ? kTileSlopeFlat : mask;
     }
 
     Quadrant GetQuadrantAt(int32_t xl, int32_t yl)
