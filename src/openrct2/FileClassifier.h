@@ -15,8 +15,6 @@ enum class FileExtension
 {
     unknown,
     dat,
-    sc6,
-    sv6,
     td6,
     park,
 };

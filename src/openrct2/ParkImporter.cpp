@@ -19,36 +19,17 @@ namespace OpenRCT2::ParkImporter
 {
     std::unique_ptr<IParkImporter> Create(const std::string& hintPath)
     {
-        std::unique_ptr<IParkImporter> parkImporter;
         std::string extension = Path::GetExtension(hintPath);
-        auto* context = GetContext();
-        if (ExtensionIsOpenRCT2ParkFile(extension))
+        if (!ExtensionIsOpenRCT2ParkFile(extension))
         {
-            parkImporter = CreateParkFile(context->GetObjectRepository());
+            // RCT1 and RCT2 saves and scenarios are not supported (ARC-002).
+            throw std::runtime_error("Only .park files are supported.");
         }
-        else if (ExtensionIsRCT1(extension))
-        {
-            throw std::runtime_error("RollerCoaster Tycoon 1 parks are not supported.");
-        }
-        else
-        {
-            parkImporter = CreateS6(context->GetObjectRepository());
-        }
-        return parkImporter;
+        return CreateParkFile(GetContext()->GetObjectRepository());
     }
 
     bool ExtensionIsOpenRCT2ParkFile(std::string_view extension)
     {
         return String::iequals(extension, ".park");
-    }
-
-    bool ExtensionIsRCT1(std::string_view extension)
-    {
-        return String::iequals(extension, ".sc4") || String::iequals(extension, ".sv4");
-    }
-
-    bool ExtensionIsScenario(std::string_view extension)
-    {
-        return String::iequals(extension, ".sc6") || String::iequals(extension, ".sea");
     }
 } // namespace OpenRCT2::ParkImporter

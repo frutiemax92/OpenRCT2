@@ -461,7 +461,6 @@ namespace OpenRCT2
 
             auto intent = Intent(INTENT_ACTION_INIT_CHAT);
             _uiContext->GetWindowManager()->BroadcastIntent(intent);
-            CopyOriginalUserFilesOver();
 
             if (!gOpenRCT2NoGraphics)
             {
@@ -687,17 +686,6 @@ namespace OpenRCT2
 
             try
             {
-                if (String::iequals(Path::GetExtension(path), ".sea"))
-                {
-                    auto data = DecryptSea(fs::u8path(path));
-                    auto ms = MemoryStream(data.data(), data.size(), MemoryAccess::read);
-                    if (!LoadParkFromStream(&ms, path, loadTitleScreenOnFail, asScenario))
-                    {
-                        throw std::runtime_error(".sea file may have been renamed.");
-                    }
-                    return true;
-                }
-
                 auto fs = FileStream(path, FileMode::open);
                 if (!LoadParkFromStream(&fs, path, loadTitleScreenOnFail, asScenario))
                 {
@@ -742,8 +730,7 @@ namespace OpenRCT2
                 }
                 else
                 {
-                    // Save is an S6 (RCT2 format)
-                    parkImporter = ParkImporter::CreateS6(*_objectRepository);
+                    throw std::runtime_error("Only .park files are supported.");
                 }
 
                 // Inhibit viewport rendering while we're loading
@@ -1405,53 +1392,6 @@ namespace OpenRCT2
                 auto path = _env->GetDirectoryPath(dirBase, dirId);
                 if (!Path::CreateDirectory(path))
                     LOG_ERROR("Unable to create directory '%s'.", path.c_str());
-            }
-        }
-
-        /**
-         * Copy saved games and landscapes to user directory
-         */
-        void CopyOriginalUserFilesOver()
-        {
-            CopyOriginalUserFilesOver(DirId::saves, "*.sv6");
-            CopyOriginalUserFilesOver(DirId::landscapes, "*.sc6");
-        }
-
-        void CopyOriginalUserFilesOver(DirId dirid, const std::string& pattern)
-        {
-            auto src = _env->GetDirectoryPath(DirBase::rct2, dirid);
-            auto dst = _env->GetDirectoryPath(DirBase::user, dirid);
-            CopyOriginalUserFilesOver(src, dst, pattern);
-        }
-
-        void CopyOriginalUserFilesOver(const std::string& srcRoot, const std::string& dstRoot, const std::string& pattern)
-        {
-            LOG_VERBOSE("CopyOriginalUserFilesOver('%s', '%s', '%s')", srcRoot.c_str(), dstRoot.c_str(), pattern.c_str());
-
-            auto scanPattern = Path::Combine(srcRoot, pattern);
-            auto scanner = Path::scanDirectory(scanPattern, true);
-            while (scanner->next())
-            {
-                auto src = std::string(scanner->getPath());
-                auto dst = Path::Combine(dstRoot, scanner->getPathRelative());
-                auto dstDirectory = Path::GetDirectory(dst);
-
-                // Create the directory if necessary
-                if (!Path::CreateDirectory(dstDirectory))
-                {
-                    Console::Error::WriteLine("Could not create directory %s.", dstDirectory.c_str());
-                    break;
-                }
-
-                // Only copy the file if it doesn't already exist
-                if (!File::Exists(dst))
-                {
-                    Console::WriteLine("Copying '%s' to '%s'", src.c_str(), dst.c_str());
-                    if (!File::Copy(src, dst, false))
-                    {
-                        Console::Error::WriteLine("Failed to copy '%s' to '%s'", src.c_str(), dst.c_str());
-                    }
-                }
             }
         }
 

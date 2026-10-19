@@ -18,7 +18,6 @@
 #include <openrct2/OpenRCT2.h>
 #include <openrct2/ParkImporter.h>
 #include <openrct2/audio/AudioContext.h>
-#include <openrct2/core/Crypt.h>
 #include <openrct2/core/MemoryStream.h>
 #include <openrct2/core/String.hpp>
 #include <openrct2/drawing/Drawing.h>
@@ -27,7 +26,6 @@
 #include <openrct2/entity/EntityTweener.h>
 #include <openrct2/object/ObjectManager.h>
 #include <openrct2/park/ParkFile.h>
-#include <openrct2/rct2/RCT2.h>
 #include <openrct2/ride/Ride.h>
 #include <openrct2/scenario/Scenario.h>
 #include <openrct2/world/MapAnimation.h>
@@ -67,26 +65,6 @@ static void GameInit(bool retainSpatialIndices)
     FixInvalidVehicleSpriteSizes();
 
     gGameSpeed = 1;
-}
-
-static bool ImportS6(MemoryStream& stream, std::unique_ptr<IContext>& context, bool retainSpatialIndices)
-{
-    stream.SetPosition(0);
-
-    auto& objManager = context->GetObjectManager();
-
-    auto importer = ParkImporter::CreateS6(context->GetObjectRepository());
-    auto loadResult = importer->LoadFromStream(&stream, false);
-    objManager.LoadObjects(loadResult.RequiredObjects);
-
-    MapAnimations::ClearAll();
-    // TODO: Have a separate GameState and exchange once loaded.
-    auto& gameState = getGameState();
-    importer->Import(gameState);
-
-    GameInit(retainSpatialIndices);
-
-    return true;
 }
 
 static bool ImportPark(MemoryStream& stream, std::unique_ptr<IContext>& context, bool retainSpatialIndices)
@@ -186,7 +164,7 @@ static void CompareStates(MemoryStream& importBuffer, MemoryStream& exportBuffer
     }
 }
 
-TEST(S6ImportExportBasic, all)
+TEST(ParkImportExportBasic, all)
 {
     gOpenRCT2Headless = true;
     gOpenRCT2NoGraphics = true;
@@ -203,9 +181,9 @@ TEST(S6ImportExportBasic, all)
         bool initialised = context->Initialise();
         ASSERT_TRUE(initialised);
 
-        std::string testParkPath = TestData::GetParkPath("BigMapTest.sv6");
+        std::string testParkPath = TestData::GetParkPath("BigMapTest.park");
         ASSERT_TRUE(LoadFileToBuffer(importBuffer, testParkPath));
-        ASSERT_TRUE(ImportS6(importBuffer, context, false));
+        ASSERT_TRUE(ImportPark(importBuffer, context, false));
         RecordGameStateSnapshot(context, snapshotStream);
 
         ASSERT_TRUE(ExportSave(exportBuffer, context));
@@ -230,7 +208,7 @@ TEST(S6ImportExportBasic, all)
     SUCCEED();
 }
 
-TEST(S6ImportExportAdvanceTicks, all)
+TEST(ParkImportExportAdvanceTicks, all)
 {
     gOpenRCT2Headless = true;
     gOpenRCT2NoGraphics = true;
@@ -247,9 +225,9 @@ TEST(S6ImportExportAdvanceTicks, all)
         bool initialised = context->Initialise();
         ASSERT_TRUE(initialised);
 
-        std::string testParkPath = TestData::GetParkPath("BigMapTest.sv6");
+        std::string testParkPath = TestData::GetParkPath("BigMapTest.park");
         ASSERT_TRUE(LoadFileToBuffer(importBuffer, testParkPath));
-        ASSERT_TRUE(ImportS6(importBuffer, context, false));
+        ASSERT_TRUE(ImportPark(importBuffer, context, false));
         AdvanceGameTicks(1000, context);
         ASSERT_TRUE(ExportSave(exportBuffer, context));
 
@@ -273,15 +251,4 @@ TEST(S6ImportExportAdvanceTicks, all)
     CompareStates(importBuffer, exportBuffer, snapshotStream);
 
     SUCCEED();
-}
-
-TEST(SeaDecrypt, DecryptSea)
-{
-    auto path = TestData::GetParkPath("volcania.sea");
-    auto decrypted = DecryptSea(path);
-    auto sha1 = Crypt::SHA1(decrypted.data(), decrypted.size());
-    std::array<uint8_t, 20> expected = {
-        0x1B, 0x85, 0xFC, 0xC0, 0xE8, 0x9B, 0xBE, 0x72, 0xD9, 0x1F, 0x6E, 0xC8, 0xB1, 0xFF, 0xEC, 0x70, 0x2A, 0x72, 0x05, 0xBB,
-    };
-    ASSERT_EQ(sha1, expected);
 }

@@ -122,7 +122,7 @@ class ScenarioFileIndex final : public FileIndex<ScenarioIndexEntry>
 private:
     static constexpr uint32_t kMagicNumber = 0x58444953; // SIDX
     static constexpr uint16_t kVersion = 9;
-    static constexpr auto kPattern = "*.sc6;*.sea;*.park";
+    static constexpr auto kPattern = "*.park";
 
 public:
     explicit ScenarioFileIndex(const IPlatformEnvironment& env)
@@ -176,22 +176,6 @@ protected:
     }
 
 private:
-    static std::unique_ptr<IStream> GetStreamFromRCT2Scenario(const std::string& path)
-    {
-        if (String::iequals(Path::GetExtension(path), ".sea"))
-        {
-            auto data = DecryptSea(fs::u8path(path));
-            auto ms = std::make_unique<MemoryStream>();
-            // Need to copy the data into MemoryStream as the overload will borrow instead of copy.
-            ms->Write(data.data(), data.size());
-            ms->SetPosition(0);
-            return ms;
-        }
-
-        auto fs = std::make_unique<FileStream>(path, FileMode::open);
-        return fs;
-    }
-
     /**
      * Reads basic information from a scenario file.
      */
@@ -228,13 +212,6 @@ private:
             {
                 importer = ParkImporter::CreateParkFile(objRepository);
                 importer->LoadScenario(path, true);
-            }
-            else
-            {
-                importer = ParkImporter::CreateS6(objRepository);
-                auto stream = GetStreamFromRCT2Scenario(path);
-                // Skip packed object extraction during scanning - they'll be extracted when actually loading
-                importer->LoadFromStream(stream.get(), true, true);
             }
 
             if (importer)
@@ -371,20 +348,9 @@ public:
             const std::string scenarioBaseName = Path::GetFileNameWithoutExtension(scenarioFileName);
             const std::string scenarioExtension = Path::GetExtension(scenarioFileName);
 
-            // Check if this is an RCTC scenario that corresponds to a known RCT1/2 scenario or vice versa, see #12626
-            if (String::iequals(scenarioExtension, ".sea"))
-            {
-                // Get scenario using RCT2 style name of RCTC scenario
-                scenario = GetByFilename((scenarioBaseName + ".sc6").c_str());
-            }
-            else if (String::iequals(scenarioExtension, ".sc6"))
-            {
-                // Get scenario using RCTC style name of RCT2 scenario
-                scenario = GetByFilename((scenarioBaseName + ".sea").c_str());
-            }
             // GameState_t::scenarioFileName .Park scenarios is the full file path instead of just <scenarioName.park>, so need
             // to convert
-            else if (String::iequals(scenarioExtension, ".park"))
+            if (String::iequals(scenarioExtension, ".park"))
             {
                 scenario = GetByFilename((scenarioBaseName + ".park").c_str());
             }

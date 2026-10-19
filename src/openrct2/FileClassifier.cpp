@@ -23,7 +23,6 @@ using namespace OpenRCT2;
 using namespace OpenRCT2::SawyerCoding;
 
 static bool TryClassifyAsPark(IStream* stream, ClassifiedFileInfo* result);
-static bool TryClassifyAsS6(IStream* stream, ClassifiedFileInfo* result);
 static bool TryClassifyAsTD4_TD6(IStream* stream, ClassifiedFileInfo* result);
 
 bool TryClassifyFile(const std::string& path, ClassifiedFileInfo* result)
@@ -48,12 +47,6 @@ bool TryClassifyFile(IStream* stream, ClassifiedFileInfo* result)
 
     // Park detection
     if (TryClassifyAsPark(stream, result))
-    {
-        return true;
-    }
-
-    // S6 detection
-    if (TryClassifyAsS6(stream, result))
     {
         return true;
     }
@@ -84,34 +77,6 @@ static bool TryClassifyAsPark(IStream* stream, ClassifiedFileInfo* result)
     catch (const std::exception& e)
     {
         success = false;
-        LOG_VERBOSE(e.what());
-    }
-    stream->SetPosition(originalPosition);
-    return success;
-}
-
-static bool TryClassifyAsS6(IStream* stream, ClassifiedFileInfo* result)
-{
-    bool success = false;
-    uint64_t originalPosition = stream->GetPosition();
-    try
-    {
-        auto chunkReader = SawyerChunkReader(stream);
-        auto s6Header = chunkReader.ReadChunkAs<RCT2::S6Header>();
-        if (s6Header.Type == S6_TYPE_SAVEDGAME)
-        {
-            result->Type = FileType::savedGame;
-        }
-        else if (s6Header.Type == S6_TYPE_SCENARIO)
-        {
-            result->Type = FileType::scenario;
-        }
-        result->Version = s6Header.Version;
-        success = true;
-    }
-    catch (const std::exception& e)
-    {
-        // Exceptions are likely to occur if file is not S6 format
         LOG_VERBOSE(e.what());
     }
     stream->SetPosition(originalPosition);
@@ -158,14 +123,6 @@ FileExtension GetFileExtensionType(u8string_view path)
     auto extension = Path::GetExtension(path);
     if (String::iequals(extension, ".dat") || String::iequals(extension, ".pob"))
         return FileExtension::dat;
-    if (String::iequals(extension, ".sc6"))
-        return FileExtension::sc6;
-    if (String::iequals(extension, ".sea"))
-        return FileExtension::sc6;
-    if (String::iequals(extension, ".sv6"))
-        return FileExtension::sv6;
-    if (String::iequals(extension, ".sv7"))
-        return FileExtension::sv6;
     if (String::iequals(extension, ".td6"))
         return FileExtension::td6;
     if (String::iequals(extension, ".td7"))

@@ -339,10 +339,6 @@ namespace OpenRCT2::Platform
     {
         // Setup file extensions
         SetUpFileAssociation(".park", "OpenRCT2 park (.park)", "Play", "\"%1\"", 0);
-        SetUpFileAssociation(".sc6", "RCT2 Scenario (.sc6)", "Play", "\"%1\"", 0);
-        SetUpFileAssociation(".sv6", "RCT2 Saved Game (.sv6)", "Play", "\"%1\"", 0);
-        SetUpFileAssociation(".sv7", "RCT Modified Saved Game (.sv7)", "Play", "\"%1\"", 0);
-        SetUpFileAssociation(".sea", "RCTC Saved Game (.sea)", "Play", "\"%1\"", 0);
         SetUpFileAssociation(".td6", "RCT2 Track Design (.td6)", "Install", "\"%1\"", 0);
         SetUpFileAssociation(".td7", "OpenRCT2 Track Design (.td7)", "Install", "\"%1\"", 0);
 
@@ -468,10 +464,6 @@ namespace OpenRCT2::Platform
     {
         // Remove file extensions
         RemoveFileAssociation(".park");
-        RemoveFileAssociation(".sc6");
-        RemoveFileAssociation(".sv6");
-        RemoveFileAssociation(".sv7");
-        RemoveFileAssociation(".sea");
         RemoveFileAssociation(".td6");
         RemoveFileAssociation(".td7");
 

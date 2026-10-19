@@ -49,7 +49,7 @@ static std::unique_ptr<IContext> localStartGame(const std::string& parkPath)
     if (!context->Initialise())
         return {};
 
-    auto importer = ParkImporter::CreateS6(context->GetObjectRepository());
+    auto importer = ParkImporter::CreateParkFile(context->GetObjectRepository());
     auto loadResult = importer->LoadSavedGame(parkPath.c_str(), false);
     context->GetObjectManager().LoadObjects(loadResult.RequiredObjects);
 
@@ -90,7 +90,7 @@ static void execute(Args&&... args)
 
 TEST_F(PlayTests, NegativeMarketingCampaignDurationIsRejected)
 {
-    auto context = localStartGame(TestData::GetParkPath("small_park_with_ferris_wheel.sv6"));
+    auto context = localStartGame(TestData::GetParkPath("small_park_with_ferris_wheel.park"));
     ASSERT_NE(context.get(), nullptr);
 
     GameActions::ParkMarketingAction action(ADVERTISING_CAMPAIGN_PARK, 0, -1);
@@ -107,7 +107,7 @@ TEST_F(PlayTests, SecondGuestInQueueShouldNotRideIfNoFunds)
      * the ride queue, and then the price is raised such that the second guest in line
      * (the poor one) cannot pay. The poor guest should not enter the ride.
      */
-    std::string initStateFile = TestData::GetParkPath("small_park_with_ferris_wheel.sv6");
+    std::string initStateFile = TestData::GetParkPath("small_park_with_ferris_wheel.park");
 
     auto context = localStartGame(initStateFile);
     ASSERT_NE(context.get(), nullptr);
@@ -167,7 +167,7 @@ TEST_F(PlayTests, SecondGuestInQueueShouldNotRideIfNoFunds)
 TEST_F(PlayTests, CarRideWithOneCarOnlyAcceptsTwoGuests)
 {
     // This test verifies that a car ride with one car will accept at most two guests
-    std::string initStateFile = TestData::GetParkPath("small_park_car_ride_one_car.sv6");
+    std::string initStateFile = TestData::GetParkPath("small_park_car_ride_one_car.park");
 
     auto context = localStartGame(initStateFile);
     ASSERT_NE(context.get(), nullptr);

@@ -24,7 +24,7 @@ constexpr int32_t updatesToTest = 10;
 
 TEST(MultiLaunchTest, all)
 {
-    std::string path = TestData::GetParkPath("bpb.sv6");
+    std::string path = TestData::GetParkPath("bpb.park");
 
     gOpenRCT2Headless = true;
     gOpenRCT2NoGraphics = true;

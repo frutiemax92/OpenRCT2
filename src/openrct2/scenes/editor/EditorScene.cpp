@@ -141,10 +141,7 @@ bool EditorScene::LoadLandscape(const utf8* path)
 
     clearMapForEditing();
 
-    auto extension = Path::GetExtension(path);
-    bool wasScenario = ParkImporter::ExtensionIsScenario(extension);
-    if (!wasScenario)
-        clearFinances();
+    clearFinances();
 
     AfterLoadCleanup();
     return true;

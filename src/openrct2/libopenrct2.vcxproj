@@ -1151,8 +1151,6 @@
     <ClCompile Include="rct12\ScenarioPatcher.cpp" />
     <ClCompile Include="rct12\TD46.cpp" />
     <ClCompile Include="rct2\RCT2.cpp" />
-    <ClCompile Include="rct2\S6Importer.cpp" />
-    <ClCompile Include="rct2\SeaDecrypt.cpp" />
     <ClCompile Include="rct2\T6Exporter.cpp" />
     <ClCompile Include="rct2\T6Importer.cpp" />
     <ClCompile Include="ReplayManager.cpp" />

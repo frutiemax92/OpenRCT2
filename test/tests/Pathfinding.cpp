@@ -35,7 +35,7 @@ public:
         const bool initialised = _context->Initialise();
         ASSERT_TRUE(initialised);
 
-        std::string parkPath = TestData::GetParkPath("pathfinding-tests.sv6");
+        std::string parkPath = TestData::GetParkPath("pathfinding-tests.park");
         GetContext()->LoadParkFromFile(parkPath);
         GameLoadInit(); // NB: calls `setActiveScene`
     }

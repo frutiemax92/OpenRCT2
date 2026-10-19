@@ -27,7 +27,7 @@ class TileElementWantsFootpathConnection : public testing::Test
 protected:
     static void SetUpTestCase()
     {
-        std::string parkPath = TestData::GetParkPath("tile-element-tests.sv6");
+        std::string parkPath = TestData::GetParkPath("tile-element-tests.park");
         gOpenRCT2Headless = true;
         gOpenRCT2NoGraphics = true;
         _context = CreateContext();

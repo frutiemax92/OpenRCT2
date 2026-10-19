@@ -82,8 +82,7 @@ namespace OpenRCT2
         }
         else
         {
-            // Save is an S6 (RCT2 format)
-            parkImporter = ParkImporter::CreateS6(objectRepository);
+            throw std::runtime_error("Only .park files are supported.");
         }
         auto loadResult = parkImporter->Load(sourcePath.c_str(), false);
 

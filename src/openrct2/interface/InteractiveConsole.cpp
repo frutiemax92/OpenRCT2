@@ -1328,8 +1328,7 @@ static void ConsoleCommandLoadPark([[maybe_unused]] InteractiveConsole& console,
     {
         savePath = argv[0];
     }
-    if (!String::endsWith(savePath, ".sv6", true) && !String::endsWith(savePath, ".sc6", true)
-        && !String::endsWith(savePath, ".park", true))
+    if (!String::endsWith(savePath, ".park", true))
     {
         savePath += ".park";
     }

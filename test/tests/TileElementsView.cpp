@@ -34,7 +34,7 @@ class TileElementsViewTests : public testing::Test
 protected:
     static void SetUpTestCase()
     {
-        std::string parkPath = TestData::GetParkPath("bpb.sv6");
+        std::string parkPath = TestData::GetParkPath("bpb.park");
         gOpenRCT2Headless = true;
         gOpenRCT2NoGraphics = true;
         _context = CreateContext();

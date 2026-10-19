@@ -95,12 +95,12 @@ protected:
 
 TEST_F(RideRatings, bpb)
 {
-    TestRatings("bpb.sv6", 134);
+    TestRatings("bpb.park", 134);
 }
 
 TEST_F(RideRatings, BigMap)
 {
-    TestRatings("BigMapTest.sv6", 100);
+    TestRatings("BigMapTest.park", 100);
 }
 
 TEST_F(RideRatings, EverythingPark)
