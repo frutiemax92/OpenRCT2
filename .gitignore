@@ -28,7 +28,9 @@ data/fonts.dat
 data/palettes.dat
 data/tracks.dat
 data/sequence
-data/object
+data/object/*
+# The game's own objects are tracked (downloaded objects stay ignored).
+!data/object/golf/
 data/assetpack
 test/tests/testdata/replays
 test/tests/testdata/sprites/result.dat

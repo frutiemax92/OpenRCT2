@@ -17,6 +17,7 @@ set(test_files
    "${CMAKE_CURRENT_SOURCE_DIR}/Endianness.cpp"
    "${CMAKE_CURRENT_SOURCE_DIR}/EnumMapTest.cpp"
    "${CMAKE_CURRENT_SOURCE_DIR}/FormattingTests.cpp"
+   "${CMAKE_CURRENT_SOURCE_DIR}/GameAudioTests.cpp"
    "${CMAKE_CURRENT_SOURCE_DIR}/ImageImporterTests.cpp"
    "${CMAKE_CURRENT_SOURCE_DIR}/IniReaderTest.cpp"
    "${CMAKE_CURRENT_SOURCE_DIR}/IniWriterTest.cpp"
@@ -62,6 +63,9 @@ if (Python3_Interpreter_FOUND)
         WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/../..")
     add_test(NAME BasePackScriptTests
         COMMAND ${Python3_EXECUTABLE} -I "${CMAKE_CURRENT_SOURCE_DIR}/../scripts/test_base_pack.py"
+        WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/../..")
+    add_test(NAME SoundGeneratorTests
+        COMMAND ${Python3_EXECUTABLE} -I "${CMAKE_CURRENT_SOURCE_DIR}/../scripts/test_sounds.py"
         WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/../..")
     add_test(NAME PlaceholderGeneratorTests
         COMMAND ${Python3_EXECUTABLE} -I "${CMAKE_CURRENT_SOURCE_DIR}/../scripts/test_placeholders.py"

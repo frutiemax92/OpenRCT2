@@ -144,6 +144,9 @@ namespace OpenRCT2::Audio
         constexpr std::string_view kOpenRCT2Title = "openrct2.audio.title";
         constexpr std::string_view kRCT2Circus = "rct2.audio.circus";
         constexpr std::string_view kOpenRCT2Additional = "openrct2.audio.additional";
+        // AST-005: the game's own sound effects (data/object/golf/audio, scripts/placeholders/sounds.py).
+        constexpr std::string_view kGameBase = "golf.audio.base";             // SoundId values below liftRMC
+        constexpr std::string_view kGameAdditional = "golf.audio.additional"; // liftRMC and later
     } // namespace AudioObjectIdentifiers
 
     extern bool gGameSoundsOff;

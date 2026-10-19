@@ -101,16 +101,15 @@ namespace OpenRCT2::Audio
     {
         auto& objManager = GetContext()->GetObjectManager();
 
-        Object* baseAudio = objManager.LoadObject(AudioObjectIdentifiers::kRCT2);
+        // AST-005: no RCT or OpenRCT2 sounds, only the game's own audio objects.
+        Object* baseAudio = objManager.LoadObject(AudioObjectIdentifiers::kGameBase);
         if (baseAudio != nullptr)
         {
             _soundsAudioObjectEntryIndex = objManager.GetLoadedObjectEntryIndex(baseAudio);
         }
 
-        objManager.LoadObject(AudioObjectIdentifiers::kOpenRCT2Additional);
-        _soundsAdditionalAudioObjectEntryIndex = objManager.GetLoadedObjectEntryIndex(
-            AudioObjectIdentifiers::kOpenRCT2Additional);
-        objManager.LoadObject(AudioObjectIdentifiers::kRCT2Circus);
+        objManager.LoadObject(AudioObjectIdentifiers::kGameAdditional);
+        _soundsAdditionalAudioObjectEntryIndex = objManager.GetLoadedObjectEntryIndex(AudioObjectIdentifiers::kGameAdditional);
     }
 
     void PopulateDevices()
@@ -251,33 +250,17 @@ namespace OpenRCT2::Audio
         }
     }
 
-    static bool IsRCT1TitleMusicAvailable()
-    {
-        auto& env = GetContext()->GetPlatformEnvironment();
-        auto rct1path = env.GetDirectoryPath(DirBase::rct1);
-        return !rct1path.empty();
-    }
-
     static std::map<TitleMusicKind, std::string_view> GetAvailableMusicMap()
     {
-        auto musicMap = std::map<TitleMusicKind, std::string_view>{
-            { TitleMusicKind::OpenRCT2, AudioObjectIdentifiers::kOpenRCT2Title },
-            { TitleMusicKind::RCT2, AudioObjectIdentifiers::kRCT2Title },
-        };
-
-        if (IsRCT1TitleMusicAvailable())
-        {
-            musicMap.emplace(TitleMusicKind::RCT1, AudioObjectIdentifiers::kRCT1Title);
-        }
-
-        return musicMap;
+        // AST-005: the title music objects are RCT/OpenRCT2 music; the game has none of its own yet.
+        return {};
     }
 
     static ObjectEntryDescriptor GetTitleMusicDescriptor(TitleMusicKind musicKind)
     {
         auto musicMap = GetAvailableMusicMap();
         auto it = musicMap.find(musicKind);
-        if (musicKind == TitleMusicKind::random)
+        if (musicKind == TitleMusicKind::random && !musicMap.empty())
         {
             it = std::next(musicMap.begin(), UtilRand() % musicMap.size());
         }
