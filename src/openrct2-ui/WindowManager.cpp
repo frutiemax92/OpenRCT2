@@ -56,7 +56,6 @@ public:
     void Init() override
     {
         ThemeManagerInitialise();
-        WindowNewRideInitVars();
     }
 
     WindowBase* OpenWindow(WindowClass wc) override
@@ -104,7 +103,7 @@ public:
             case WindowClass::multiplayer:
                 return MultiplayerOpen();
             case WindowClass::constructRide:
-                return NewRideOpen();
+                return nullptr; // Ride windows are removed (ARC-002).
             case WindowClass::parkInformation:
                 return ParkEntranceOpen();
             case WindowClass::parkInfoPanel:
@@ -112,11 +111,11 @@ public:
             case WindowClass::recentNews:
                 return NewsOpen();
             case WindowClass::rideConstruction:
-                return RideConstructionOpen();
+                return nullptr; // Ride windows are removed (ARC-002).
             case WindowClass::research:
                 return ResearchOpen();
             case WindowClass::rideList:
-                return RideListOpen();
+                return nullptr; // Ride windows are removed (ARC-002).
             case WindowClass::options:
                 return OptionsOpen();
             case WindowClass::savePrompt:
@@ -192,9 +191,9 @@ public:
                 {
                     return this->OpenWindow(WindowClass::research);
                 }
-                return NewRideOpenResearch();
+                return nullptr; // Ride windows are removed (ARC-002).
             case WindowView::mazeConstruction:
-                return MazeConstructionOpen();
+                return nullptr; // Ride windows are removed (ARC-002).
             case WindowView::networkPassword:
                 return NetworkStatusOpenPassword();
             case WindowView::changelog:
@@ -219,9 +218,8 @@ public:
             case WindowDetail::newCampaign:
                 return NewCampaignOpen(id);
             case WindowDetail::demolishRide:
-                return RideDemolishPromptOpen(*GetRide(RideId::FromUnderlying(id)));
             case WindowDetail::refurbishRide:
-                return RideRefurbishPromptOpen(*GetRide(RideId::FromUnderlying(id)));
+                return nullptr; // Ride windows are removed (ARC-002).
             case WindowDetail::sign:
                 return SignOpen(id);
             case WindowDetail::signSmall:
@@ -253,7 +251,7 @@ public:
             case WindowClass::firePrompt:
                 return StaffFirePromptOpen(static_cast<Peep*>(intent->GetPointerExtra(INTENT_EXTRA_PEEP)));
             case WindowClass::installTrack:
-                return InstallTrackOpen(intent->GetStringExtra(INTENT_EXTRA_PATH).c_str());
+                return nullptr; // Ride windows are removed (ARC-002).
             case WindowClass::guestList:
                 return GuestListOpenWithFilter(
                     static_cast<GuestListFilterType>(intent->GetSIntExtra(INTENT_EXTRA_GUEST_LIST_FILTER)),
@@ -278,7 +276,7 @@ public:
                 return w;
             }
             case WindowClass::manageTrackDesign:
-                return TrackManageOpen(static_cast<TrackDesignFileRef*>(intent->GetPointerExtra(INTENT_EXTRA_TRACK_DESIGN)));
+                return nullptr; // Ride windows are removed (ARC-002).
             case WindowClass::networkStatus:
             {
                 std::string message = intent->GetStringExtra(INTENT_EXTRA_MESSAGE);
@@ -295,20 +293,9 @@ public:
                 return nullptr;
             }
             case WindowClass::ride:
-            {
-                const auto rideId = RideId::FromUnderlying(intent->GetSIntExtra(INTENT_EXTRA_RIDE_ID));
-                auto ride = GetRide(rideId);
-                return ride == nullptr ? nullptr : RideMainOpen(*ride);
-            }
             case WindowClass::trackDesignPlace:
-                return TrackPlaceOpen(static_cast<TrackDesignFileRef*>(intent->GetPointerExtra(INTENT_EXTRA_TRACK_DESIGN)));
             case WindowClass::trackDesignList:
-            {
-                RideSelection rideItem;
-                rideItem.Type = intent->GetUIntExtra(INTENT_EXTRA_RIDE_TYPE);
-                rideItem.EntryIndex = intent->GetUIntExtra(INTENT_EXTRA_RIDE_ENTRY_INDEX);
-                return TrackListOpen(rideItem);
-            }
+                return nullptr; // Ride windows are removed (ARC-002).
             case WindowClass::scenarioSelect:
                 return ScenarioselectOpen(
                     reinterpret_cast<ScenarioSelectCallback>(intent->GetCloseCallbackExtra(INTENT_EXTRA_CALLBACK)));
@@ -325,18 +312,7 @@ public:
         switch (intent->GetAction())
         {
             case INTENT_ACTION_NEW_RIDE_OF_TYPE:
-            {
-                // Open ride list window
-                auto w = NewRideOpen();
-
-                // Switch to right tab and scroll to ride location
-                RideSelection rideItem;
-                rideItem.Type = intent->GetUIntExtra(INTENT_EXTRA_RIDE_TYPE);
-                rideItem.EntryIndex = intent->GetUIntExtra(INTENT_EXTRA_RIDE_ENTRY_INDEX);
-                WindowNewRideFocus(rideItem);
-
-                return w;
-            }
+                return nullptr; // Ride windows are removed (ARC-002).
             case INTENT_ACTION_NEW_SCENERY:
             {
                 // Check if window is already open
@@ -383,9 +359,8 @@ public:
         switch (intent->GetWindowDetail())
         {
             case WindowDetail::vehicle:
-                return RideOpenVehicle(static_cast<Vehicle*>(intent->GetPointerExtra(INTENT_EXTRA_VEHICLE)));
             case WindowDetail::track:
-                return RideOpenTrack(static_cast<TileElement*>(intent->GetPointerExtra(INTENT_EXTRA_TILE_ELEMENT)));
+                return nullptr; // Ride windows are removed (ARC-002).
 
             case WindowDetail::null:
                 // Intent does not hold an window detail
@@ -408,56 +383,12 @@ public:
                 WindowMapReset();
                 break;
 
-            case INTENT_ACTION_REFRESH_NEW_RIDES:
-                WindowNewRideInitVars();
-                break;
-
             case INTENT_ACTION_REFRESH_CAMPAIGN_RIDE_LIST:
             {
                 WindowCampaignRefreshRides();
                 break;
             }
 
-            case INTENT_ACTION_REFRESH_RIDE_LIST:
-            {
-                auto window = FindByClass(WindowClass::rideList);
-                if (window != nullptr)
-                {
-                    WindowRideListRefreshList(window);
-                }
-
-                break;
-            }
-
-            case INTENT_ACTION_UPDATE_MAZE_CONSTRUCTION:
-                WindowMazeConstructionUpdatePressedWidgets();
-                break;
-
-            case INTENT_ACTION_RIDE_CONSTRUCTION_FOCUS:
-            {
-                auto rideIndex = intent.GetUIntExtra(INTENT_EXTRA_RIDE_ID);
-                auto w = FindByClass(WindowClass::rideConstruction);
-                if (w == nullptr || w->number != static_cast<int16_t>(rideIndex))
-                {
-                    CloseConstructionWindows();
-                    _currentRideIndex = RideId::FromUnderlying(rideIndex);
-                    OpenWindow(WindowClass::rideConstruction);
-                }
-                else
-                {
-                    RideConstructionInvalidateCurrentTrack();
-                    _currentRideIndex = RideId::FromUnderlying(rideIndex);
-                }
-                break;
-            }
-
-            case INTENT_ACTION_RIDE_CONSTRUCTION_UPDATE_PIECES:
-                WindowRideConstructionUpdateEnabledTrackPieces();
-                break;
-
-            case INTENT_ACTION_RIDE_CONSTRUCTION_UPDATE_ACTIVE_ELEMENTS:
-                WindowRideConstructionUpdateActiveElementsImpl();
-                break;
 
             case INTENT_ACTION_INIT_SCENERY:
                 WindowSceneryInit();
@@ -488,23 +419,6 @@ public:
             case INTENT_ACTION_CLEAR_TILE_INSPECTOR_CLIPBOARD:
                 WindowTileInspectorClearClipboard();
                 break;
-
-            case INTENT_ACTION_INVALIDATE_VEHICLE_WINDOW:
-            {
-                auto vehicle = static_cast<Vehicle*>(intent.GetPointerExtra(INTENT_EXTRA_VEHICLE));
-                if (vehicle != nullptr)
-                {
-                    WindowRideInvalidateVehicle(*vehicle);
-                }
-                break;
-            }
-
-            case INTENT_ACTION_RIDE_PAINT_RESET_VEHICLE:
-            {
-                auto rideIndex = intent.GetUIntExtra(INTENT_EXTRA_RIDE_ID);
-                WindowRidePaintResetVehicle(RideId::FromUnderlying(rideIndex));
-                break;
-            }
 
             case INTENT_ACTION_UPDATE_CLIMATE:
                 InvalidateByClass(WindowClass::dateInfoPanel);
@@ -576,9 +490,6 @@ public:
                 break;
             case INTENT_ACTION_REMOVE_PROVISIONAL_FOOTPATH:
                 FootpathRemoveProvisional();
-                break;
-            case INTENT_ACTION_REMOVE_PROVISIONAL_TRACK_PIECE:
-                RideRemoveProvisionalTrackPiece();
                 break;
             case INTENT_ACTION_REFRESH_PLAYER_LIST:
                 MultiplayerRefreshList();

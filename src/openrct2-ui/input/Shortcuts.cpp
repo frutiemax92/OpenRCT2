@@ -637,14 +637,9 @@ static void ShortcutConstructionTurnLeft()
         return;
 
     auto* windowMgr = GetWindowManager();
-    WindowBase* window = windowMgr->FindByClass(WindowClass::footpath);
-    if (window != nullptr)
+    if (windowMgr->FindByClass(WindowClass::footpath) != nullptr)
     {
         WindowFootpathKeyboardShortcutTurnLeft();
-    }
-    else
-    {
-        WindowRideConstructionKeyboardShortcutTurnLeft();
     }
 }
 
@@ -654,14 +649,9 @@ static void ShortcutConstructionTurnRight()
         return;
 
     auto* windowMgr = GetWindowManager();
-    WindowBase* window = windowMgr->FindByClass(WindowClass::footpath);
-    if (window != nullptr)
+    if (windowMgr->FindByClass(WindowClass::footpath) != nullptr)
     {
         WindowFootpathKeyboardShortcutTurnRight();
-    }
-    else
-    {
-        WindowRideConstructionKeyboardShortcutTurnRight();
     }
 }
 
@@ -671,14 +661,9 @@ static void ShortcutConstructionSlopeUp()
         return;
 
     auto* windowMgr = GetWindowManager();
-    WindowBase* window = windowMgr->FindByClass(WindowClass::footpath);
-    if (window != nullptr)
+    if (windowMgr->FindByClass(WindowClass::footpath) != nullptr)
     {
         WindowFootpathKeyboardShortcutSlopeUp();
-    }
-    else
-    {
-        WindowRideConstructionKeyboardShortcutSlopeUp();
     }
 }
 
@@ -688,14 +673,9 @@ static void ShortcutConstructionBuildCurrent()
         return;
 
     auto* windowMgr = GetWindowManager();
-    WindowBase* window = windowMgr->FindByClass(WindowClass::footpath);
-    if (window != nullptr)
+    if (windowMgr->FindByClass(WindowClass::footpath) != nullptr)
     {
         WindowFootpathKeyboardShortcutBuildCurrent();
-    }
-    else
-    {
-        WindowRideConstructionKeyboardShortcutBuildCurrent();
     }
 }
 
@@ -705,14 +685,9 @@ static void ShortcutConstructionSlopeDown()
         return;
 
     auto* windowMgr = GetWindowManager();
-    WindowBase* window = windowMgr->FindByClass(WindowClass::footpath);
-    if (window != nullptr)
+    if (windowMgr->FindByClass(WindowClass::footpath) != nullptr)
     {
         WindowFootpathKeyboardShortcutSlopeDown();
-    }
-    else
-    {
-        WindowRideConstructionKeyboardShortcutSlopeDown();
     }
 }
 
@@ -722,14 +697,9 @@ static void ShortcutConstructionDemolishCurrent()
         return;
 
     auto* windowMgr = GetWindowManager();
-    WindowBase* window = windowMgr->FindByClass(WindowClass::footpath);
-    if (window != nullptr)
+    if (windowMgr->FindByClass(WindowClass::footpath) != nullptr)
     {
         WindowFootpathKeyboardShortcutDemolishCurrent();
-    }
-    else
-    {
-        WindowRideConstructionKeyboardShortcutDemolishCurrent();
     }
 }
 
@@ -871,14 +841,8 @@ void ShortcutManager::registerDefaultShortcuts()
     // Window
     registerShortcut(ShortcutId::kWindowRideConstructionTurnLeft, STR_SHORTCUT_CONSTRUCTION_TURN_LEFT, "NUMPAD 4", ShortcutConstructionTurnLeft);
     registerShortcut(ShortcutId::kWindowRideConstructionTurnRight, STR_SHORTCUT_CONSTRUCTION_TURN_RIGHT, "NUMPAD 6", ShortcutConstructionTurnRight);
-    registerShortcut(ShortcutId::kWindowRideConstructionDefault, STR_SHORTCUT_CONSTRUCTION_USE_TRACK_DEFAULT, "NUMPAD 5", WindowRideConstructionKeyboardShortcutUseTrackDefault);
     registerShortcut(ShortcutId::kWindowRideConstructionSlopeDown, STR_SHORTCUT_CONSTRUCTION_SLOPE_DOWN, "NUMPAD 2", ShortcutConstructionSlopeDown);
     registerShortcut(ShortcutId::kWindowRideConstructionSlopeUp, STR_SHORTCUT_CONSTRUCTION_SLOPE_UP, "NUMPAD 8", ShortcutConstructionSlopeUp);
-    registerShortcut(ShortcutId::kWindowRideConstructionChainLift, STR_SHORTCUT_CONSTRUCTION_CHAIN_LIFT_TOGGLE, "NUMPAD +", WindowRideConstructionKeyboardShortcutChainLiftToggle);
-    registerShortcut(ShortcutId::kWindowRideConstructionBankLeft, STR_SHORTCUT_CONSTRUCTION_BANK_LEFT, "NUMPAD 1", WindowRideConstructionKeyboardShortcutBankLeft);
-    registerShortcut(ShortcutId::kWindowRideConstructionBankRight, STR_SHORTCUT_CONSTRUCTION_BANK_RIGHT, "NUMPAD 3", WindowRideConstructionKeyboardShortcutBankRight);
-    registerShortcut(ShortcutId::kWindowRideConstructionPrevious, STR_SHORTCUT_CONSTRUCTION_PREVIOUS_TRACK, "NUMPAD 7", WindowRideConstructionKeyboardShortcutPreviousTrack);
-    registerShortcut(ShortcutId::kWindowRideConstructionNext, STR_SHORTCUT_CONSTRUCTION_NEXT_TRACK, "NUMPAD 9", WindowRideConstructionKeyboardShortcutNextTrack);
     registerShortcut(ShortcutId::kWindowRideConstructionBuild, STR_SHORTCUT_CONSTRUCTION_BUILD_CURRENT, "NUMPAD 0", ShortcutConstructionBuildCurrent);
     registerShortcut(ShortcutId::kWindowRideConstructionDemolish, STR_SHORTCUT_CONSTRUCTION_DEMOLISH_CURRENT, "NUMPAD -", ShortcutConstructionDemolishCurrent);
     registerShortcut(ShortcutId::kWindowTileInspectorToggleInvisibility, STR_SHORTCUT_TOGGLE_INVISIBILITY, WindowTileInspectorKeyboardShortcutToggleInvisibility);

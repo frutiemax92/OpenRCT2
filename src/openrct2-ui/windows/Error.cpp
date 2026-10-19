@@ -24,6 +24,8 @@
 
 namespace OpenRCT2::Ui::Windows
 {
+    bool gDisableErrorWindowSound = false;
+
     enum WindowErrorWidgetIdx : WidgetIndex
     {
         WIDX_BACKGROUND,

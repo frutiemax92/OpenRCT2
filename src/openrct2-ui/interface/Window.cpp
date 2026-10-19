@@ -523,6 +523,13 @@ namespace OpenRCT2::Ui
 
 namespace OpenRCT2::Ui::Windows
 {
+    const StringId ColourSchemeNames[4] = {
+        STR_MAIN_COLOUR_SCHEME,          // RideColourScheme::main
+        STR_ALTERNATIVE_COLOUR_SCHEME_1, // RideColourScheme::additional1
+        STR_ALTERNATIVE_COLOUR_SCHEME_2, // RideColourScheme::additional2
+        STR_ALTERNATIVE_COLOUR_SCHEME_3, // RideColourScheme::additional3
+    };
+
     static u8string _textBoxInput;
     static int32_t _textBoxFrameNo = 0;
     static bool _usingWidgetTextBox = false;

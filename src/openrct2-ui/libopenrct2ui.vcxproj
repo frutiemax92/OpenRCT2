@@ -175,7 +175,6 @@
     <ClCompile Include="windows\CustomCurrency.cpp" />
     <ClCompile Include="windows\DateInfoPanel.cpp" />
     <ClCompile Include="windows\DebugPaint.cpp" />
-    <ClCompile Include="windows\DemolishRidePrompt.cpp" />
     <ClCompile Include="windows\Dropdown.cpp" />
     <ClCompile Include="windows\EditorInventionsList.cpp" />
     <ClCompile Include="windows\EditorObjectSelection.cpp" />
@@ -189,7 +188,6 @@
     <ClCompile Include="windows\GameStatusBar.cpp" />
     <ClCompile Include="windows\Guest.cpp" />
     <ClCompile Include="windows\GuestList.cpp" />
-    <ClCompile Include="windows\InstallTrack.cpp" />
     <ClCompile Include="windows\Land.cpp" />
     <ClCompile Include="windows\LandRights.cpp" />
     <ClCompile Include="windows\LoadSave.cpp" />
@@ -197,11 +195,9 @@
     <ClCompile Include="windows\Map.cpp" />
     <ClCompile Include="windows\MapGen.cpp" />
     <ClCompile Include="windows\MapTooltip.cpp" />
-    <ClCompile Include="windows\MazeConstruction.cpp" />
     <ClCompile Include="windows\Multiplayer.cpp" />
     <ClCompile Include="windows\NetworkStatus.cpp" />
     <ClCompile Include="windows\NewCampaign.cpp" />
-    <ClCompile Include="windows\NewRide.cpp" />
     <ClCompile Include="windows\News.cpp" />
     <ClCompile Include="windows\NewsTicker.cpp" />
     <ClCompile Include="windows\ObjectLoadError.cpp" />
@@ -212,11 +208,7 @@
     <ClCompile Include="windows\PatrolArea.cpp" />
     <ClCompile Include="windows\Player.cpp" />
     <ClCompile Include="windows\ProgressWindow.cpp" />
-    <ClCompile Include="windows\RefurbishRidePrompt.cpp" />
     <ClCompile Include="windows\Research.cpp" />
-    <ClCompile Include="windows\Ride.cpp" />
-    <ClCompile Include="windows\RideConstruction.cpp" />
-    <ClCompile Include="windows\RideList.cpp" />
     <ClCompile Include="windows\SavePrompt.cpp" />
     <ClCompile Include="windows\ScenarioSelect.cpp" />
     <ClCompile Include="windows\Scenery.cpp" />
@@ -238,9 +230,6 @@
     <ClCompile Include="windows\TitleVersion.cpp" />
     <ClCompile Include="windows\Tooltip.cpp" />
     <ClCompile Include="windows\TopToolbar.cpp" />
-    <ClCompile Include="windows\TrackDesignManage.cpp" />
-    <ClCompile Include="windows\TrackDesignPlace.cpp" />
-    <ClCompile Include="windows\TrackList.cpp" />
     <ClCompile Include="windows\Transparency.cpp" />
     <ClCompile Include="windows\ViewClipping.cpp" />
     <ClCompile Include="windows\Viewport.cpp" />

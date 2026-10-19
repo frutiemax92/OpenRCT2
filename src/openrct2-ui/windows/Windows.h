@@ -87,9 +87,6 @@ namespace OpenRCT2::Ui::Windows
     // DebugPaint
     WindowBase* DebugPaintOpen();
 
-    // DemolishRidePrompt
-    WindowBase* RideDemolishPromptOpen(const Ride& ride);
-
     // EditorInventionsList
     WindowBase* EditorInventionsListOpen();
 
@@ -142,9 +139,6 @@ namespace OpenRCT2::Ui::Windows
     WindowBase* GuestListOpenWithFilter(GuestListFilterType type, int32_t index);
     void WindowGuestListRefreshList();
 
-    // InstallTrack
-    WindowBase* InstallTrackOpen(const utf8* path);
-
     // Land
     WindowBase* LandOpen();
     void ToggleLandWindow();
@@ -173,10 +167,6 @@ namespace OpenRCT2::Ui::Windows
     const Formatter& GetMapTooltip();
     void WindowMapTooltipUpdateVisibility();
 
-    // MazeConstruction
-    WindowBase* MazeConstructionOpen();
-    void WindowMazeConstructionUpdatePressedWidgets();
-
     // Multiplayer
     WindowBase* MultiplayerOpen();
     void MultiplayerRefreshList();
@@ -184,12 +174,6 @@ namespace OpenRCT2::Ui::Windows
     // NewCampaign
     WindowBase* NewCampaignOpen(int16_t campaignType);
     void WindowCampaignRefreshRides();
-
-    // NewRide
-    WindowBase* NewRideOpen();
-    WindowBase* NewRideOpenResearch();
-    void WindowNewRideInitVars();
-    void WindowNewRideFocus(RideSelection rideItem);
 
     // News
     WindowBase* NewsOpen();
@@ -236,9 +220,6 @@ namespace OpenRCT2::Ui::Windows
     WindowBase* PatrolAreaOpen(EntityId staffId);
     EntityId WindowPatrolAreaGetCurrentStaffId();
 
-    // RefurbishRidePrompt
-    WindowBase* RideRefurbishPromptOpen(const Ride& ride);
-
     // Research
     WindowBase* ResearchOpen();
     void WindowResearchDevelopmentMouseUp(WidgetIndex widgetIndex, WidgetIndex baseWidgetIndex);
@@ -249,41 +230,6 @@ namespace OpenRCT2::Ui::Windows
     void WindowResearchFundingDropdown(WidgetIndex widgetIndex, int32_t selectedIndex, WidgetIndex baseWidgetIndex);
     void WindowResearchFundingPrepareDraw(WindowBase* w, WidgetIndex baseWidgetIndex);
     void WindowResearchFundingDraw(WindowBase* w, Drawing::RenderTarget& rt);
-
-    // Ride
-    WindowBase* RideMainOpen(const Ride& ride);
-    WindowBase* RideOpenTrack(TileElement* tileElement);
-    WindowBase* RideOpenVehicle(Vehicle* vehicle);
-    void WindowRideInvalidateVehicle(const Vehicle& vehicle);
-    void WindowRidePaintResetVehicle(RideId rideIndex);
-    void WindowRideMeasurementsDesignCancel();
-
-    // RideConstruction
-    WindowBase* RideConstructionOpen();
-    void WindowRideConstructionUpdateActiveElementsImpl();
-    void WindowRideConstructionUpdateEnabledTrackPieces();
-    void RideRestoreProvisionalTrackPiece();
-    void RideRemoveProvisionalTrackPiece();
-    void RideConstructionToolupdateEntranceExit(const ScreenCoordsXY& screenCoords);
-    void RideConstructionToolupdateConstruct(const ScreenCoordsXY& screenCoords);
-    void RideConstructionTooldownConstruct(const ScreenCoordsXY& screenCoords);
-    void UpdateGhostTrackAndArrow();
-    void WindowRideConstructionKeyboardShortcutTurnLeft();
-    void WindowRideConstructionKeyboardShortcutTurnRight();
-    void WindowRideConstructionKeyboardShortcutUseTrackDefault();
-    void WindowRideConstructionKeyboardShortcutSlopeDown();
-    void WindowRideConstructionKeyboardShortcutSlopeUp();
-    void WindowRideConstructionKeyboardShortcutChainLiftToggle();
-    void WindowRideConstructionKeyboardShortcutBankLeft();
-    void WindowRideConstructionKeyboardShortcutBankRight();
-    void WindowRideConstructionKeyboardShortcutPreviousTrack();
-    void WindowRideConstructionKeyboardShortcutNextTrack();
-    void WindowRideConstructionKeyboardShortcutBuildCurrent();
-    void WindowRideConstructionKeyboardShortcutDemolishCurrent();
-
-    // RideList
-    WindowBase* RideListOpen();
-    void WindowRideListRefreshList(WindowBase* w);
 
     // SavePrompt
     WindowBase* SavePromptOpen();
@@ -375,21 +321,6 @@ namespace OpenRCT2::Ui::Windows
 
     // TopToolbar
     WindowBase* TopToolbarOpen();
-
-    // TrackDesignPlace
-    WindowBase* TrackPlaceOpen(const TrackDesignFileRef* tdFileRef);
-    void TrackPlaceClearProvisionalTemporarily();
-    void TrackPlaceRestoreProvisional();
-
-    // TrackDesignManage
-    WindowBase* TrackManageOpen(TrackDesignFileRef* tdFileRef);
-
-    // TrackList
-    // rct2: 0x00F635EE
-    extern RideSelection _window_track_list_item;
-    WindowBase* TrackListOpen(RideSelection item);
-    void WindowTrackDesignListReloadTracks();
-    void WindowTrackDesignListSetBeingUpdated(bool beingUpdated);
 
     // Transparency
     WindowBase* TransparencyOpen();

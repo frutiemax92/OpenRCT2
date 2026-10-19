@@ -459,7 +459,6 @@ namespace OpenRCT2::Ui::FileBrowser
                         if (success)
                         {
                             windowMgr->CloseByClass(WindowClass::loadsave);
-                            Windows::WindowRideMeasurementsDesignCancel();
                             InvokeCallback(ModalResult::ok, path);
                         }
                         else

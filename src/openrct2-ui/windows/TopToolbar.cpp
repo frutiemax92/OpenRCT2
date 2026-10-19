@@ -1095,6 +1095,10 @@ namespace OpenRCT2::Ui::Windows
             widgets[WIDX_ZOOM_OUT].setVisible(config.toolbarShowZoom);
             widgets[WIDX_ROTATE_ANTI_CLOCKWISE].setVisible(config.toolbarShowRotateAnticlockwise);
 
+            // Ride windows are removed (ARC-002).
+            widgets[WIDX_CONSTRUCT_RIDE].setHidden();
+            widgets[WIDX_RIDES].setHidden();
+
             const bool hasPauseButton = !(
                 gLegacyScene == LegacyScene::scenarioEditor || gLegacyScene == LegacyScene::trackDesignsManager);
             widgets[WIDX_PAUSE].setVisible(hasPauseButton);
