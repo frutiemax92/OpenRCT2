@@ -459,3 +459,88 @@ TEST(TerrainSmoothingTest, IsDeterministicAndKeepsEveryShapeGapFree)
             ASSERT_EQ(a.pixels[p] == 0, plain.pixels[p] == 0);
     }
 }
+
+namespace
+{
+    // Texture whose colour tells the row: colour = row + 1.
+    TerrainTexture RowTexture()
+    {
+        std::vector<uint8_t> px(64 * 64);
+        for (int y = 0; y < 64; y++)
+            for (int x = 0; x < 64; x++)
+                px[y * 64 + x] = static_cast<uint8_t>(y + 1);
+        return TerrainTexture::Create(64, px);
+    }
+} // namespace
+
+TEST(TerrainEdgeTest, TwoOfTheFourEdgesFaceTheViewer)
+{
+    for (int rot = 0; rot < 4; rot++)
+    {
+        int facing = 0;
+        for (uint8_t q = 0; q < 4; q++)
+            facing += IsEdgeFacingViewer(static_cast<Quadrant>(q), rot);
+        EXPECT_EQ(facing, 2) << rot;
+    }
+    EXPECT_TRUE(IsEdgeFacingViewer(Quadrant::northEast, 0));
+    EXPECT_TRUE(IsEdgeFacingViewer(Quadrant::northWest, 0));
+    EXPECT_FALSE(IsEdgeFacingViewer(Quadrant::southEast, 0));
+    EXPECT_FALSE(IsEdgeFacingViewer(Quadrant::southWest, 0));
+}
+
+TEST(TerrainEdgeTest, FaceAreaFollowsTheHeightDifference)
+{
+    auto tex = Solid(9);
+    const auto shades = TerrainShadeTable::Identity();
+    auto count = [&](TerrainEdgeFace f, int zoom = 0) {
+        return static_cast<double>(CountCovered(GenerateTerrainEdgeSprite(tex, f, shades, 0, zoom)));
+    };
+    // Rectangle 32 wide on screen, 16 tall.
+    EXPECT_NEAR(count({ Quadrant::northWest, 16, 16, 0, 0, 0 }), 32.0 * 16.0, 40.0);
+    // Wedge: half of it.
+    EXPECT_NEAR(count({ Quadrant::northWest, 16, 0, 0, 0, 0 }), 32.0 * 16.0 / 2, 40.0);
+    // No height, no face.
+    EXPECT_EQ(count({ Quadrant::northWest, 8, 8, 8, 8, 0 }), 0.0);
+    // Zoomed out sprites cover a quarter per zoom step.
+    EXPECT_NEAR(count({ Quadrant::northWest, 16, 16, 0, 0, 0 }, 1), 32.0 * 16.0 / 4, 24.0);
+}
+
+TEST(TerrainEdgeTest, RowsLineUpWithAbsoluteHeight)
+{
+    auto tex = RowTexture();
+    const auto shades = TerrainShadeTable::Identity();
+    // Edge y = 0 at rotation 0: the point (16, 0) at height z sits at screen (-16, -8 - z).
+    for (int base : { 0, 24, 40 })
+    {
+        auto s = GenerateTerrainEdgeSprite(tex, { Quadrant::southEast, 24, 24, 0, 0, base }, shades, 0, 0);
+        for (int z : { 4, 12, 20 })
+        {
+            const int sx = -16, sy = -8 - z;
+            const int ox = sx - s.xOffset, oy = sy - s.yOffset;
+            ASSERT_GE(ox, 0);
+            ASSERT_LT(ox, s.width);
+            ASSERT_GE(oy, 0);
+            ASSERT_LT(oy, s.height);
+            const int colour = s.pixels[static_cast<size_t>(oy) * s.width + ox];
+            const int expectedRow = ((-(base + z)) % 64 + 64) % 64;
+            EXPECT_NEAR(colour - 1, expectedRow, 2) << "base " << base << " z " << z;
+        }
+    }
+}
+
+TEST(TerrainEdgeTest, DarkerThanTheFlatSurfaceAndNeverOverEmptyPixels)
+{
+    std::array<std::array<uint8_t, 3>, 256> pal{};
+    for (int i = 0; i < 256; i++)
+        pal[i] = { uint8_t(i), uint8_t(i), uint8_t(i) };
+    const auto shades = TerrainShadeTable::FromPalette(pal);
+    auto tex = Solid(100);
+    for (uint8_t q = 0; q < 4; q++)
+    {
+        auto s = GenerateTerrainEdgeSprite(tex, { static_cast<Quadrant>(q), 20, 12, 0, 4, 0 }, shades, 1, 0);
+        ASSERT_EQ(s.pixels.size(), static_cast<size_t>(s.width) * s.height);
+        for (auto p : s.pixels)
+            ASSERT_TRUE(p == 0 || p < 100);
+        EXPECT_GT(CountCovered(s), 0u);
+    }
+}

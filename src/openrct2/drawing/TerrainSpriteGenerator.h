@@ -81,4 +81,25 @@ namespace OpenRCT2::Drawing
     TerrainSprite GenerateTerrainSprite(
         const Terrain::TerrainShape& shape, const std::array<const TerrainTexture*, 4>& quadrants,
         const TerrainShadeTable& shades, int32_t rotation, int32_t zoom, const TerrainSmoothing& smoothing = {});
+
+    // A vertical face along one tile edge, hanging from this tile's edge down to the lower neighbouring edge
+    // (TER-060). Heights are z units relative to the base height of the tile; A and B are the edge ends in increasing
+    // x (edges y = 0 and y = 32) or increasing y (edges x = 0 and x = 32).
+    struct TerrainEdgeFace
+    {
+        Terrain::Quadrant edge; // the quadrant touching the edge: north-east x = 32, south-east y = 0, south-west x = 0, north-west y = 32
+        int32_t topA;
+        int32_t topB;
+        int32_t bottomA;
+        int32_t bottomB;
+        int32_t baseZ; // absolute base height of the tile, so the texture lines up between tiles
+    };
+
+    // Sprite of an edge face, positioned like the surface sprites. Empty when the face has no area.
+    TerrainSprite GenerateTerrainEdgeSprite(
+        const TerrainTexture& texture, const TerrainEdgeFace& face, const TerrainShadeTable& shades, int32_t rotation,
+        int32_t zoom);
+
+    // True when the vertical face of the tile edge points towards the viewer for the rotation.
+    bool IsEdgeFacingViewer(Terrain::Quadrant edge, int32_t rotation);
 } // namespace OpenRCT2::Drawing

@@ -388,4 +388,143 @@ namespace OpenRCT2::Drawing
         }
         return sprite;
     }
+
+    bool IsEdgeFacingViewer(Quadrant edge, int32_t rotation)
+    {
+        int32_t nx = 0, ny = 0;
+        switch (edge)
+        {
+            case Quadrant::northEast:
+                nx = 1;
+                break;
+            case Quadrant::southEast:
+                ny = -1;
+                break;
+            case Quadrant::southWest:
+                nx = -1;
+                break;
+            default:
+                ny = 1;
+                break;
+        }
+        RotateOffset(rotation, nx, ny);
+        return nx + ny > 0;
+    }
+
+    TerrainSprite GenerateTerrainEdgeSprite(
+        const TerrainTexture& texture, const TerrainEdgeFace& face, const TerrainShadeTable& shades, int32_t rotation,
+        int32_t zoom)
+    {
+        assert(zoom >= 0 && zoom < kTerrainZoomLevels);
+        rotation &= 3;
+
+        // Ends of the edge in tile coordinates.
+        int32_t ax = 0, ay = 0, bx = 0, by = 0, nx = 0, ny = 0;
+        switch (face.edge)
+        {
+            case Quadrant::northEast:
+                ax = bx = kTile;
+                ay = 0;
+                by = kTile;
+                nx = 1;
+                break;
+            case Quadrant::southEast:
+                ay = by = 0;
+                ax = 0;
+                bx = kTile;
+                ny = -1;
+                break;
+            case Quadrant::southWest:
+                ax = bx = 0;
+                ay = 0;
+                by = kTile;
+                nx = -1;
+                break;
+            default:
+                ay = by = kTile;
+                ax = 0;
+                bx = kTile;
+                ny = 1;
+                break;
+        }
+
+        struct FaceVertex
+        {
+            Vertex v;
+            int32_t u; // 0..32 along the edge
+        };
+        const FaceVertex corners[4] = {
+            { MakeVertex(ax, ay, face.topA, rotation), 0 },
+            { MakeVertex(bx, by, face.topB, rotation), kTile },
+            { MakeVertex(bx, by, face.bottomB, rotation), kTile },
+            { MakeVertex(ax, ay, face.bottomA, rotation), 0 },
+        };
+        const int32_t triangles[2][3] = { { 0, 1, 2 }, { 0, 2, 3 } };
+
+        const int64_t step = int64_t{ 1 } << zoom;
+        int64_t minX = INT64_MAX, minY = INT64_MAX, maxX = INT64_MIN, maxY = INT64_MIN;
+        for (const auto& c : corners)
+        {
+            minX = std::min(minX, c.v.sx);
+            maxX = std::max(maxX, c.v.sx);
+            minY = std::min(minY, c.v.sy);
+            maxY = std::max(maxY, c.v.sy);
+        }
+        TerrainSprite sprite;
+        sprite.xOffset = FloorDiv(minX, step);
+        sprite.yOffset = FloorDiv(minY, step);
+        sprite.width = CeilDiv(maxX, step) - sprite.xOffset;
+        sprite.height = CeilDiv(maxY, step) - sprite.yOffset;
+        sprite.pixels.assign(static_cast<size_t>(sprite.width) * static_cast<size_t>(sprite.height), kTerrainTransparent);
+
+        // Vertical faces: shade from the horizontal normal.
+        const int32_t band = GetTerrainShadeBand({ nx * kFixedOne, ny * kFixedOne, 0 }, rotation);
+        const int32_t mipSize = texture.MipSize(zoom);
+
+        for (const auto& tri : triangles)
+        {
+            const FaceVertex* a = &corners[tri[0]];
+            const FaceVertex* b = &corners[tri[1]];
+            const FaceVertex* c = &corners[tri[2]];
+            int64_t area = Edge(2 * a->v.sx, 2 * a->v.sy, 2 * b->v.sx, 2 * b->v.sy, 2 * c->v.sx, 2 * c->v.sy);
+            if (area == 0)
+                continue;
+            if (area < 0)
+            {
+                std::swap(b, c);
+                area = -area;
+            }
+            const int64_t bias0 = IsTopLeft(2 * b->v.sx, 2 * b->v.sy, 2 * c->v.sx, 2 * c->v.sy) ? 0 : -1;
+            const int64_t bias1 = IsTopLeft(2 * c->v.sx, 2 * c->v.sy, 2 * a->v.sx, 2 * a->v.sy) ? 0 : -1;
+            const int64_t bias2 = IsTopLeft(2 * a->v.sx, 2 * a->v.sy, 2 * b->v.sx, 2 * b->v.sy) ? 0 : -1;
+
+            const int64_t tminX = std::min({ a->v.sx, b->v.sx, c->v.sx }), tmaxX = std::max({ a->v.sx, b->v.sx, c->v.sx });
+            const int64_t tminY = std::min({ a->v.sy, b->v.sy, c->v.sy }), tmaxY = std::max({ a->v.sy, b->v.sy, c->v.sy });
+            for (int32_t py = FloorDiv(tminY, step); py < CeilDiv(tmaxY, step); py++)
+            {
+                for (int32_t px = FloorDiv(tminX, step); px < CeilDiv(tmaxX, step); px++)
+                {
+                    const int64_t cx = (2 * static_cast<int64_t>(px) + 1) * step;
+                    const int64_t cy = (2 * static_cast<int64_t>(py) + 1) * step;
+                    const int64_t w0 = Edge(2 * b->v.sx, 2 * b->v.sy, 2 * c->v.sx, 2 * c->v.sy, cx, cy);
+                    const int64_t w1 = Edge(2 * c->v.sx, 2 * c->v.sy, 2 * a->v.sx, 2 * a->v.sy, cx, cy);
+                    const int64_t w2 = Edge(2 * a->v.sx, 2 * a->v.sy, 2 * b->v.sx, 2 * b->v.sy, cx, cy);
+                    if (w0 + bias0 < 0 || w1 + bias1 < 0 || w2 + bias2 < 0)
+                        continue;
+
+                    const int64_t u256 = (w0 * a->u + w1 * b->u + w2 * c->u) * 256 / area;
+                    const int64_t z256 = (w0 * a->v.z + w1 * b->v.z + w2 * c->v.z) * 256 / area;
+                    const int32_t col = static_cast<int32_t>(std::clamp<int64_t>(u256 * mipSize / (kTile * 256), 0, mipSize - 1));
+                    // Rows count down from the top of the world so the texture lines up between tiles.
+                    const int64_t zAbs = face.baseZ + (z256 >> 8);
+                    const int32_t row = static_cast<int32_t>(((-(zAbs >> zoom)) % mipSize + mipSize) % mipSize);
+                    const int32_t ox = px - sprite.xOffset, oy = py - sprite.yOffset;
+                    if (ox < 0 || oy < 0 || ox >= sprite.width || oy >= sprite.height)
+                        continue;
+                    sprite.pixels[static_cast<size_t>(oy) * sprite.width + ox] = shades.Shade(band, texture.Sample(zoom, col, row));
+                }
+            }
+        }
+        return sprite;
+    }
 } // namespace OpenRCT2::Drawing
