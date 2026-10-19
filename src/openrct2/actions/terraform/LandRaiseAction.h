@@ -21,10 +21,11 @@ namespace OpenRCT2::GameActions
         CoordsXY _coords;
         MapRange _range;
         MapSelectType _selectionType{};
+        uint8_t _stepQ{ 2 }; // quarter steps per use (TER-015)
 
     public:
         LandRaiseAction() = default;
-        LandRaiseAction(const CoordsXY& coords, MapRange range, MapSelectType selectionType);
+        LandRaiseAction(const CoordsXY& coords, MapRange range, MapSelectType selectionType, uint8_t stepQ = 2);
 
         void AcceptParameters(GameActionParameterVisitor&) final;
 

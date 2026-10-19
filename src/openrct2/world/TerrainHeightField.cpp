@@ -14,10 +14,11 @@
 
 namespace OpenRCT2::Terrain
 {
-    HeightField::HeightField(int32_t tilesX, int32_t tilesY, int32_t maxHeightQ)
+    HeightField::HeightField(int32_t tilesX, int32_t tilesY, int32_t maxHeightQ, int32_t minHeightQ)
         : _tilesX(tilesX)
         , _tilesY(tilesY)
         , _maxHeightQ(maxHeightQ)
+        , _minHeightQ(minHeightQ)
         , _heights(static_cast<size_t>(tilesX + 1) * static_cast<size_t>(tilesY + 1), 0)
     {
     }
@@ -62,7 +63,7 @@ namespace OpenRCT2::Terrain
             for (int32_t tx = 0; tx < _tilesX; tx++)
             {
                 const auto [base, shape] = GetTile(tx, ty);
-                if (!IsValidShape(shape) || base < 0 || base > _maxHeightQ)
+                if (!IsValidShape(shape) || base < _minHeightQ || base > _maxHeightQ)
                     return false;
             }
         return true;
@@ -138,7 +139,7 @@ namespace OpenRCT2::Terrain
         Enforce(queue, raising);
 
         const bool inRange = std::all_of(
-            _heights.begin(), _heights.end(), [&](int32_t h) { return h >= 0 && h <= _maxHeightQ; });
+            _heights.begin(), _heights.end(), [&](int32_t h) { return h >= _minHeightQ && h <= _maxHeightQ; });
         if (!inRange)
         {
             _heights = backup;

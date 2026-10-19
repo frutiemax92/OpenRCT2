@@ -24,7 +24,7 @@ namespace OpenRCT2::Terrain
     class HeightField
     {
     public:
-        HeightField(int32_t tilesX, int32_t tilesY, int32_t maxHeightQ);
+        HeightField(int32_t tilesX, int32_t tilesY, int32_t maxHeightQ, int32_t minHeightQ = 0);
 
         int32_t GetTilesX() const { return _tilesX; }
         int32_t GetTilesY() const { return _tilesY; }
@@ -40,7 +40,7 @@ namespace OpenRCT2::Terrain
 
         // Raises the lowest of the given vertices by stepQ (all of them when they are level), or lowers the highest.
         // Neighbours follow so no tile exceeds kMaxCornerOffset. Returns false, changing nothing, when a height would
-        // leave 0..maxHeightQ. Vertices outside the field are ignored.
+        // leave minHeightQ..maxHeightQ. Vertices outside the field are ignored.
         bool Raise(std::span<const std::pair<int32_t, int32_t>> vertices, int32_t stepQ);
         bool Lower(std::span<const std::pair<int32_t, int32_t>> vertices, int32_t stepQ);
 
@@ -58,6 +58,7 @@ namespace OpenRCT2::Terrain
         int32_t _tilesX;
         int32_t _tilesY;
         int32_t _maxHeightQ;
+        int32_t _minHeightQ;
         std::vector<int32_t> _heights;
         std::vector<std::pair<int32_t, int32_t>> _changed;
     };

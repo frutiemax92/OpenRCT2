@@ -13,7 +13,10 @@
 #include <gtest/gtest.h>
 #include <openrct2/Context.h>
 #include <openrct2/actions/GameActionRunner.h>
+#include <openrct2/actions/terraform/LandLowerAction.h>
+#include <openrct2/actions/terraform/LandRaiseAction.h>
 #include <openrct2/actions/terraform/LandSetHeightAction.h>
+#include <openrct2/world/MapSelection.h>
 #include <openrct2/GameState.h>
 #include <openrct2/OpenRCT2.h>
 #include <openrct2/config/Config.h>
@@ -261,4 +264,96 @@ TEST_F(BaseObjects, LandSetHeightStoresQuarterStepShapes)
     EXPECT_EQ((Terrain::TerrainShape{ 2, 0, 0, 0 }), surface->getTerrainShape());
     GameActions::LandSetHeightAction invalid(pos, 22, Terrain::TerrainShape{ 1, 1, 1, 1 });
     EXPECT_NE(GameActions::Status::ok, GameActions::Query(&invalid, getGameState()).error);
+}
+
+class LandTools : public BaseObjects
+{
+protected:
+    static void SetUpMap()
+    {
+        auto& objectManager = GetContext()->GetObjectManager();
+        objectManager.UnloadAll();
+        for (auto identifier : kMinimumRequiredObjects)
+            ASSERT_NE(nullptr, objectManager.LoadObject(identifier)) << identifier;
+        gameStateInitAll(getGameState(), { 32, 32 });
+        getGameState().cheats.sandboxMode = true;
+    }
+
+    static MapRange Tile(int x, int y)
+    {
+        return { x * kCoordsXYStep, y * kCoordsXYStep, x * kCoordsXYStep, y * kCoordsXYStep };
+    }
+
+    static Terrain::TerrainShape ShapeAt(int x, int y)
+    {
+        return MapGetSurfaceElementAt(TileCoordsXY{ x, y })->getTerrainShape();
+    }
+};
+
+TEST_F(LandTools, RaisingACornerByAQuarterMakesAQuarterSlope)
+{
+    SetUpMap();
+    const auto base = MapGetSurfaceElementAt(TileCoordsXY{ 10, 10 })->baseHeight;
+    GameActions::LandRaiseAction raise({ 10 * 32, 10 * 32 }, Tile(10, 10), MapSelectType::corner0, 1); // N corner
+    ASSERT_EQ(GameActions::Status::ok, GameActions::ExecuteNested(&raise, getGameState()).error);
+    EXPECT_EQ((Terrain::TerrainShape{ 1, 0, 0, 0 }), ShapeAt(10, 10));
+    EXPECT_EQ(base, MapGetSurfaceElementAt(TileCoordsXY{ 10, 10 })->baseHeight);
+    // The N corner of (10, 10) is shared: the S corner of (11, 11), the E of (10, 11), the W of (11, 10).
+    EXPECT_EQ((Terrain::TerrainShape{ 0, 0, 1, 0 }), ShapeAt(11, 11));
+    EXPECT_EQ((Terrain::TerrainShape{ 0, 1, 0, 0 }), ShapeAt(10, 11));
+    EXPECT_EQ((Terrain::TerrainShape{ 0, 0, 0, 1 }), ShapeAt(11, 10));
+    EXPECT_EQ((Terrain::TerrainShape{ 0, 0, 0, 0 }), ShapeAt(12, 12));
+}
+
+TEST_F(LandTools, DefaultStepIsAHalfStepAndLoweringUndoesIt)
+{
+    SetUpMap();
+    GameActions::LandRaiseAction raise({ 10 * 32, 10 * 32 }, Tile(10, 10), MapSelectType::corner1);
+    ASSERT_EQ(GameActions::Status::ok, GameActions::ExecuteNested(&raise, getGameState()).error);
+    EXPECT_EQ((Terrain::TerrainShape{ 0, 2, 0, 0 }), ShapeAt(10, 10)); // same as the legacy slope step
+    GameActions::LandLowerAction lower({ 10 * 32, 10 * 32 }, Tile(10, 10), MapSelectType::corner1);
+    ASSERT_EQ(GameActions::Status::ok, GameActions::ExecuteNested(&lower, getGameState()).error);
+    EXPECT_EQ((Terrain::TerrainShape{ 0, 0, 0, 0 }), ShapeAt(10, 10));
+    EXPECT_EQ((Terrain::TerrainShape{ 0, 0, 0, 0 }), ShapeAt(11, 9));
+}
+
+TEST_F(LandTools, RaisingAWholeTileRaisesItsBase)
+{
+    SetUpMap();
+    const auto base = MapGetSurfaceElementAt(TileCoordsXY{ 10, 10 })->baseHeight;
+    GameActions::LandRaiseAction raise({ 10 * 32, 10 * 32 }, Tile(10, 10), MapSelectType::full, 3);
+    ASSERT_EQ(GameActions::Status::ok, GameActions::ExecuteNested(&raise, getGameState()).error);
+    EXPECT_EQ(base + 3, MapGetSurfaceElementAt(TileCoordsXY{ 10, 10 })->baseHeight);
+    EXPECT_EQ((Terrain::TerrainShape{ 0, 0, 0, 0 }), ShapeAt(10, 10));
+    // Its neighbours slope up to it by 3 Q on the shared edge.
+    EXPECT_EQ((Terrain::TerrainShape{ 3, 3, 0, 0 }), ShapeAt(9, 10));
+}
+
+TEST_F(LandTools, SteepRaisesSmoothTheSurroundings)
+{
+    SetUpMap();
+    for (int i = 0; i < 3; i++)
+    {
+        GameActions::LandRaiseAction raise({ 10 * 32, 10 * 32 }, Tile(10, 10), MapSelectType::corner2, 4);
+        ASSERT_EQ(GameActions::Status::ok, GameActions::ExecuteNested(&raise, getGameState()).error);
+    }
+    // Every tile of the map still fits the shape model.
+    for (int y = 0; y < 32; y++)
+        for (int x = 0; x < 32; x++)
+            ASSERT_TRUE(Terrain::IsValidShape(ShapeAt(x, y))) << x << "," << y;
+    EXPECT_TRUE(ShapeAt(9, 9).north > 0 || ShapeAt(9, 9).east > 0 || ShapeAt(9, 9).south > 0 || ShapeAt(9, 9).west > 0);
+}
+
+TEST_F(LandTools, InvalidStepsAndLimitsAreRefused)
+{
+    SetUpMap();
+    GameActions::LandRaiseAction zero({ 10 * 32, 10 * 32 }, Tile(10, 10), MapSelectType::full, 0);
+    EXPECT_NE(GameActions::Status::ok, GameActions::Query(&zero, getGameState()).error);
+    GameActions::LandRaiseAction big({ 10 * 32, 10 * 32 }, Tile(10, 10), MapSelectType::full, 5);
+    EXPECT_NE(GameActions::Status::ok, GameActions::Query(&big, getGameState()).error);
+    GameActions::LandLowerAction tooLow({ 10 * 32, 10 * 32 }, Tile(10, 10), MapSelectType::full, 4);
+    // Default land is at 14 Q: lowering by 4 repeatedly hits the minimum (2 Q) and is refused without changes.
+    for (int i = 0; i < 3; i++)
+        GameActions::ExecuteNested(&tooLow, getGameState());
+    EXPECT_GE(MapGetSurfaceElementAt(TileCoordsXY{ 10, 10 })->baseHeight, kMinimumLandHeight);
 }

@@ -22,14 +22,16 @@
 #include "../../world/tile_element/Slope.h"
 #include "../../world/tile_element/SurfaceElement.h"
 #include "../GameActionRunner.h"
+#include "LandHeightEdit.h"
 #include "LandSetHeightAction.h"
 
 namespace OpenRCT2::GameActions
 {
-    LandRaiseAction::LandRaiseAction(const CoordsXY& coords, MapRange range, MapSelectType selectionType)
+    LandRaiseAction::LandRaiseAction(const CoordsXY& coords, MapRange range, MapSelectType selectionType, uint8_t stepQ)
         : _coords(coords)
         , _range(range)
         , _selectionType(selectionType)
+        , _stepQ(stepQ)
     {
     }
 
@@ -38,6 +40,7 @@ namespace OpenRCT2::GameActions
         visitor.Visit(_coords);
         visitor.Visit(_range);
         visitor.Visit("selectionType", _selectionType);
+        visitor.Visit("stepQ", _stepQ);
     }
 
     uint16_t LandRaiseAction::GetActionFlags() const
@@ -49,7 +52,7 @@ namespace OpenRCT2::GameActions
     {
         GameAction::Serialise(stream);
 
-        stream << DS_TAG(_coords) << DS_TAG(_range) << DS_TAG(_selectionType);
+        stream << DS_TAG(_coords) << DS_TAG(_range) << DS_TAG(_selectionType) << DS_TAG(_stepQ);
     }
 
     Result LandRaiseAction::Query(GameState_t& gameState, Park::ParkData& park) const
@@ -64,85 +67,22 @@ namespace OpenRCT2::GameActions
 
     Result LandRaiseAction::QueryExecute(GameState_t& gameState, bool isExecuting) const
     {
-        auto res = Result();
-        size_t tableRow = EnumValue(_selectionType);
+        if (_stepQ == 0 || _stepQ > Terrain::kMaxCornerOffset)
+        {
+            return Result(Status::invalidParameters, STR_CANT_RAISE_LAND_HERE, STR_ERR_INVALID_PARAMETER);
+        }
 
-        // The selections between MapSelectType::full and MapSelectType::edge0 are not included in the tables
-        if (_selectionType >= MapSelectType::edge0 && _selectionType <= MapSelectType::edge3)
-            tableRow -= EnumValue(MapSelectType::edge0) - EnumValue(MapSelectType::full) - 1;
-
-        auto validRange = ClampRangeWithinMap(_range);
-
-        res.position = { _coords.x, _coords.y, TileElementHeight(_coords) };
-        res.expenditure = ExpenditureType::landscaping;
-
+        const auto position = CoordsXYZ{ _coords.x, _coords.y, TileElementHeight(_coords) };
         if (isExecuting)
         {
-            Audio::Play3D(Audio::SoundId::placeItem, { _coords.x, _coords.y, TileElementHeight(_coords) });
+            Audio::Play3D(Audio::SoundId::placeItem, position);
         }
 
-        uint8_t minHeight = MapGetLowestLandHeight(validRange);
-        bool withinOwnership = false;
-
-        for (int32_t y = validRange.getY1(); y <= validRange.getY2(); y += kCoordsXYStep)
-        {
-            for (int32_t x = validRange.getX1(); x <= validRange.getX2(); x += kCoordsXYStep)
-            {
-                if (!LocationValid({ x, y }))
-                    continue;
-                auto* surfaceElement = MapGetSurfaceElementAt(CoordsXY{ x, y });
-                if (surfaceElement == nullptr)
-                    continue;
-
-                if (gLegacyScene != LegacyScene::scenarioEditor && !gameState.cheats.sandboxMode)
-                {
-                    if (!MapIsLocationInPark(CoordsXY{ x, y }))
-                    {
-                        continue;
-                    }
-                }
-                withinOwnership = true;
-
-                uint8_t height = surfaceElement->baseHeight;
-
-                if (height > minHeight)
-                    continue;
-
-                uint8_t currentSlope = surfaceElement->getSlope();
-                uint8_t newSlope = RaiseSurfaceCornerFlags(tableRow, currentSlope);
-                if (newSlope & kTileSlopeRaiseOrLowerBaseHeight)
-                {
-                    if (height + 2 > UINT8_MAX)
-                    {
-                        height = UINT8_MAX;
-                    }
-                    else
-                    {
-                        height += 2;
-                    }
-                }
-                newSlope &= kTileSlopeMask;
-
-                auto landSetHeightAction = LandSetHeightAction({ x, y }, height, newSlope);
-                landSetHeightAction.SetFlags(GetFlags());
-                auto result = isExecuting ? ExecuteNested(&landSetHeightAction, gameState)
-                                          : QueryNested(&landSetHeightAction, gameState);
-                if (result.error == Status::ok)
-                {
-                    res.cost += result.cost;
-                }
-                else
-                {
-                    result.errorTitle = STR_CANT_RAISE_LAND_HERE;
-                    return result;
-                }
-            }
-        }
-
-        if (!withinOwnership)
-        {
-            return Result(Status::disallowed, STR_CANT_RAISE_LAND_HERE, STR_LAND_NOT_OWNED_BY_PARK);
-        }
+        auto res = ChangeLandHeight(gameState, _range, _selectionType, _stepQ, true, isExecuting, GetFlags(), STR_CANT_RAISE_LAND_HERE);
+        res.position = position;
+        res.expenditure = ExpenditureType::landscaping;
+        if (res.error != Status::ok)
+            return res;
 
         // Force ride construction to recheck area
         _currentTrackSelectionFlags.set(TrackSelectionFlag::recheck);
