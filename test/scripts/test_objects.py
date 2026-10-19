@@ -166,13 +166,24 @@ class ObjectTests(unittest.TestCase):
 
     def test_terrain_surface_has_an_icon_and_three_entries(self):
         z, data = open_object("terrain_surface/golf.terrain_surface.fairway.parkobj")
-        self.assertEqual(1 + 3 * objects.SURFACE_IMAGES_PER_ENTRY, len(data["images"]))
+        self.assertEqual(1 + 3 * objects.SURFACE_IMAGES_PER_ENTRY + 1, len(data["images"]))
         self.assertEqual({"normal": 0, "grid": 1, "underground": 2}, data["default"])
         flat = data["images"][1]
         self.assertEqual((-32, 0), (flat["x"], flat["y"]))
         self.assertEqual((64, 32), png_size(z.read(flat["path"])))
         map_colour = data["properties"]["mapColours"][0]
         self.assertTrue(objects.is_plain_index(map_colour), map_colour)
+
+    def test_terrain_surface_ends_with_a_raw_square_texture(self):
+        for name, label, _, _ in objects.SURFACES:
+            z, data = open_object("terrain_surface/golf.terrain_surface.%s.parkobj" % name)
+            self.assertTrue(data["properties"]["hasTexture"], name)
+            texture = data["images"][-1]
+            self.assertEqual("raw", texture["format"], name)
+            self.assertEqual((0, 0), (texture["x"], texture["y"]))
+            self.assertEqual((64, 64), png_size(z.read(texture["path"])), name)
+            pixels = png_pixels(z.read(texture["path"]))
+            self.assertTrue(all(p[3] == 255 for row in pixels for p in row), name)  # opaque, so no index 0
 
     def test_surfaces_have_distinct_colours(self):
         centres = set()

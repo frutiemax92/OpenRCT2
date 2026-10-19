@@ -10,6 +10,7 @@
 #include "TerrainSurfaceObject.h"
 
 #include "../Context.h"
+#include "../Diagnostic.h"
 #include "../OpenRCT2.h"
 #include "../core/Guard.hpp"
 #include "../core/Json.hpp"
@@ -104,7 +105,27 @@ namespace OpenRCT2
         {
             EntryBaseImageId = IconImageId + 1;
         }
-        NumEntries = (GetImageTable().GetCount() - (EntryBaseImageId - IconImageId)) / kNumImagesInEntry;
+        const auto imageCount = static_cast<uint32_t>(GetImageTable().GetCount()) - (HasTexture ? 1 : 0);
+        NumEntries = (imageCount - (EntryBaseImageId - IconImageId)) / kNumImagesInEntry;
+        if (HasTexture)
+            loadTexture(IconImageId + imageCount);
+    }
+
+    void TerrainSurfaceObject::loadTexture(ImageIndex imageId)
+    {
+        Texture = {};
+        if (gOpenRCT2NoGraphics)
+            return;
+
+        const auto* g1 = GfxGetG1Element(imageId);
+        if (g1 == nullptr || g1->offset == nullptr || g1->flags.has(G1Flag::hasRLECompression) || g1->width != g1->height
+            || g1->width <= 0 || (g1->width & (g1->width - 1)) != 0)
+        {
+            LOG_WARNING("Terrain surface '%s' has no valid square texture", GetIdentifier().data());
+            return;
+        }
+        const auto size = static_cast<size_t>(g1->width);
+        Texture = Drawing::TerrainTexture::Create(g1->width, std::vector<uint8_t>(g1->offset, g1->offset + size * size));
     }
 
     void TerrainSurfaceObject::Unload()
@@ -114,6 +135,7 @@ namespace OpenRCT2
         if (Flags.has(TerrainSurfaceFlag::hasPrimaryColour))
             unloadPrecolouredPatternImages();
 
+        Texture = {};
         NameStringId = 0;
         IconImageId = 0;
         PatternBaseImageId = 0;
@@ -160,6 +182,8 @@ namespace OpenRCT2
                   { "smoothWithOther", TerrainSurfaceFlag::smoothWithOther },
                   { "canGrow", TerrainSurfaceFlag::canGrow },
                   { "hasPrimaryColour", TerrainSurfaceFlag::hasPrimaryColour } });
+
+            HasTexture = Json::GetBoolean(properties["hasTexture"]);
 
             const auto colourSettings = properties["colourSettings"];
             if (colourSettings.is_object() && colourSettings["parkMap"].is_array())

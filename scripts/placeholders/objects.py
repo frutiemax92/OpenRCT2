@@ -8,7 +8,8 @@ Generates the objects the map and the scenario editor need by default, so that n
   golf.climate.temperate        climate
 
 Terrain surfaces use the existing terrain_surface format: an icon, then 3 entries (normal, grid, underground) of 19
-images, one per surface slope, drawn as flat-shaded isometric tiles from the tile geometry. Terrain edges use the
+images, one per surface slope, drawn as flat-shaded isometric tiles from the tile geometry, then the 64x64 tileable
+square placeholder texture of generate.py that the procedural terrain renderer samples (hasTexture). Terrain edges use the
 existing terrain_edge format; each edge image fills the sprite box recorded in resources/base/terrain_layout.json
 (terrain_layout.py) with a wall band along the tile side. These formats are replaced by golf_terrain_surface and
 golf_terrain_edge in Phase 1 (§6.5, §6.7).
@@ -28,7 +29,7 @@ import re
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from generate import EDGES, SURFACES, surface_icon  # noqa: E402
+from generate import EDGES, SURFACES, surface_icon, surface_texture  # noqa: E402
 from parkobj import pack  # noqa: E402
 from pixelart import Image, draw_text, shade, text_colour, text_size  # noqa: E402
 
@@ -261,11 +262,14 @@ def terrain_surface(name, label, colour, description, palette):
             path = "images/%s_%02d.png" % (kind, offset)
             images[path] = quantise(image, palette).png()
             table.append({"path": path, "x": x, "y": y})
+    images["images/texture.png"] = quantise(surface_texture(label, colour), palette).png()
+    table.append({"path": "images/texture.png", "x": 0, "y": 0, "format": "raw"})
     map_colour = nearest_palette_index(colour, plain_palette(palette))
     properties = {
         "price": 100,
         "mapColours": [map_colour, map_colour],
         "rotations": 1,
+        "hasTexture": True,  # the last image is the square texture
     }
     data = manifest("golf.terrain_surface." + name, "terrain_surface", description, properties, table)
     data["default"] = {"normal": 0, "grid": 1, "underground": 2}

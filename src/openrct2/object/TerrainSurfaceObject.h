@@ -11,6 +11,7 @@
 
 #include "../core/Money.hpp"
 #include "../drawing/Colour.h"
+#include "../drawing/TerrainSpriteGenerator.h"
 #include "../drawing/PaletteIndex.h"
 #include "Object.h"
 
@@ -65,6 +66,7 @@ namespace OpenRCT2
 
         void precolourPatternImages();
         void unloadPrecolouredPatternImages();
+        void loadTexture(ImageIndex imageId);
 
     public:
         static constexpr ObjectType kObjectType = ObjectType::terrainSurface;
@@ -91,6 +93,14 @@ namespace OpenRCT2
         MapColour MapColours[2]{};
 
         ImageTable precolouredPatternImages{};
+
+        // The flat square texture of the procedural terrain renderer (TER-030): the last image of the object.
+        bool HasTexture{};
+        Drawing::TerrainTexture Texture{};
+        const Drawing::TerrainTexture* getTexture() const
+        {
+            return Texture.size != 0 ? &Texture : nullptr;
+        }
 
         void ReadJson(IReadObjectContext* context, json_t& root) override;
         void Load() override;

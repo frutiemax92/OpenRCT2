@@ -24,6 +24,7 @@
 #include <openrct2/object/ObjectRepository.h>
 #include <openrct2/object/TerrainEdgeObject.h>
 #include <openrct2/object/TerrainSurfaceObject.h>
+#include <openrct2/drawing/TerrainSpriteGenerator.h>
 #include <openrct2/ui/UiContext.h>
 #include <openrct2/world/Map.h>
 #include <string>
@@ -93,10 +94,28 @@ TEST_F(BaseObjects, TerrainSurfacesHaveThreeEntries)
         auto* surface = static_cast<TerrainSurfaceObject*>(Load(identifier));
         ASSERT_NE(nullptr, surface) << identifier;
         ASSERT_EQ(ObjectType::terrainSurface, surface->GetObjectType());
-        // Icon, then normal, grid and underground entries of 19 slope images.
-        EXPECT_EQ(1u + 3u * 19u, surface->GetImageTable().GetCount()) << identifier;
+        // Icon, then normal, grid and underground entries of 19 slope images, then the square texture.
+        EXPECT_EQ(1u + 3u * 19u + 1u, surface->GetImageTable().GetCount()) << identifier;
         EXPECT_EQ(3u, surface->NumEntries) << identifier;
         EXPECT_EQ(surface->IconImageId + 1, surface->EntryBaseImageId) << identifier;
+    }
+}
+
+TEST_F(BaseObjects, TerrainSurfacesHaveASquareTileableTexture)
+{
+    for (auto identifier : kCommonScenarioAndTrackDesignerObjects)
+    {
+        if (!identifier.starts_with("golf.terrain_surface."))
+            continue;
+        auto* surface = static_cast<TerrainSurfaceObject*>(Load(identifier));
+        ASSERT_NE(nullptr, surface) << identifier;
+        EXPECT_TRUE(surface->HasTexture) << identifier;
+        const auto* texture = surface->getTexture();
+        ASSERT_NE(nullptr, texture) << identifier;
+        EXPECT_EQ(64, texture->size) << identifier;
+        EXPECT_EQ(static_cast<size_t>(Drawing::kTerrainZoomLevels), texture->mips.size()) << identifier;
+        for (auto pixel : texture->mips[0])
+            ASSERT_NE(Drawing::kTerrainTransparent, pixel) << identifier;
     }
 }
 
