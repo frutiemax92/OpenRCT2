@@ -26,7 +26,6 @@
 #include "scenario/Scenario.h"
 #include "scenes/editor/EditorScene.h"
 #include "scenes/title/TitleScene.h"
-#include "scenes/title/TitleSequencePlayer.h"
 #include "scripting/ScriptEngine.h"
 #include "ui/UiContext.h"
 #include "windows/Intent.h"
@@ -113,15 +112,6 @@ namespace OpenRCT2
         // 0x006E3AEC // screen_game_process_mouse_input();
         ScreenshotCheck();
         GameHandleKeyboardInput();
-
-        if (GameIsNotPaused() && gPreviewingTitleSequenceInGame)
-        {
-            auto player = GetContext()->GetUiContext().GetTitleSequencePlayer();
-            if (player != nullptr)
-            {
-                player->Update();
-            }
-        }
 
         Network::Update();
 

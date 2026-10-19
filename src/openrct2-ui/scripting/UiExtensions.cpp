@@ -16,7 +16,6 @@
     #include "ScGraphicsContext.hpp"
     #include "ScImageManager.hpp"
     #include "ScTileSelection.hpp"
-    #include "ScTitleSequence.hpp"
     #include "ScUi.hpp"
     #include "ScWidget.hpp"
     #include "ScWindow.h"
@@ -44,15 +43,11 @@ ScSpinnerWidget OpenRCT2::Scripting::gScSpinnerWidget;
 ScTextBoxWidget OpenRCT2::Scripting::gScTextBoxWidget;
 ScViewportWidget OpenRCT2::Scripting::gScViewportWidget;
 
-ScTitleSequence OpenRCT2::Scripting::gScTitleSequence;
-ScTitleSequenceManager OpenRCT2::Scripting::gScTitleSequenceManager;
-ScTitleSequencePark OpenRCT2::Scripting::gScTitleSequencePark;
 ScWindow OpenRCT2::Scripting::gScWindow;
 
 static void InitialiseContext(JSContext* ctx)
 {
     JSValue glb = JS_GetGlobalObject(ctx);
-    JS_SetPropertyStr(ctx, glb, "titleSequenceManager", gScTitleSequenceManager.New(ctx));
     JS_SetPropertyStr(ctx, glb, "ui", gScUi.New(ctx, &OpenRCT2::GetContext()->GetScriptEngine()));
     JS_FreeValue(ctx, glb);
 }
@@ -80,9 +75,6 @@ void UiScriptExtensions::Extend(ScriptEngine& scriptEngine)
     gScTextBoxWidget.Register(ctx);
     gScViewportWidget.Register(ctx);
 
-    gScTitleSequence.Register(ctx);
-    gScTitleSequenceManager.Register(ctx);
-    gScTitleSequencePark.Register(ctx);
     gScWindow.Register(ctx);
 
     InitialiseCustomImages(scriptEngine);
@@ -116,9 +108,6 @@ void UiScriptExtensions::Unregister()
     gScTextBoxWidget.Unregister();
     gScViewportWidget.Unregister();
 
-    gScTitleSequence.Unregister();
-    gScTitleSequenceManager.Unregister();
-    gScTitleSequencePark.Unregister();
     gScWindow.Unregister();
 }
 

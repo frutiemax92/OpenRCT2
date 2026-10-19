@@ -19,7 +19,6 @@
 #include "interface/InGameConsole.h"
 #include "interface/Theme.h"
 #include "scripting/UiExtensions.h"
-#include "title/TitleSequencePlayer.h"
 
 #include <SDL.h>
 #include <cmath>
@@ -43,7 +42,6 @@
 #include <openrct2/drawing/RenderTarget.h>
 #include <openrct2/interface/ScreenCoords.hpp>
 #include <openrct2/interface/Viewport.h>
-#include <openrct2/scenes/title/TitleSequencePlayer.h>
 #include <openrct2/ui/UiContext.h>
 #include <openrct2/ui/WindowManager.h>
 #include <vector>
@@ -95,7 +93,6 @@ private:
     float _gestureRadius = 0;
 
     InGameConsole _inGameConsole;
-    std::unique_ptr<ITitleSequencePlayer> _titleSequencePlayer;
 
 public:
     InGameConsole& GetInGameConsole()
@@ -751,15 +748,6 @@ public:
                 target)
             == 0);
 #endif
-    }
-
-    ITitleSequencePlayer* GetTitleSequencePlayer() override
-    {
-        if (_titleSequencePlayer == nullptr)
-        {
-            _titleSequencePlayer = Title::CreateTitleSequencePlayer();
-        }
-        return _titleSequencePlayer.get();
     }
 
 private:

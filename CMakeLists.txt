@@ -69,9 +69,6 @@ set(ROOT_DIR "${CMAKE_CURRENT_LIST_DIR}")
 
 file(READ "${CMAKE_CURRENT_SOURCE_DIR}/assets.json" ASSETS_JSON)
 
-string(JSON TITLE_SEQUENCE_URL GET "${ASSETS_JSON}" "title-sequences" url)
-string(JSON TITLE_SEQUENCE_SHA256 GET "${ASSETS_JSON}" "title-sequences" sha256)
-
 string(JSON OBJECTS_URL GET "${ASSETS_JSON}" objects url)
 string(JSON OBJECTS_SHA256 GET "${ASSETS_JSON}" objects sha256)
 
@@ -88,7 +85,6 @@ option(FORCE32 "Force 32-bit build. It will add `-m32` to compiler flags.")
 option(WITH_TESTS "Build tests")
 option(PORTABLE "Create a portable build (-rpath=$ORIGIN)" OFF)
 option(APPIMAGE "Create an appimage build (-rpath=$ORIGIN/../lib)" OFF)
-option(DOWNLOAD_TITLE_SEQUENCES "Download title sequences during installation." ON)
 option(DOWNLOAD_OBJECTS "Download objects during installation." ON)
 option(DOWNLOAD_OPENSFX "Download OpenSoundEffects during installation." ON)
 option(DOWNLOAD_OPENMUSIC "Download OpenMusic during installation." ON)
@@ -447,19 +443,6 @@ if (NOT MACOS_BUNDLE OR (MACOS_BUNDLE AND WITH_TESTS))
                         "${ROOT_DIR}/distribution/scripting/scripting.md"
                         "${ROOT_DIR}/distribution/scripting/openrct2.d.ts")
 
-    if (DOWNLOAD_TITLE_SEQUENCES)
-        # Checks if this version of the title sequences are already installed, updates if necessary
-        # if /data/sequence exists, it will overwrite this anyways (see `install(DIRECTORY "data/" ...)` below)
-        # therefore, the existence of that directory will skip this download
-        install(CODE "
-            include(${ROOT_DIR}/cmake/download.cmake)
-            download_openrct2_zip(
-                DOWNLOAD_DIR \$ENV{DESTDIR}${CMAKE_INSTALL_FULL_DATADIR}/openrct2/sequence/
-                SKIP_IF_EXISTS ${CMAKE_SOURCE_DIR}/data/sequence/
-                ZIP_URL ${TITLE_SEQUENCE_URL}
-                SHA256 ${TITLE_SEQUENCE_SHA256}
-            )")
-    endif ()
     if (DOWNLOAD_OBJECTS)
         # Checks if this version of the objects are already installed, updates if necessary
         # if /data/object exists, it will overwrite this anyways (see `install(DIRECTORY "data/" ...)` below)

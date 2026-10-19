@@ -72,7 +72,6 @@
 #include "scenes/SceneManager.h"
 #include "scenes/editor/EditorScene.h"
 #include "scenes/preloader/PreloaderScene.h"
-#include "scenes/title/TitleSequenceManager.h"
 #include "scripting/ScriptEngine.h"
 #include "ui/UiContext.h"
 #include "ui/WindowManager.h"
@@ -553,9 +552,6 @@ namespace OpenRCT2
 
             OpenProgress(STR_CHECKING_SCENARIO_FILES);
             _scenarioRepository->Scan(currentLanguage);
-
-            OpenProgress(STR_CHECKING_TITLE_SEQUENCES);
-            TitleSequenceManager::Scan();
 
             OpenProgress(STR_LOADING_GENERIC);
         }
@@ -1403,7 +1399,6 @@ namespace OpenRCT2
                     DirId::heightmaps,
                     DirId::plugins,
                     DirId::themes,
-                    DirId::sequences,
                     DirId::replayRecordings,
                     DirId::desyncLogs,
                     DirId::crashDumps,

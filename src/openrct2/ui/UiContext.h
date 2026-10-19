@@ -18,7 +18,6 @@
 #include <vector>
 
 struct ScreenCoordsXY;
-struct ITitleSequencePlayer;
 
 namespace OpenRCT2
 {
@@ -169,9 +168,6 @@ namespace OpenRCT2
 
             // Clipboard
             virtual bool SetClipboardText(const utf8* target) = 0;
-
-            // HACK Until all title logic is moved to libopenrct2ui, we will need to provide some services
-            virtual ITitleSequencePlayer* GetTitleSequencePlayer() = 0;
         };
 
         [[nodiscard]] std::unique_ptr<IUiContext> CreateDummyUiContext();

@@ -50,7 +50,6 @@
 #include <openrct2/ride/RideAudio.h>
 #include <openrct2/scenario/Scenario.h>
 #include <openrct2/scenes/title/TitleScene.h>
-#include <openrct2/scenes/title/TitleSequenceManager.h>
 #include <openrct2/ui/UiContext.h>
 #include <openrct2/ui/WindowManager.h>
 
@@ -216,10 +215,7 @@ namespace OpenRCT2::Ui::Windows
         WIDX_GAMEPAD_SENSITIVITY,
 
         // Misc
-        WIDX_TITLE_SEQUENCE_GROUP = WIDX_PAGE_START,
-        WIDX_TITLE_SEQUENCE,
-        WIDX_TITLE_SEQUENCE_DROPDOWN,
-        WIDX_SCENARIO_OPTIONS_GROUP,
+        WIDX_SCENARIO_OPTIONS_GROUP = WIDX_PAGE_START,
         WIDX_SCENARIO_PREVIEWS_LABEL,
         WIDX_SCENARIO_PREVIEWS,
         WIDX_SCENARIO_PREVIEWS_DROPDOWN,
@@ -414,15 +410,11 @@ namespace OpenRCT2::Ui::Windows
         makeWidget({155, kToolbarGroupStart + 91}, {145, 12}, WidgetType::checkbox, WindowColour::tertiary , STR_ROTATE_ANTI_CLOCKWISE,           STR_ROTATE_VIEW_ANTI_CLOCKWISE_IN_TOOLBAR_TIP)  // Rotate anti-clockwise
     );
 
-    constexpr int32_t kTitleSequenceStart = 53;
-    constexpr int32_t kScenarioOptionsGroupStart = kTitleSequenceStart + 39;
+    constexpr int32_t kScenarioOptionsGroupStart = 53;
     constexpr int32_t kTweaksStart = kScenarioOptionsGroupStart + 72;
 
     static constexpr auto window_options_misc_widgets = makeWidgets(
         kMainOptionsWidgets,
-        makeWidget(         {  5, kTitleSequenceStart +  0}, {300, 35}, WidgetType::groupbox,     WindowColour::secondary, STR_OPTIONS_TITLE_SEQUENCE                              ),
-        makeDropdownWidgets({ 10, kTitleSequenceStart + 15}, {290, 14}, WidgetType::dropdownMenu, WindowColour::secondary, kStringIdEmpty,               STR_TITLE_SEQUENCE_TIP    ), // Title sequence dropdown
-
         makeWidget({ 5,  kScenarioOptionsGroupStart +  0}, {300, 66}, WidgetType::groupbox,     WindowColour::secondary, STR_SCENARIO_OPTIONS                                      ),
         makeWidget({ 10, kScenarioOptionsGroupStart + 16}, {165, 12}, WidgetType::label,        WindowColour::secondary, STR_SCENARIO_PREVIEWS_LABEL,    STR_SCENARIO_PREVIEWS_TIP ),
         makeWidget({175, kScenarioOptionsGroupStart + 15}, {125, 14}, WidgetType::dropdownMenu, WindowColour::secondary                                                            ), // Scenario previews
@@ -1866,28 +1858,6 @@ namespace OpenRCT2::Ui::Windows
 
             switch (widgetIndex)
             {
-                case WIDX_TITLE_SEQUENCE_DROPDOWN:
-                {
-                    uint32_t numItems = static_cast<int32_t>(TitleSequenceManager::GetCount());
-                    for (size_t i = 0; i < numItems; i++)
-                    {
-                        gDropdown.items[i] = Dropdown::MenuLabel(TitleSequenceManager::GetName(i));
-                    }
-
-                    gDropdown.items[numItems] = Dropdown::Separator();
-                    numItems++;
-                    gDropdown.items[numItems] = Dropdown::MenuLabel(STR_TITLE_SEQUENCE_RANDOM);
-                    numItems++;
-
-                    WindowDropdownShowText(
-                        { windowPos.x + widget->left, windowPos.y + widget->top }, widget->height(), colours[1], {}, numItems);
-
-                    auto selectedIndex = Config::Get().interface.randomTitleSequence
-                        ? numItems - 1
-                        : static_cast<int32_t>(TitleGetCurrentSequence());
-                    gDropdown.items[selectedIndex].setChecked(true);
-                    break;
-                }
                 case WIDX_SCENARIO_PREVIEWS_DROPDOWN:
                 {
                     uint32_t numItems = 2;
@@ -1919,24 +1889,6 @@ namespace OpenRCT2::Ui::Windows
         {
             switch (widgetIndex)
             {
-                case WIDX_TITLE_SEQUENCE_DROPDOWN:
-                {
-                    auto numItems = static_cast<int32_t>(TitleSequenceManager::GetCount());
-                    if (dropdownIndex < numItems && dropdownIndex != static_cast<int32_t>(TitleGetCurrentSequence()))
-                    {
-                        Config::Get().interface.randomTitleSequence = false;
-                        TitleSequenceChangePreset(static_cast<size_t>(dropdownIndex));
-                        Config::Save();
-                        invalidate();
-                    }
-                    else if (dropdownIndex == numItems + 1)
-                    {
-                        Config::Get().interface.randomTitleSequence = true;
-                        Config::Save();
-                        invalidate();
-                    }
-                    break;
-                }
                 case WIDX_DEFAULT_INSPECTION_INTERVAL_DROPDOWN:
                     if (dropdownIndex != EnumValue(Config::Get().general.defaultInspectionInterval))
                     {
@@ -1960,16 +1912,6 @@ namespace OpenRCT2::Ui::Windows
 
         void MiscPrepareDraw()
         {
-            if (Config::Get().interface.randomTitleSequence)
-            {
-                _dropdownCaption = LanguageGetString(STR_TITLE_SEQUENCE_RANDOM);
-            }
-            else
-            {
-                _dropdownCaption = TitleSequenceManager::GetName(TitleGetConfigSequence());
-            }
-            widgets[WIDX_TITLE_SEQUENCE].setString(_dropdownCaption.c_str());
-
             // The real name setting of clients is fixed to that of the server
             // and the server cannot change the setting during gameplay to prevent desyncs
             const bool inNetwork = Network::GetMode() != Network::Mode::none;

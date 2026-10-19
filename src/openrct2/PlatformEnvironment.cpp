@@ -39,7 +39,6 @@ static constexpr const char* kDirectoryNamesRCT2[] = {
     "Saved Games", // SAVE
     "Scenarios",   // SCENARIO
     nullptr,       // SCREENSHOT
-    nullptr,       // SEQUENCE
     nullptr,       // SHADER
     nullptr,       // THEME
     "Tracks",      // TRACK
@@ -57,7 +56,6 @@ static constexpr u8string_view kDirectoryNamesOpenRCT2[] = {
     u8"save",             // SAVE
     u8"scenario",         // SCENARIO
     u8"screenshot",       // SCREENSHOT
-    u8"sequence",         // SEQUENCE
     u8"shaders",          // SHADER
     u8"themes",           // THEME
     u8"track",            // TRACK

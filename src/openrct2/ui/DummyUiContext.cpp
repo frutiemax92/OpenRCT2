@@ -204,11 +204,6 @@ namespace OpenRCT2::Ui
             return false;
         }
 
-        ITitleSequencePlayer* GetTitleSequencePlayer() override
-        {
-            return nullptr;
-        }
-
         bool HasFilePicker() const override
         {
             return false;

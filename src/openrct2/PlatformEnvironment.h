@@ -41,7 +41,6 @@ namespace OpenRCT2
         saves,            // Contains saved games (SV6).
         scenarios,        // Contains scenarios (SC6).
         screenshots,      // Contains screenshots.
-        sequences,        // Contains title sequences.
         shaders,          // Contains OpenGL shaders.
         themes,           // Contains interface themes.
         trackDesigns,     // Contains track designs.

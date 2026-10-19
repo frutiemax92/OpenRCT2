@@ -142,9 +142,7 @@ namespace OpenRCT2::Config
         bool toolbarShowZoom;
         bool toolbarShowRotateAnticlockwise;
         bool consoleSmallFont;
-        bool randomTitleSequence;
         u8string currentThemePreset;
-        u8string currentTitleSequencePreset;
         int32_t objectSelectionFilterFlags;
         int32_t scenarioSelectLastTab;
         bool scenarioPreviewScreenshots;

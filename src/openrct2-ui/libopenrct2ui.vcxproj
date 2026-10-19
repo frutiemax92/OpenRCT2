@@ -90,7 +90,6 @@
     <ClInclude Include="scripting\ScGraphicsContext.hpp" />
     <ClInclude Include="scripting\ScImageManager.hpp" />
     <ClInclude Include="scripting\ScTileSelection.hpp" />
-    <ClInclude Include="scripting\ScTitleSequence.hpp" />
     <ClInclude Include="scripting\ScUi.hpp" />
     <ClInclude Include="scripting\ScViewport.hpp" />
     <ClInclude Include="scripting\ScWidget.hpp" />
@@ -100,7 +99,6 @@
     <ClInclude Include="ProvisionalElements.h" />
     <ClInclude Include="SDLException.h" />
     <ClInclude Include="TextComposition.h" />
-    <ClInclude Include="title\TitleSequencePlayer.h" />
     <ClInclude Include="Ui.h" />
     <ClInclude Include="UiContext.h" />
     <ClInclude Include="UiStringIds.h" />
@@ -162,7 +160,6 @@
     <ClCompile Include="ProvisionalElements.cpp" />
     <ClCompile Include="SDLException.cpp" />
     <ClCompile Include="TextComposition.cpp" />
-    <ClCompile Include="title\TitleSequencePlayer.cpp" />
     <ClCompile Include="Ui.cpp" />
     <ClCompile Include="UiContext.Android.cpp" />
     <ClCompile Include="UiContext.cpp" />

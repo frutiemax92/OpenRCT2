@@ -222,19 +222,12 @@ if(MACOS_BUNDLE)
     file(COPY ${SOURCE_DATA_DIR}/scenario_patches DESTINATION "${BUNDLE_RESOURCE_DIR}")
     file(COPY ${SOURCE_DATA_DIR}/shaders DESTINATION "${BUNDLE_RESOURCE_DIR}")
 
-    # Download objects and sequences
+    # Download objects
     set(OBJECTS_DIR ${CMAKE_BINARY_DIR}/object)
-    set(TITLE_SEQUENCE_DIR ${CMAKE_BINARY_DIR}/sequence)
     download_openrct2_zip(
         DOWNLOAD_DIR ${OBJECTS_DIR}
         ZIP_URL ${OBJECTS_URL}
         SHA256 ${OBJECTS_SHA256}
-    )
-
-    download_openrct2_zip(
-        DOWNLOAD_DIR ${TITLE_SEQUENCE_DIR}
-        ZIP_URL ${TITLE_SEQUENCE_URL}
-        SHA256 ${TITLE_SEQUENCE_SHA256}
     )
 
     # Download opensfx and openmusic
@@ -252,7 +245,6 @@ if(MACOS_BUNDLE)
 
     # Copy downloaded data
     file(COPY ${OBJECTS_DIR} DESTINATION "${BUNDLE_RESOURCE_DIR}")
-    file(COPY ${TITLE_SEQUENCE_DIR} DESTINATION "${BUNDLE_RESOURCE_DIR}")
     file(COPY ${ASSET_PACK_DIR} DESTINATION "${BUNDLE_RESOURCE_DIR}")
 
     # Create as a bundle
