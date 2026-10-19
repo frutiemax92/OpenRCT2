@@ -117,4 +117,6 @@ struct PrintReplayParameter
     }
 };
 
+// Replays are downloaded test data recorded with RCT assets; the suite is empty when they are absent (AST-001).
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(ReplayTests);
 INSTANTIATE_TEST_SUITE_P(Replay, ReplayTests, testing::ValuesIn(GetReplayFiles()), PrintReplayParameter());
