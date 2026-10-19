@@ -12,6 +12,8 @@
 
 #include <gtest/gtest.h>
 #include <openrct2/Context.h>
+#include <openrct2/actions/GameActionRunner.h>
+#include <openrct2/actions/terraform/LandSetHeightAction.h>
 #include <openrct2/GameState.h>
 #include <openrct2/OpenRCT2.h>
 #include <openrct2/config/Config.h>
@@ -29,6 +31,7 @@
 #include <openrct2/ui/UiContext.h>
 #include <openrct2/world/Map.h>
 #include <openrct2/world/tile_element/SurfaceElement.h>
+#include <openrct2/world/tile_element/Slope.h>
 #include <string>
 #include <vector>
 
@@ -232,4 +235,30 @@ TEST_F(BaseObjects, QuarterStepTerrainIsDrawnProcedurally)
     // Unloading the terrain objects drops them.
     objectManager.UnloadAll();
     EXPECT_EQ(0u, store.GetSpriteCount());
+}
+
+TEST_F(BaseObjects, LandSetHeightStoresQuarterStepShapes)
+{
+    auto& objectManager = GetContext()->GetObjectManager();
+    objectManager.UnloadAll();
+    for (auto identifier : kMinimumRequiredObjects)
+        ASSERT_NE(nullptr, objectManager.LoadObject(identifier)) << identifier;
+    gameStateInitAll(getGameState(), { 16, 16 });
+    getGameState().cheats.sandboxMode = true;
+
+    const CoordsXY pos{ 5 * kCoordsXYStep, 6 * kCoordsXYStep };
+    GameActions::LandSetHeightAction action(pos, 20, Terrain::TerrainShape{ 1, 3, 0, 4 });
+    const auto result = GameActions::ExecuteNested(&action, getGameState());
+    ASSERT_EQ(GameActions::Status::ok, result.error);
+    auto* surface = MapGetSurfaceElementAt(pos);
+    ASSERT_NE(nullptr, surface);
+    EXPECT_EQ(20, surface->baseHeight);
+    EXPECT_EQ((Terrain::TerrainShape{ 1, 3, 0, 4 }), surface->getTerrainShape());
+
+    // Legacy slope flags still work, and an invalid shape is refused.
+    GameActions::LandSetHeightAction legacy(pos, 22, static_cast<uint8_t>(kTileSlopeNCornerUp));
+    ASSERT_EQ(GameActions::Status::ok, GameActions::ExecuteNested(&legacy, getGameState()).error);
+    EXPECT_EQ((Terrain::TerrainShape{ 2, 0, 0, 0 }), surface->getTerrainShape());
+    GameActions::LandSetHeightAction invalid(pos, 22, Terrain::TerrainShape{ 1, 1, 1, 1 });
+    EXPECT_NE(GameActions::Status::ok, GameActions::Query(&invalid, getGameState()).error);
 }

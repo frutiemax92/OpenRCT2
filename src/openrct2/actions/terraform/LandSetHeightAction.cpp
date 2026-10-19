@@ -29,18 +29,33 @@
 
 namespace OpenRCT2::GameActions
 {
+    LandSetHeightAction::LandSetHeightAction(const CoordsXY& coords, uint8_t height, const Terrain::TerrainShape& shape)
+        : _coords(coords)
+        , _height(height)
+        , _shape(Terrain::EncodeShape(shape))
+    {
+    }
+
     LandSetHeightAction::LandSetHeightAction(const CoordsXY& coords, uint8_t height, uint8_t style)
         : _coords(coords)
         , _height(height)
-        , _style(style)
     {
+        uint8_t raiseQ = 0;
+        _shape = Terrain::EncodeShape(Terrain::ShapeFromLegacySlope(style & kTileSlopeMask, &raiseQ));
+        _height = static_cast<uint8_t>(height + raiseQ);
+    }
+
+    uint8_t LandSetHeightAction::GetHighestOffset() const
+    {
+        const auto s = Terrain::DecodeShape(_shape);
+        return std::max({ s.north, s.east, s.south, s.west });
     }
 
     void LandSetHeightAction::AcceptParameters(GameActionParameterVisitor& visitor)
     {
         visitor.Visit(_coords);
         visitor.Visit("height", _height);
-        visitor.Visit("style", _style);
+        visitor.Visit("shape", _shape);
     }
 
     uint16_t LandSetHeightAction::GetActionFlags() const
@@ -52,7 +67,7 @@ namespace OpenRCT2::GameActions
     {
         GameAction::Serialise(stream);
 
-        stream << DS_TAG(_coords) << DS_TAG(_height) << DS_TAG(_style);
+        stream << DS_TAG(_coords) << DS_TAG(_height) << DS_TAG(_shape);
     }
 
     Result LandSetHeightAction::Query(GameState_t& gameState, Park::ParkData& park) const
@@ -126,19 +141,11 @@ namespace OpenRCT2::GameActions
                 return res;
             }
 
-            uint8_t zCorner = _height;
-            if (_style & kTileSlopeRaisedCornersMask)
-            {
-                zCorner += 2;
-                if (_style & kTileSlopeDiagonalFlag)
-                {
-                    zCorner += 2;
-                }
-            }
+            const uint8_t zCorner = _height + GetHighestOffset();
 
             auto clearResult = MapCanConstructWithClearAt(
                 { _coords, _height * kCoordsZStep, zCorner * kCoordsZStep }, MapSetLandHeightClearFunc, { 0b1111, 0 }, {},
-                { .slope = _style });
+                { .slope = Terrain::LegacySlopeFromShape(Terrain::DecodeShape(_shape)) });
             if (clearResult.error != Status::ok)
             {
                 clearResult.error = Status::disallowed;
@@ -196,12 +203,12 @@ namespace OpenRCT2::GameActions
             return STR_TOO_HIGH;
         }
 
-        if (_height > kMaximumLandHeight - 2 && (_style & kTileSlopeMask) != 0)
+        if (!Terrain::IsValidShape(Terrain::DecodeShape(_shape)))
         {
-            return STR_TOO_HIGH;
+            return STR_ERR_INVALID_PARAMETER;
         }
 
-        if (_height == kMaximumLandHeight - 2 && (_style & kTileSlopeDiagonalFlag))
+        if (_height + GetHighestOffset() > kMaximumLandHeight)
         {
             return STR_TOO_HIGH;
         }
@@ -296,14 +303,7 @@ namespace OpenRCT2::GameActions
             uint32_t waterHeight = surfaceElement->asSurface()->getWaterHeight();
             if (waterHeight != 0)
             {
-                if (_style & kTileSlopeMask)
-                {
-                    zCorner += 2;
-                    if (_style & kTileSlopeDiagonalFlag)
-                    {
-                        zCorner += 2;
-                    }
-                }
+                zCorner += GetHighestOffset();
                 if (zCorner > (waterHeight / kCoordsZStep) - 2)
                 {
                     return ++surfaceElement;
@@ -316,12 +316,14 @@ namespace OpenRCT2::GameActions
     money64 LandSetHeightAction::GetSurfaceHeightChangeCost(SurfaceElement* surfaceElement) const
     {
         money64 cost{ 0 };
-        for (Direction i : kAllDirections)
-        {
-            int32_t cornerHeight = TileElementGetCornerHeight(surfaceElement, i);
-            cornerHeight -= MapGetCornerHeight(_height, _style & kTileSlopeMask, i);
-            cost += 2.50_GBP * abs(cornerHeight);
-        }
+        // Corner heights in Q.
+        const auto oldShape = surfaceElement->getTerrainShape();
+        const auto newShape = Terrain::DecodeShape(_shape);
+        const int32_t oldBase = surfaceElement->baseHeight;
+        cost += 2.50_GBP * abs(oldBase + oldShape.north - (_height + newShape.north));
+        cost += 2.50_GBP * abs(oldBase + oldShape.east - (_height + newShape.east));
+        cost += 2.50_GBP * abs(oldBase + oldShape.south - (_height + newShape.south));
+        cost += 2.50_GBP * abs(oldBase + oldShape.west - (_height + newShape.west));
         return cost;
     }
 
@@ -329,7 +331,7 @@ namespace OpenRCT2::GameActions
     {
         surfaceElement->baseHeight = _height;
         surfaceElement->clearanceHeight = _height;
-        surfaceElement->asSurface()->setSlope(_style);
+        surfaceElement->asSurface()->setTerrainShape(Terrain::DecodeShape(_shape));
         int32_t waterHeight = surfaceElement->asSurface()->getWaterHeight() / kCoordsZStep;
         if (waterHeight != 0 && waterHeight <= _height)
         {

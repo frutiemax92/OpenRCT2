@@ -9,6 +9,7 @@
 
 #pragma once
 
+#include "../../world/TerrainShape.h"
 #include "../GameAction.hpp"
 
 namespace OpenRCT2::GameActions
@@ -18,10 +19,15 @@ namespace OpenRCT2::GameActions
     private:
         CoordsXY _coords;
         uint8_t _height{};
-        uint8_t _style{};
+        uint16_t _shape{}; // encoded Terrain::TerrainShape, offsets in Q above the height
+
+        uint8_t GetHighestOffset() const;
 
     public:
         LandSetHeightAction() = default;
+        // The height is in Q (8 z units); the shape holds the corner offsets in Q.
+        LandSetHeightAction(const CoordsXY& coords, uint8_t height, const Terrain::TerrainShape& shape);
+        // Legacy slope bit flags.
         LandSetHeightAction(const CoordsXY& coords, uint8_t height, uint8_t style);
 
         void AcceptParameters(GameActionParameterVisitor&) final;
