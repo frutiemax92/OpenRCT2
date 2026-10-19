@@ -280,14 +280,7 @@ void ScObjectManager::MarkAsResearched(const Object* object)
     // Defaults selected items to researched (if in-game)
     auto objectType = object->GetObjectType();
     auto entryIndex = ObjectManagerGetLoadedObjectEntryIndex(object);
-    if (objectType == ObjectType::ride)
-    {
-        const auto* rideEntry = GetRideEntryByIndex(entryIndex);
-        auto rideType = rideEntry->GetFirstNonNullRideType();
-        auto category = static_cast<ResearchCategory>(GetRideTypeDescriptor(rideType).Category);
-        ResearchInsertRideEntry(rideType, entryIndex, category, true);
-    }
-    else if (objectType == ObjectType::sceneryGroup)
+    if (objectType == ObjectType::sceneryGroup)
     {
         ResearchInsertSceneryGroupEntry(entryIndex, true);
     }
@@ -305,10 +298,6 @@ JSValue ScObjectManager::CreateScObject(JSContext* ctx, ObjectType type, int32_t
 {
     switch (type)
     {
-        case ObjectType::ride:
-        {
-            return ScRideObject::New(ctx, type, index);
-        }
         case ObjectType::smallScenery:
         {
             return ScSmallSceneryObject::New(ctx, type, index);

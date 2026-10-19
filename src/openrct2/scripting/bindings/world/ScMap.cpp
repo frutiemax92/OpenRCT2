@@ -27,9 +27,6 @@
     #include "../entity/ScMoneyEffect.hpp"
     #include "../entity/ScParticle.hpp"
     #include "../entity/ScStaff.hpp"
-    #include "../entity/ScVehicle.hpp"
-    #include "../ride/ScRide.hpp"
-    #include "../ride/ScTrackIterator.h"
     #include "../world/ScPathConnection.h"
     #include "../world/ScPathNavigator.h"
     #include "../world/ScTile.hpp"
@@ -51,33 +48,6 @@ namespace OpenRCT2::Scripting
     JSValue ScMap::numEntities_get(JSContext* ctx, JSValue thisVal)
     {
         return JS_NewInt32(ctx, kMaxEntities);
-    }
-
-    JSValue ScMap::rides_get(JSContext* ctx, JSValue thisVal)
-    {
-        JSValue result = JS_NewArray(ctx);
-
-        auto& gameState = getGameState();
-        auto rideManager = RideManager(gameState);
-        int64_t idx = 0;
-        for (const auto& ride : rideManager)
-        {
-            JS_SetPropertyInt64(ctx, result, idx++, gScRide.New(ctx, ride.id));
-        }
-        return result;
-    }
-
-    JSValue ScMap::getRide(JSContext* ctx, JSValue thisVal, int argc, JSValue* argv)
-    {
-        JS_UNPACK_INT32(id, ctx, argv[0]);
-        auto& gameState = getGameState();
-        auto rideManager = RideManager(gameState);
-        auto ride = rideManager[RideId::FromUnderlying(id)];
-        if (ride != nullptr)
-        {
-            return gScRide.New(ctx, ride->id);
-        }
-        return JS_NULL;
     }
 
     JSValue ScMap::getTile(JSContext* ctx, JSValue thisVal, int argc, JSValue* argv)
@@ -115,32 +85,6 @@ namespace OpenRCT2::Scripting
             for (auto sprite : EntityList<Balloon>())
             {
                 JS_SetPropertyInt64(ctx, result, idx++, ScBalloon::New(ctx, sprite->id));
-            }
-        }
-        else if (type == "car")
-        {
-            for (auto trainHead : TrainManager::View())
-            {
-                for (auto carId = trainHead->id; !carId.IsNull();)
-                {
-                    auto car = getGameState().entities.getEntity<Vehicle>(carId);
-
-                    if (car == nullptr)
-                    {
-                        break;
-                    }
-
-                    JS_SetPropertyInt64(ctx, result, idx++, ScVehicle::New(ctx, carId));
-
-                    // Prevent infinite loops: Ensure next_vehicle_on_train is valid and not self-referencing
-                    auto nextCarId = car->next_vehicle_on_train;
-                    if (nextCarId == carId)
-                    {
-                        break;
-                    }
-
-                    carId = nextCarId;
-                }
             }
         }
         else if (type == "litter")
@@ -250,13 +194,6 @@ namespace OpenRCT2::Scripting
                 JS_SetPropertyInt64(ctx, result, idx++, ScBalloon::New(ctx, sprite->id));
             }
         }
-        else if (type == "car")
-        {
-            for (auto sprite : EntityTileList<Vehicle>(pos))
-            {
-                JS_SetPropertyInt64(ctx, result, idx++, ScVehicle::New(ctx, sprite->id));
-            }
-        }
         else if (type == "litter")
         {
             for (auto sprite : EntityTileList<Litter>(pos))
@@ -358,35 +295,7 @@ namespace OpenRCT2::Scripting
         JSValue initializer = argv[1];
 
         JSValue res;
-        if (type == "car")
-        {
-            Vehicle* entity = getGameState().entities.createEntity<Vehicle>();
-            if (entity == nullptr)
-            {
-                // Probably no more space for entities for this specified entity type.
-                res = JS_UNDEFINED;
-            }
-            else
-            {
-                auto entityPos = CoordsXYZ{ AsOrDefault(ctx, initializer, "x", 0), AsOrDefault(ctx, initializer, "y", 0),
-                                            AsOrDefault(ctx, initializer, "z", 0) };
-                entity->moveTo(entityPos);
-
-                // Reset some important vehicle vars to their null values
-                entity->sound1_id = Audio::SoundId::null;
-                entity->sound2_id = Audio::SoundId::null;
-                entity->next_vehicle_on_train = EntityId::GetNull();
-                entity->scream_sound_id = Audio::SoundId::null;
-                for (size_t i = 0; i < std::size(entity->peep); i++)
-                {
-                    entity->peep[i] = EntityId::GetNull();
-                }
-                entity->BoatLocation.setNull();
-
-                res = ScVehicle::New(ctx, entity->id);
-            }
-        }
-        else if (type == "staff")
+        if (type == "staff")
         {
             res = createEntityType<Staff, ScStaff>(ctx, initializer);
         }
@@ -441,15 +350,6 @@ namespace OpenRCT2::Scripting
         }
 
         return res;
-    }
-
-    JSValue ScMap::getTrackIterator(JSContext* ctx, JSValue thisVal, int argc, JSValue* argv)
-    {
-        JS_UNPACK_OBJECT(pos, ctx, argv[0]);
-        JS_UNPACK_UINT32(elementIndex, ctx, argv[1]);
-
-        const auto position = JStoCoordsXY(ctx, pos);
-        return ScTrackIterator::FromElement(ctx, position, elementIndex);
     }
 
     static PathNavigationOptions ParsePathNavigationOptions(JSContext* ctx, JSValue obj)
@@ -510,14 +410,11 @@ namespace OpenRCT2::Scripting
             JS_CGETSET_DEF("size", ScMap::size_get, nullptr),
             JS_CGETSET_DEF("numRides", ScMap::numRides_get, nullptr),
             JS_CGETSET_DEF("numEntities", ScMap::numEntities_get, nullptr),
-            JS_CGETSET_DEF("rides", ScMap::rides_get, nullptr),
-            JS_CFUNC_DEF("getRide", 1, ScMap::getRide),
             JS_CFUNC_DEF("getTile", 2, ScMap::getTile),
             JS_CFUNC_DEF("getEntity", 1, ScMap::getEntity),
             JS_CFUNC_DEF("getAllEntities", 1, ScMap::getAllEntities),
             JS_CFUNC_DEF("getAllEntitiesOnTile", 2, ScMap::getAllEntitiesOnTile),
             JS_CFUNC_DEF("createEntity", 2, ScMap::createEntity),
-            JS_CFUNC_DEF("getTrackIterator", 2, ScMap::getTrackIterator),
             JS_CFUNC_DEF("getPathNavigator", 3, ScMap::getPathNavigator),
         };
         RegisterBase(ctx, "Map", nullptr, funcs);
@@ -533,8 +430,6 @@ namespace OpenRCT2::Scripting
         auto spriteId = sprite->id;
         switch (sprite->type)
         {
-            case EntityType::vehicle:
-                return ScVehicle::New(ctx, spriteId);
             case EntityType::staff:
             {
                 auto staff = getGameState().entities.getEntity<Staff>(spriteId);

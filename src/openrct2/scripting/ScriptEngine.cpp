@@ -36,7 +36,6 @@
     #include "bindings/entity/ScMoneyEffect.hpp"
     #include "bindings/entity/ScParticle.hpp"
     #include "bindings/entity/ScStaff.hpp"
-    #include "bindings/entity/ScVehicle.hpp"
     #include "bindings/game/ScCheats.hpp"
     #include "bindings/game/ScConsole.hpp"
     #include "bindings/game/ScContext.hpp"
@@ -50,9 +49,6 @@
     #include "bindings/object/ScInstalledObject.hpp"
     #include "bindings/object/ScObject.hpp"
     #include "bindings/object/ScObjectManager.h"
-    #include "bindings/ride/ScRide.hpp"
-    #include "bindings/ride/ScRideStation.hpp"
-    #include "bindings/ride/ScTrackIterator.h"
     #include "bindings/world/ScAward.hpp"
     #include "bindings/world/ScDate.hpp"
     #include "bindings/world/ScMap.hpp"
@@ -527,20 +523,14 @@ ScLargeSceneryObject Scripting::gScLargeSceneryObject;
 ScFootpathSurfaceObject Scripting::gScFootpathSurfaceObject;
 ScSceneryGroupObject Scripting::gScSceneryGroupObject;
 ScObject Scripting::gScObject;
-ScRideObject Scripting::gScRideObject;
 ScPark Scripting::gScPark;
 ScParkMessage Scripting::gScParkMessage;
 ScPlayer Scripting::gScPlayer;
 ScPlayerGroup Scripting::gScPlayerGroup;
 ScProfiler Scripting::gScProfiler;
 ScResearch Scripting::gScResearch;
-ScRide Scripting::gScRide;
-ScRideStation Scripting::gScRideStation;
-ScRideObjectVehicle Scripting::gScRideObjectVehicle;
 ScTile Scripting::gScTile;
 ScTileElement Scripting::gScTileElement;
-ScTrackIterator Scripting::gScTrackIterator;
-ScTrackSegment Scripting::gScTrackSegment;
 ScPathConnection Scripting::gScPathConnection;
 ScPathNavigator Scripting::gScPathNavigator;
 ScEntity Scripting::gScEntity;
@@ -570,7 +560,6 @@ void ScriptEngine::RegisterClasses(JSContext* ctx)
     gScObjectManager.Register(ctx);
     gScInstalledObject.Register(ctx);
     gScObject.Register(ctx);
-    gScRideObject.Register(ctx);
     gScSceneryObject.Register(ctx);
     gScSmallSceneryObject.Register(ctx);
     gScLargeSceneryObjectTile.Register(ctx);
@@ -583,13 +572,8 @@ void ScriptEngine::RegisterClasses(JSContext* ctx)
     gScPlayerGroup.Register(ctx);
     gScProfiler.Register(ctx);
     gScResearch.Register(ctx);
-    gScRide.Register(ctx);
-    gScRideStation.Register(ctx);
-    gScRideObjectVehicle.Register(ctx);
     gScTile.Register(ctx);
     gScTileElement.Register(ctx);
-    gScTrackIterator.Register(ctx);
-    gScTrackSegment.Register(ctx);
     gScPathConnection.Register(ctx);
     gScPathNavigator.Register(ctx);
     gScEntity.Register(ctx);
@@ -604,7 +588,6 @@ void ScriptEngine::RegisterClasses(JSContext* ctx)
     gScLitter.Register(ctx);
     gScMoneyEffect.Register(ctx);
     gScCrashedVehicleParticle.Register(ctx);
-    gScVehicle.Register(ctx);
     gScThought.Register(ctx);
     #ifndef DISABLE_NETWORK
     gScSocket.Register(ctx);
@@ -632,7 +615,6 @@ void ScriptEngine::UnregisterClasses()
     gScObjectManager.Unregister();
     gScInstalledObject.Unregister();
     gScObject.Unregister();
-    gScRideObject.Unregister();
     gScSceneryObject.Unregister();
     gScSmallSceneryObject.Unregister();
     gScLargeSceneryObjectTile.Unregister();
@@ -645,13 +627,8 @@ void ScriptEngine::UnregisterClasses()
     gScPlayerGroup.Unregister();
     gScProfiler.Unregister();
     gScResearch.Unregister();
-    gScRide.Unregister();
-    gScRideStation.Unregister();
-    gScRideObjectVehicle.Unregister();
     gScTile.Unregister();
     gScTileElement.Unregister();
-    gScTrackIterator.Unregister();
-    gScTrackSegment.Unregister();
     gScPathConnection.Unregister();
     gScPathNavigator.Unregister();
     gScEntity.Unregister();
@@ -666,7 +643,6 @@ void ScriptEngine::UnregisterClasses()
     gScLitter.Unregister();
     gScMoneyEffect.Unregister();
     gScCrashedVehicleParticle.Unregister();
-    gScVehicle.Unregister();
     gScThought.Unregister();
     #ifndef DISABLE_NETWORK
     gScSocket.Unregister();
@@ -1740,7 +1716,6 @@ const static EnumMap<GameCommand> ActionNameToType = {
     { "staffsetpatrolarea", GameCommand::setStaffPatrol },
     { "surfacesetstyle", GameCommand::changeSurfaceStyle },
     { "tilemodify", GameCommand::modifyTile },
-    { "trackdesign", GameCommand::placeTrackDesign },
     { "trackplace", GameCommand::placeTrack },
     { "trackremove", GameCommand::removeTrack },
     { "tracksetbrakespeed", GameCommand::setBrakesSpeed },

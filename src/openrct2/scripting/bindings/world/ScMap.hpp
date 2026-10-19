@@ -27,9 +27,7 @@ namespace OpenRCT2::Scripting
 
         static JSValue numEntities_get(JSContext* ctx, JSValue thisVal);
 
-        static JSValue rides_get(JSContext* ctx, JSValue thisVal);
 
-        static JSValue getRide(JSContext* ctx, JSValue thisVal, int argc, JSValue* argv);
 
         static JSValue getTile(JSContext* ctx, JSValue thisVal, int argc, JSValue* argv);
 
@@ -41,7 +39,6 @@ namespace OpenRCT2::Scripting
 
         static JSValue createEntity(JSContext* ctx, JSValue thisVal, int argc, JSValue* argv);
 
-        static JSValue getTrackIterator(JSContext* ctx, JSValue thisVal, int argc, JSValue* argv);
 
         static JSValue getPathNavigator(JSContext* ctx, JSValue thisVal, int argc, JSValue* argv);
 

@@ -25,7 +25,6 @@
     #include "../game/ScConfiguration.hpp"
     #include "../game/ScDisposable.hpp"
     #include "../object/ScObjectManager.h"
-    #include "../ride/ScTrackSegment.h"
 
     #include <cstdio>
     #include <memory>
@@ -183,32 +182,6 @@ namespace OpenRCT2::Scripting
         {
             // deprecated function, moved to ObjectManager.getAllObjects.
             return gScObjectManager.getAllObjects(ctx, thisVal, argc, argv);
-        }
-
-        static JSValue getTrackSegment(JSContext* ctx, JSValue thisVal, int argc, JSValue* argv)
-        {
-            JS_UNPACK_INT32(type, ctx, argv[0])
-
-            if (type >= EnumValue(TrackElemType::count))
-            {
-                return JS_NULL;
-            }
-            else
-            {
-                return gScTrackSegment.New(ctx, static_cast<TrackElemType>(type));
-            }
-        }
-
-        static JSValue getAllTrackSegments(JSContext* ctx, JSValue thisVal, int argc, JSValue* argv)
-        {
-            auto result = JS_NewArray(ctx);
-            int64_t index = 0;
-            for (uint16_t type = 0; type < EnumValue(TrackElemType::count); type++)
-            {
-                auto obj = gScTrackSegment.New(ctx, static_cast<TrackElemType>(type));
-                JS_SetPropertyInt64(ctx, result, index++, obj);
-            }
-            return result;
         }
 
         static JSValue getRandom(JSContext* ctx, JSValue thisVal, int argc, JSValue* argv)
@@ -457,8 +430,6 @@ namespace OpenRCT2::Scripting
                 JS_CFUNC_DEF("captureImage", 1, ScContext::captureImage),
                 JS_CFUNC_DEF("getObject", 2, ScContext::getObject),
                 JS_CFUNC_DEF("getAllObjects", 2, ScContext::getAllObjects),
-                JS_CFUNC_DEF("getTrackSegment", 1, ScContext::getTrackSegment),
-                JS_CFUNC_DEF("getAllTrackSegments", 0, ScContext::getAllTrackSegments),
                 JS_CFUNC_DEF("getRandom", 2, ScContext::getRandom),
                 JS_CFUNC_DEF("formatString", 0, ScContext::formatString),
                 JS_CFUNC_DEF("subscribe", 2, ScContext::subscribe),
