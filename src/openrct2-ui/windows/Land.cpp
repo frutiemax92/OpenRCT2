@@ -403,6 +403,20 @@ namespace OpenRCT2::Ui::Windows
             return res.error == GameActions::Status::ok ? res.cost : kMoney64Undefined;
         }
 
+        // Quarter steps per raise or lower: a half step by default, Shift for a quarter, Alt for three quarters and
+        // both for a full step (TER-015).
+        static uint8_t GetLandToolStepQ()
+        {
+            auto& im = GetInputManager();
+            const bool shift = im.isModifierKeyPressed(ModifierKey::shift);
+            const bool alt = im.isModifierKeyPressed(ModifierKey::alt);
+            if (shift && alt)
+                return 4;
+            if (alt)
+                return 3;
+            return shift ? 1 : 2;
+        }
+
         /**
          *
          *  rct2: 0x006644DD
@@ -427,7 +441,8 @@ namespace OpenRCT2::Ui::Windows
 
             auto landRaiseAction = GameActions::LandRaiseAction(
                 { centreX, centreY },
-                { gMapSelectPositionA.x, gMapSelectPositionA.y, gMapSelectPositionB.x, gMapSelectPositionB.y }, gMapSelectType);
+                { gMapSelectPositionA.x, gMapSelectPositionA.y, gMapSelectPositionB.x, gMapSelectPositionB.y }, gMapSelectType,
+                GetLandToolStepQ());
 
             return executeGameAction(gameState, &landRaiseAction, mode);
         }
@@ -456,7 +471,8 @@ namespace OpenRCT2::Ui::Windows
 
             auto landLowerAction = GameActions::LandLowerAction(
                 { centreX, centreY },
-                { gMapSelectPositionA.x, gMapSelectPositionA.y, gMapSelectPositionB.x, gMapSelectPositionB.y }, gMapSelectType);
+                { gMapSelectPositionA.x, gMapSelectPositionA.y, gMapSelectPositionB.x, gMapSelectPositionB.y }, gMapSelectType,
+                GetLandToolStepQ());
 
             return executeGameAction(gameState, &landLowerAction, mode);
         }
