@@ -13,7 +13,6 @@
 #include "interface/FileBrowser.h"
 #include "interface/Theme.h"
 #include "interface/Window.h"
-#include "ride/VehicleSounds.h"
 
 #include <openrct2-ui/ProvisionalElements.h>
 #include <openrct2-ui/UiContext.h>
@@ -455,10 +454,6 @@ public:
             case INTENT_ACTION_UPDATE_RESEARCH:
                 InvalidateByClass(WindowClass::finances);
                 InvalidateByClass(WindowClass::research);
-                break;
-
-            case INTENT_ACTION_UPDATE_VEHICLE_SOUNDS:
-                Audio::UpdateVehicleSounds();
                 break;
 
             case INTENT_ACTION_SET_MAP_TOOLTIP:

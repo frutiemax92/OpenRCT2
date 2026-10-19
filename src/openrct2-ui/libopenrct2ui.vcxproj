@@ -81,8 +81,6 @@
     <ClInclude Include="interface\Widget.h" />
     <ClInclude Include="interface\Window.h" />
     <ClInclude Include="openrct2ui_pch.h" />
-    <ClInclude Include="ride\Construction.h" />
-    <ClInclude Include="ride\VehicleSounds.h" />
     <ClInclude Include="scripting\CustomImages.h" />
     <ClInclude Include="scripting\CustomListView.h" />
     <ClInclude Include="scripting\CustomMenu.h" />
@@ -149,8 +147,6 @@
     <ClCompile Include="openrct2ui_pch.cpp" Condition="'$(UsePCH)'=='true'">
       <PrecompiledHeader>Create</PrecompiledHeader>
     </ClCompile>
-    <ClCompile Include="ride\Construction.cpp" />
-    <ClCompile Include="ride\VehicleSounds.cpp" />
     <ClCompile Include="scripting\CustomImages.cpp" />
     <ClCompile Include="scripting\CustomListView.cpp" />
     <ClCompile Include="scripting\CustomMenu.cpp" />
