@@ -10,6 +10,7 @@
 #include "TerrainSpriteStore.h"
 
 #include "../config/Config.h"
+#include "../object/TerrainEdgeObject.h"
 #include "../object/TerrainSurfaceObject.h"
 #include "../world/Map.h"
 #include "../world/tile_element/SurfaceElement.h"
@@ -68,6 +69,50 @@ namespace OpenRCT2::Drawing
     {
         std::lock_guard lock(_mutex);
         return _cache.GetCount();
+    }
+
+    ImageIndex TerrainSpriteStore::RegisterImage(const TerrainSpriteKey& key, const TerrainSprite& sprite)
+    {
+        auto it = _images.find(key);
+        if (it != _images.end())
+            return it->second;
+
+        G1Element g1{};
+        g1.offset = const_cast<uint8_t*>(sprite.pixels.data());
+        g1.width = static_cast<int16_t>(sprite.width);
+        g1.height = static_cast<int16_t>(sprite.height);
+        g1.xOffset = static_cast<int16_t>(sprite.xOffset);
+        g1.yOffset = static_cast<int16_t>(sprite.yOffset + kCentreToTopCorner);
+        g1.flags = { G1Flag::hasTransparency };
+        const auto image = GfxObjectAllocateImages(&g1, 1);
+        if (image == kImageIndexUndefined)
+            return kImageIndexUndefined;
+        _images[key] = image;
+        return image;
+    }
+
+    ImageIndex TerrainSpriteStore::GetEdgeImage(ObjectEntryIndex edgeObject, const TerrainEdgeFace& face, int32_t rotation)
+    {
+        const auto* object = TerrainEdgeObject::GetById(edgeObject);
+        const auto* texture = object != nullptr ? object->getTexture() : nullptr;
+        if (texture == nullptr)
+            return kImageIndexUndefined;
+
+        TerrainSpriteKey key{ kEdgeFaceShapeIndex, {}, static_cast<uint8_t>(rotation & 3), 0 };
+        key.quadrantSurfaces = { static_cast<uint8_t>(edgeObject), static_cast<uint8_t>(face.edge), 0, 0 };
+        key.edgeData = { static_cast<int16_t>(face.topA), static_cast<int16_t>(face.topB), static_cast<int16_t>(face.bottomA),
+                         static_cast<int16_t>(face.bottomB), static_cast<int16_t>(face.baseZ & 63) };
+
+        std::lock_guard lock(_mutex);
+        if (!_shadesBuilt)
+        {
+            _shades = BuildShades();
+            _shadesBuilt = true;
+        }
+        const auto* sprite = _cache.Get(key, [&] { return GenerateTerrainEdgeSprite(*texture, face, _shades, rotation, 0); });
+        if (sprite == nullptr || sprite->pixels.empty())
+            return kImageIndexUndefined;
+        return RegisterImage(key, *sprite);
     }
 
     ImageIndex TerrainSpriteStore::GetImage(const SurfaceElement& surface, const CoordsXY& tilePos, int32_t rotation)
@@ -134,21 +179,6 @@ namespace OpenRCT2::Drawing
         if (sprite == nullptr || sprite->pixels.empty())
             return kImageIndexUndefined;
 
-        auto it = _images.find(key);
-        if (it != _images.end())
-            return it->second;
-
-        G1Element g1{};
-        g1.offset = const_cast<uint8_t*>(sprite->pixels.data());
-        g1.width = static_cast<int16_t>(sprite->width);
-        g1.height = static_cast<int16_t>(sprite->height);
-        g1.xOffset = static_cast<int16_t>(sprite->xOffset);
-        g1.yOffset = static_cast<int16_t>(sprite->yOffset + kCentreToTopCorner);
-        g1.flags = { G1Flag::hasTransparency };
-        const auto image = GfxObjectAllocateImages(&g1, 1);
-        if (image == kImageIndexUndefined)
-            return kImageIndexUndefined;
-        _images[key] = image;
-        return image;
+        return RegisterImage(key, *sprite);
     }
 } // namespace OpenRCT2::Drawing

@@ -135,8 +135,13 @@ TEST_F(BaseObjects, TerrainEdgeHasAnIconAndAllEdgeImages)
     auto* edge = static_cast<TerrainEdgeObject*>(Load("golf.terrain_edge.rock_cliff"));
     ASSERT_NE(nullptr, edge);
     ASSERT_EQ(ObjectType::terrainEdge, edge->GetObjectType());
-    // Icon, 44 edge images and 4 extra tunnel images.
-    EXPECT_EQ(49u, edge->GetImageTable().GetCount());
+    // Icon, 44 edge images, 4 extra tunnel images and the square texture.
+    EXPECT_EQ(50u, edge->GetImageTable().GetCount());
+    ASSERT_TRUE(edge->HasTexture);
+    const auto* texture = edge->getTexture();
+    ASSERT_NE(nullptr, texture);
+    EXPECT_EQ(64, texture->size);
+    EXPECT_EQ(static_cast<size_t>(Drawing::kTerrainZoomLevels), texture->mips.size());
 }
 
 TEST_F(BaseObjects, ClimateLoads)

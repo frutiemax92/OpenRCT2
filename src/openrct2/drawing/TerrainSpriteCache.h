@@ -18,6 +18,8 @@
 
 namespace OpenRCT2::Drawing
 {
+    constexpr uint16_t kEdgeFaceShapeIndex = 0xFFFE;
+
     // Key of a generated terrain sprite (TER-032).
     struct TerrainSpriteKey
     {
@@ -28,6 +30,8 @@ namespace OpenRCT2::Drawing
         // Surfaces across the tile edge each quadrant touches, and whether smoothing is on (TER-050).
         std::array<uint8_t, 4> neighbourSurfaces{};
         bool smoothing = false;
+        // Edge faces: top and bottom heights of both ends and the height phase (shapeIndex is kEdgeFaceShapeIndex).
+        std::array<int16_t, 5> edgeData{};
 
         bool operator==(const TerrainSpriteKey&) const = default;
     };

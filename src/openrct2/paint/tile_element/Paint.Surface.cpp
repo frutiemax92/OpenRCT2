@@ -928,6 +928,107 @@ static void PaintSurfaceConstructionRights(
 }
 
 /**
+ * Procedural land edges (TER-060): vertical faces on the edges facing the viewer, hanging from this tile down to the
+ * lower neighbour. Returns false when the edge object has no texture, so the caller falls back to the legacy edges.
+ */
+static bool PaintProceduralLandEdges(PaintSession& session, const SurfaceElement& tileElement, uint16_t height)
+{
+    using Terrain::Quadrant;
+    auto& store = Drawing::TerrainSpriteStore::Instance();
+    const auto edgeIndex = tileElement.getEdgeObjectIndex();
+    const auto* edgeObject = TerrainEdgeObject::GetById(edgeIndex);
+    if (edgeObject == nullptr || edgeObject->getTexture() == nullptr)
+        return false;
+
+    const int32_t rotation = session.CurrentRotation;
+    const auto shape = tileElement.getTerrainShape();
+    const int32_t baseZ = tileElement.getBaseZ();
+    constexpr int32_t kQ = Terrain::kQuarterStepZ;
+
+    struct EdgeDef
+    {
+        Quadrant quadrant;
+        CoordsXY neighbourOffset;
+        int32_t normalX, normalY;
+        uint8_t selfA, selfB;           // offsets of this tile's corners at the edge ends
+        uint8_t neighbourA, neighbourB; // offsets of the neighbour's corners at the same ends
+    };
+    // Corners are N, E, S, W = indices 0..3 into the neighbour shape below.
+    const EdgeDef defs[4] = {
+        { Quadrant::northEast, { kCoordsXYStep, 0 }, 1, 0, shape.east, shape.north, 2, 3 },
+        { Quadrant::southEast, { 0, -kCoordsXYStep }, 0, -1, shape.south, shape.east, 3, 0 },
+        { Quadrant::southWest, { -kCoordsXYStep, 0 }, -1, 0, shape.south, shape.west, 1, 0 },
+        { Quadrant::northWest, { 0, kCoordsXYStep }, 0, 1, shape.west, shape.north, 2, 1 },
+    };
+
+    for (const auto& def : defs)
+    {
+        if (!Drawing::IsEdgeFacingViewer(def.quadrant, rotation))
+            continue;
+
+        const auto neighbourPos = session.MapPosition + def.neighbourOffset;
+        const SurfaceElement* neighbour = MapIsLocationValid(neighbourPos) ? MapGetSurfaceElementAt(neighbourPos) : nullptr;
+
+        const int32_t topA = def.selfA * kQ, topB = def.selfB * kQ;
+        int32_t bottomA, bottomB;
+        if (neighbour == nullptr)
+        {
+            // Nothing beyond: hang down to the lowest land.
+            bottomA = bottomB = kMinimumLandHeight * kQ - baseZ;
+        }
+        else
+        {
+            const auto ns = neighbour->getTerrainShape();
+            const uint8_t offsets[4] = { ns.north, ns.east, ns.south, ns.west };
+            const int32_t nBase = neighbour->getBaseZ();
+            bottomA = nBase + offsets[def.neighbourA] * kQ - baseZ;
+            bottomB = nBase + offsets[def.neighbourB] * kQ - baseZ;
+        }
+        bottomA = std::min(bottomA, topA);
+        bottomB = std::min(bottomB, topB);
+        if (bottomA == topA && bottomB == topB)
+            continue;
+
+        const auto image = store.GetEdgeImage(
+            edgeIndex, { def.quadrant, topA, topB, bottomA, bottomB, baseZ }, rotation);
+        if (image == kImageIndexUndefined)
+            continue;
+
+        int32_t nx = def.normalX, ny = def.normalY;
+        {
+            // Rotated frame of the paint code: the bottom-left edge has the normal (1, 0), the bottom-right edge (0, 1).
+            const int32_t ox = nx, oy = ny;
+            switch (rotation & 3)
+            {
+                case 1:
+                    nx = oy;
+                    ny = -ox;
+                    break;
+                case 2:
+                    nx = -ox;
+                    ny = -oy;
+                    break;
+                case 3:
+                    nx = -oy;
+                    ny = ox;
+                    break;
+                default:
+                    break;
+            }
+        }
+        const int32_t zLow = baseZ + std::min(bottomA, bottomB);
+        const int32_t span = std::max(1, std::max(topA, topB) - std::min(bottomA, bottomB));
+        const CoordsXYZ boxOffset = nx == 1 ? CoordsXYZ{ 30, 0, zLow } : CoordsXYZ{ 0, 30, zLow };
+        const CoordsXYZ boxSize = nx == 1 ? CoordsXYZ{ 0, 30, span } : CoordsXYZ{ 30, 0, span };
+        auto imageId = ImageId(image);
+        if (session.ViewFlags.hasAny(ViewportFlag::undergroundInside, ViewportFlag::hideBase))
+            imageId = imageId.WithTransparency(FilterPaletteID::paletteDarken1);
+        PaintAddImageAsParent(session, imageId, { 0, 0, height }, { boxOffset, boxSize });
+    }
+    return true;
+}
+
+/**
  *  rct2: 0x0066062C
  */
 void PaintSurface(PaintSession& session, uint8_t direction, uint16_t height, const SurfaceElement& tileElement)
@@ -1236,15 +1337,18 @@ void PaintSurface(PaintSession& session, uint8_t direction, uint16_t height, con
 
     if (!session.ViewFlags.has(ViewportFlag::hideVertical))
     {
-        auto edgeColour1 = tileElement.getPrimaryEdgeColour();
-        ViewportSurfaceDrawTileSideTop(
-            session, EDGE_TOPLEFT, height, edgeObject, selfDescriptor, tileDescriptors[2], false, edgeColour1);
-        ViewportSurfaceDrawTileSideTop(
-            session, EDGE_TOPRIGHT, height, edgeObject, selfDescriptor, tileDescriptors[3], false, edgeColour1);
-        ViewportSurfaceDrawTileSideBottom(
-            session, EDGE_BOTTOMLEFT, height, edgeObject, selfDescriptor, tileDescriptors[0], false, edgeColour1);
-        ViewportSurfaceDrawTileSideBottom(
-            session, EDGE_BOTTOMRIGHT, height, edgeObject, selfDescriptor, tileDescriptors[1], false, edgeColour1);
+        if (!PaintProceduralLandEdges(session, tileElement, height))
+        {
+            auto edgeColour1 = tileElement.getPrimaryEdgeColour();
+            ViewportSurfaceDrawTileSideTop(
+                session, EDGE_TOPLEFT, height, edgeObject, selfDescriptor, tileDescriptors[2], false, edgeColour1);
+            ViewportSurfaceDrawTileSideTop(
+                session, EDGE_TOPRIGHT, height, edgeObject, selfDescriptor, tileDescriptors[3], false, edgeColour1);
+            ViewportSurfaceDrawTileSideBottom(
+                session, EDGE_BOTTOMLEFT, height, edgeObject, selfDescriptor, tileDescriptors[0], false, edgeColour1);
+            ViewportSurfaceDrawTileSideBottom(
+                session, EDGE_BOTTOMRIGHT, height, edgeObject, selfDescriptor, tileDescriptors[1], false, edgeColour1);
+        }
     }
 
     const uint16_t waterHeight = tileElement.getWaterHeight();

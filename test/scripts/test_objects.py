@@ -205,8 +205,10 @@ class ObjectTests(unittest.TestCase):
         with open(objects.TERRAIN_LAYOUT, "r", encoding="utf-8") as f:
             layout = json.load(f)
         images = data["images"]
-        self.assertEqual(1 + len(layout["edge"]) + objects.EDGE_EXTRA_TUNNEL_IMAGES, len(images))
-        for box, entry in zip(layout["edge"], images[1:]):
+        self.assertEqual(1 + len(layout["edge"]) + objects.EDGE_EXTRA_TUNNEL_IMAGES + 1, len(images))  # + texture
+        self.assertTrue(data["properties"]["hasTexture"])
+        self.assertEqual("raw", images[-1]["format"])
+        for box, entry in zip(layout["edge"], images[1:-1]):
             self.assertEqual((box["x"], box["y"]), (entry["x"], entry["y"]))
 
     def test_climate_covers_the_season(self):

@@ -12,7 +12,12 @@
 #include "../Context.h"
 #include "../core/Guard.hpp"
 #include "../core/Json.hpp"
+#include "../Diagnostic.h"
+#include "../OpenRCT2.h"
+#include "../drawing/Drawing.Sprite.h"
 #include "../drawing/Drawing.h"
+#include "../drawing/G1Element.h"
+#include "../drawing/TerrainSpriteStore.h"
 #include "../interface/ScreenCoords.hpp"
 #include "ObjectManager.h"
 
@@ -26,10 +31,30 @@ namespace OpenRCT2
 
         // First image is icon followed by edge images
         BaseImageId = IconImageId + 1;
+
+        Texture = {};
+        Drawing::TerrainSpriteStore::Instance().Clear();
+        if (HasTexture && !gOpenRCT2NoGraphics)
+        {
+            const auto* g1 = GfxGetG1Element(IconImageId + static_cast<uint32_t>(GetImageTable().GetCount()) - 1);
+            if (g1 == nullptr || g1->offset == nullptr || g1->flags.has(G1Flag::hasRLECompression) || g1->width != g1->height
+                || g1->width <= 0 || (g1->width & (g1->width - 1)) != 0)
+            {
+                LOG_WARNING("Terrain edge '%s' has no valid square texture", GetIdentifier().data());
+            }
+            else
+            {
+                const auto size = static_cast<size_t>(g1->width);
+                Texture = Drawing::TerrainTexture::Create(
+                    g1->width, std::vector<uint8_t>(g1->offset, g1->offset + size * size));
+            }
+        }
     }
 
     void TerrainEdgeObject::Unload()
     {
+        Drawing::TerrainSpriteStore::Instance().Clear();
+        Texture = {};
         LanguageFreeObjectString(NameStringId);
         UnloadImages();
 
@@ -55,6 +80,7 @@ namespace OpenRCT2
 
         if (properties.is_object())
         {
+            HasTexture = Json::GetBoolean(properties["hasTexture"]);
             const uint32_t doorSoundNumber = Json::GetNumber<uint32_t>(properties["doorSound"]);
             if (doorSoundNumber < Audio::kDoorSoundTypeCount)
             {

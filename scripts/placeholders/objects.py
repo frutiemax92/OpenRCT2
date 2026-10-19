@@ -29,7 +29,7 @@ import re
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from generate import EDGES, SURFACES, surface_icon, surface_texture  # noqa: E402
+from generate import EDGES, SURFACES, edge_texture, surface_icon, surface_texture  # noqa: E402
 from parkobj import pack  # noqa: E402
 from pixelart import Image, draw_text, shade, text_colour, text_size  # noqa: E402
 
@@ -292,7 +292,9 @@ def terrain_edge(name, label, colour, description, layout, palette):
         path = "images/edge_%02d.png" % box["index"]
         images[path] = quantise(edge_image(box, colour), palette).png()
         table.append({"path": path, "x": box["x"], "y": box["y"]})
-    data = manifest("golf.terrain_edge." + name, "terrain_edge", description, {}, table)
+    images["images/texture.png"] = quantise(edge_texture(label, colour), palette).png()
+    table.append({"path": "images/texture.png", "x": 0, "y": 0, "format": "raw"})
+    data = manifest("golf.terrain_edge." + name, "terrain_edge", description, {"hasTexture": True}, table)
     return object_files(data, images)
 
 

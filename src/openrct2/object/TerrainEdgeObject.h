@@ -12,6 +12,7 @@
 #include "../audio/Audio.h"
 #include "../core/FlagHolder.hpp"
 #include "../drawing/Colour.h"
+#include "../drawing/TerrainSpriteGenerator.h"
 #include "Object.h"
 
 namespace OpenRCT2
@@ -37,6 +38,14 @@ namespace OpenRCT2
         Audio::DoorSoundType doorSound{};
         TerrainEdgeFlags flags;
         Drawing::Colour colour = Drawing::kColourNull;
+
+        // The square texture of the procedural edge faces (TER-061): the last image of the object.
+        bool HasTexture{};
+        Drawing::TerrainTexture Texture{};
+        const Drawing::TerrainTexture* getTexture() const
+        {
+            return Texture.size != 0 ? &Texture : nullptr;
+        }
 
         void ReadJson(IReadObjectContext* context, json_t& root) override;
         void Load() override;

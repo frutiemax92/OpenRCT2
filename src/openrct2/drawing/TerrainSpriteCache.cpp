@@ -26,6 +26,8 @@ namespace OpenRCT2::Drawing
         for (auto n : k.neighbourSurfaces)
             mix(n);
         mix(k.smoothing ? 1 : 0);
+        for (auto e : k.edgeData)
+            mix(static_cast<uint16_t>(e));
         return static_cast<size_t>(h);
     }
 

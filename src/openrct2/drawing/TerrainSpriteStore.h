@@ -10,6 +10,7 @@
 #pragma once
 
 #include "ImageIndexType.h"
+#include "../object/Object.h"
 #include "../world/Location.hpp"
 #include "TerrainSpriteCache.h"
 
@@ -43,10 +44,14 @@ namespace OpenRCT2::Drawing
         // tilePos is the tile's map position, used to look up the surfaces of its neighbours for smoothing.
         ImageIndex GetImage(const SurfaceElement& surface, const CoordsXY& tilePos, int32_t rotation);
 
+        // The image of a vertical edge face of a tile (TER-060), or kImageIndexUndefined without an edge texture.
+        ImageIndex GetEdgeImage(ObjectEntryIndex edgeObject, const TerrainEdgeFace& face, int32_t rotation);
+
         size_t GetSpriteCount() const;
 
     private:
         TerrainSpriteStore();
+        ImageIndex RegisterImage(const TerrainSpriteKey& key, const TerrainSprite& sprite);
 
         mutable std::mutex _mutex;
         TerrainSpriteCache _cache;
