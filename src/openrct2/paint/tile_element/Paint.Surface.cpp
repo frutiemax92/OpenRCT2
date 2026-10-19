@@ -741,10 +741,11 @@ static void PaintSurfaceConstructionRights(PaintSession& session, const SurfaceE
 }
 
 /**
- * Procedural land edges (TER-060): vertical faces on the edges facing the viewer, hanging from this tile down to the
- * lower neighbour. Returns false when the edge object has no texture, so the caller falls back to the legacy edges.
+ * Procedural edges (TER-060): vertical faces on the edges facing the viewer, hanging from this tile down to the
+ * lower neighbour. For water, the faces hang from the water level to the lower water or land next to it. Returns false
+ * when the edge object has no texture, so the caller falls back to the legacy edges.
  */
-static bool PaintProceduralLandEdges(PaintSession& session, const SurfaceElement& tileElement, uint16_t height)
+static bool PaintProceduralEdges(PaintSession& session, const SurfaceElement& tileElement, uint16_t height, bool water)
 {
     using Terrain::Quadrant;
     auto& store = Drawing::TerrainSpriteStore::Instance();
@@ -782,9 +783,29 @@ static bool PaintProceduralLandEdges(PaintSession& session, const SurfaceElement
         const auto neighbourPos = session.MapPosition + def.neighbourOffset;
         const SurfaceElement* neighbour = MapIsLocationValid(neighbourPos) ? MapGetSurfaceElementAt(neighbourPos) : nullptr;
 
-        const int32_t topA = def.selfA * kQ, topB = def.selfB * kQ;
+        const int32_t waterZ = tileElement.getWaterHeight();
+        int32_t topA = def.selfA * kQ, topB = def.selfB * kQ;
         int32_t bottomA, bottomB;
-        if (neighbour == nullptr)
+        if (water)
+        {
+            // From the water level down to what is next to it: the lower water level, or the land, never below the
+            // land of this tile.
+            topA = topB = waterZ - baseZ;
+            if (neighbour != nullptr && neighbour->getWaterHeight() == waterZ)
+                continue;
+            const auto ns = neighbour != nullptr ? neighbour->getTerrainShape() : Terrain::TerrainShape{};
+            const uint8_t offsets[4] = { ns.north, ns.east, ns.south, ns.west };
+            const int32_t nBase = neighbour != nullptr ? neighbour->getBaseZ() : 0;
+            const int32_t nWater = neighbour != nullptr ? neighbour->getWaterHeight() : 0;
+            auto level = [&](uint8_t corner) {
+                if (neighbour == nullptr)
+                    return int32_t{ 0 };
+                return nWater > 0 ? nWater - baseZ : nBase + offsets[corner] * kQ - baseZ;
+            };
+            bottomA = std::max<int32_t>(def.selfA * kQ, level(def.neighbourA));
+            bottomB = std::max<int32_t>(def.selfB * kQ, level(def.neighbourB));
+        }
+        else if (neighbour == nullptr)
         {
             // Nothing beyond: hang down to the lowest land.
             bottomA = bottomB = kMinimumLandHeight * kQ - baseZ;
@@ -836,7 +857,7 @@ static bool PaintProceduralLandEdges(PaintSession& session, const SurfaceElement
         auto imageId = ImageId(image);
         if (session.ViewFlags.hasAny(ViewportFlag::undergroundInside, ViewportFlag::hideBase))
             imageId = imageId.WithTransparency(FilterPaletteID::paletteDarken1);
-        PaintAddImageAsParent(session, imageId, { 0, 0, height }, { boxOffset, boxSize });
+        PaintAddImageAsParent(session, imageId, { 0, 0, baseZ }, { boxOffset, boxSize });
     }
     return true;
 }
@@ -1128,7 +1149,7 @@ void PaintSurface(PaintSession& session, uint8_t direction, uint16_t height, con
 
     if (!session.ViewFlags.has(ViewportFlag::hideVertical))
     {
-        if (!PaintProceduralLandEdges(session, tileElement, height))
+        if (!PaintProceduralEdges(session, tileElement, height, false))
         {
             auto edgeColour1 = tileElement.getPrimaryEdgeColour();
             ViewportSurfaceDrawTileSideTop(
@@ -1170,17 +1191,7 @@ void PaintSurface(PaintSession& session, uint8_t direction, uint16_t height, con
         }
 
         if (!session.ViewFlags.has(ViewportFlag::hideVertical))
-        {
-            auto edgeColour1 = tileElement.getPrimaryEdgeColour();
-            ViewportSurfaceDrawTileSideBottom(
-                session, EDGE_BOTTOMLEFT, waterHeight, edgeObject, selfDescriptor, tileDescriptors[0], true, edgeColour1);
-            ViewportSurfaceDrawTileSideBottom(
-                session, EDGE_BOTTOMRIGHT, waterHeight, edgeObject, selfDescriptor, tileDescriptors[1], true, edgeColour1);
-            ViewportSurfaceDrawTileSideTop(
-                session, EDGE_TOPLEFT, waterHeight, edgeObject, selfDescriptor, tileDescriptors[2], true, edgeColour1);
-            ViewportSurfaceDrawTileSideTop(
-                session, EDGE_TOPRIGHT, waterHeight, edgeObject, selfDescriptor, tileDescriptors[3], true, edgeColour1);
-        }
+            PaintProceduralEdges(session, tileElement, waterHeight, true);
     }
 
     if ((tileElement.getParkFences()))
