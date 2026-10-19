@@ -618,4 +618,138 @@ namespace OpenRCT2::Drawing
         }
         return sprite;
     }
+
+    namespace
+    {
+        // Whether the overlay covers a point of the tile, in 1/256 tile units.
+        bool OverlayCovers(const TerrainOverlay& overlay, int64_t lx, int64_t ly, int32_t px, int32_t py)
+        {
+            constexpr int64_t kOne = 256;
+            const int64_t full = kTile * kOne;
+            const int64_t nearestEdge = std::min({ lx, ly, full - lx, full - ly });
+            switch (overlay.kind)
+            {
+                case TerrainOverlayKind::fill:
+                    return true;
+                case TerrainOverlayKind::outline:
+                    return nearestEdge < 3 * kOne / 2;
+                case TerrainOverlayKind::dotted:
+                    return nearestEdge < 3 * kOne / 2 && ((px + py) & 1) == 0;
+                case TerrainOverlayKind::corner:
+                {
+                    // Corners as in TileCornersZ: S = (0,0), E = (32,0), N = (32,32), W = (0,32).
+                    static constexpr int64_t cx[4] = { kTile, kTile, 0, 0 };
+                    static constexpr int64_t cy[4] = { kTile, 0, 0, kTile };
+                    const int64_t dx = lx - cx[overlay.index & 3] * kOne, dy = ly - cy[overlay.index & 3] * kOne;
+                    return (dx * dx + dy * dy) < (11 * kOne) * (11 * kOne);
+                }
+                case TerrainOverlayKind::edge:
+                {
+                    constexpr int64_t kBand = 5 * kOne;
+                    switch (static_cast<Quadrant>(overlay.index & 3))
+                    {
+                        case Quadrant::northEast:
+                            return lx > full - kBand;
+                        case Quadrant::southEast:
+                            return ly < kBand;
+                        case Quadrant::southWest:
+                            return lx < kBand;
+                        default:
+                            return ly > full - kBand;
+                    }
+                }
+                case TerrainOverlayKind::quarter:
+                {
+                    const bool right = lx >= full / 2, upper = ly >= full / 2;
+                    switch (overlay.index & 3)
+                    {
+                        case 0:
+                            return right && upper; // around N
+                        case 1:
+                            return right && !upper; // E
+                        case 2:
+                            return !right && !upper; // S
+                        default:
+                            return !right && upper; // W
+                    }
+                }
+            }
+            return false;
+        }
+    } // namespace
+
+    TerrainSprite GenerateTerrainOverlaySprite(
+        const TerrainShape& shape, const TerrainOverlay& overlay, int32_t rotation, int32_t zoom)
+    {
+        // Same rasteriser as the surface: reuse it with a texture that is the overlay colour, then keep only the pixels
+        // the overlay covers.
+        TerrainSprite sprite;
+        const int32_t hN = shape.north * kQuarterStepZ, hE = shape.east * kQuarterStepZ;
+        const int32_t hS = shape.south * kQuarterStepZ, hW = shape.west * kQuarterStepZ;
+        rotation &= 3;
+        const Vertex vS = MakeVertex(0, 0, hS, rotation), vE = MakeVertex(kTile, 0, hE, rotation);
+        const Vertex vN = MakeVertex(kTile, kTile, hN, rotation), vW = MakeVertex(0, kTile, hW, rotation);
+        const bool northSouth = GetSplitDiagonal(shape) == SplitDiagonal::northSouth;
+        const std::array<std::array<Vertex, 3>, 2> tris = {{
+            northSouth ? std::array<Vertex, 3>{ vS, vE, vN } : std::array<Vertex, 3>{ vS, vE, vW },
+            northSouth ? std::array<Vertex, 3>{ vS, vN, vW } : std::array<Vertex, 3>{ vE, vN, vW },
+        }};
+
+        const int64_t step = int64_t{ 1 } << zoom;
+        int64_t minX = INT64_MAX, minY = INT64_MAX, maxX = INT64_MIN, maxY = INT64_MIN;
+        for (const auto& v : { vS, vE, vN, vW })
+        {
+            minX = std::min(minX, v.sx);
+            maxX = std::max(maxX, v.sx);
+            minY = std::min(minY, v.sy);
+            maxY = std::max(maxY, v.sy);
+        }
+        sprite.xOffset = FloorDiv(minX, step);
+        sprite.yOffset = FloorDiv(minY, step);
+        sprite.width = CeilDiv(maxX, step) - sprite.xOffset;
+        sprite.height = CeilDiv(maxY, step) - sprite.yOffset;
+        sprite.pixels.assign(static_cast<size_t>(sprite.width) * static_cast<size_t>(sprite.height), kTerrainTransparent);
+
+        for (const auto& tri : tris)
+        {
+            const Vertex& a = tri[0];
+            const Vertex* pb = &tri[1];
+            const Vertex* pc = &tri[2];
+            int64_t area = Edge(2 * a.sx, 2 * a.sy, 2 * pb->sx, 2 * pb->sy, 2 * pc->sx, 2 * pc->sy);
+            if (area == 0)
+                continue;
+            if (area < 0)
+            {
+                std::swap(pb, pc);
+                area = -area;
+            }
+            const int64_t bias0 = IsTopLeft(2 * pb->sx, 2 * pb->sy, 2 * pc->sx, 2 * pc->sy) ? 0 : -1;
+            const int64_t bias1 = IsTopLeft(2 * pc->sx, 2 * pc->sy, 2 * a.sx, 2 * a.sy) ? 0 : -1;
+            const int64_t bias2 = IsTopLeft(2 * a.sx, 2 * a.sy, 2 * pb->sx, 2 * pb->sy) ? 0 : -1;
+            const int64_t tminX = std::min({ a.sx, pb->sx, pc->sx }), tmaxX = std::max({ a.sx, pb->sx, pc->sx });
+            const int64_t tminY = std::min({ a.sy, pb->sy, pc->sy }), tmaxY = std::max({ a.sy, pb->sy, pc->sy });
+            for (int32_t py = FloorDiv(tminY, step); py < CeilDiv(tmaxY, step); py++)
+            {
+                for (int32_t px = FloorDiv(tminX, step); px < CeilDiv(tmaxX, step); px++)
+                {
+                    const int64_t cx = (2 * static_cast<int64_t>(px) + 1) * step;
+                    const int64_t cy = (2 * static_cast<int64_t>(py) + 1) * step;
+                    const int64_t w0 = Edge(2 * pb->sx, 2 * pb->sy, 2 * pc->sx, 2 * pc->sy, cx, cy);
+                    const int64_t w1 = Edge(2 * pc->sx, 2 * pc->sy, 2 * a.sx, 2 * a.sy, cx, cy);
+                    const int64_t w2 = Edge(2 * a.sx, 2 * a.sy, 2 * pb->sx, 2 * pb->sy, cx, cy);
+                    if (w0 + bias0 < 0 || w1 + bias1 < 0 || w2 + bias2 < 0)
+                        continue;
+                    const int64_t lx = (w0 * a.lx + w1 * pb->lx + w2 * pc->lx) * 256 / area;
+                    const int64_t ly = (w0 * a.ly + w1 * pb->ly + w2 * pc->ly) * 256 / area;
+                    if (!OverlayCovers(overlay, lx, ly, px, py))
+                        continue;
+                    const int32_t ox = px - sprite.xOffset, oy = py - sprite.yOffset;
+                    if (ox < 0 || oy < 0 || ox >= sprite.width || oy >= sprite.height)
+                        continue;
+                    sprite.pixels[static_cast<size_t>(oy) * sprite.width + ox] = overlay.colour;
+                }
+            }
+        }
+        return sprite;
+    }
 } // namespace OpenRCT2::Drawing

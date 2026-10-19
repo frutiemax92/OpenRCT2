@@ -592,3 +592,95 @@ TEST(TerrainWaterTest, EveryShapeGenerates)
             ASSERT_EQ(s.pixels.size(), static_cast<size_t>(s.width) * s.height);
         }
 }
+
+TEST(TerrainOverlayTest, FillMatchesTheSurfaceForEveryShape)
+{
+    auto tex = Solid(9);
+    const std::array<const TerrainTexture*, 4> quads = { &tex, &tex, &tex, &tex };
+    const auto shades = TerrainShadeTable::Identity();
+    for (uint16_t i = 0; i < kShapeCount; i += 3)
+    {
+        const auto sh = GetShapeFromIndex(i);
+        for (int rot = 0; rot < 4; rot++)
+        {
+            auto surface = GenerateTerrainSprite(sh, quads, shades, rot, 0);
+            auto fill = GenerateTerrainOverlaySprite(sh, { TerrainOverlayKind::fill, 0, 77 }, rot, 0);
+            ASSERT_EQ(surface.width, fill.width);
+            ASSERT_EQ(surface.height, fill.height);
+            ASSERT_EQ(surface.xOffset, fill.xOffset);
+            for (size_t p = 0; p < surface.pixels.size(); p++)
+            {
+                ASSERT_EQ(surface.pixels[p] != 0, fill.pixels[p] != 0);
+                ASSERT_TRUE(fill.pixels[p] == 0 || fill.pixels[p] == 77);
+            }
+        }
+    }
+}
+
+TEST(TerrainOverlayTest, QuartersTileTheSurfaceExactly)
+{
+    for (uint16_t i = 0; i < kShapeCount; i += 11)
+    {
+        const auto sh = GetShapeFromIndex(i);
+        auto fill = GenerateTerrainOverlaySprite(sh, { TerrainOverlayKind::fill }, 1, 0);
+        std::vector<int> hits(fill.pixels.size(), 0);
+        for (uint8_t q = 0; q < 4; q++)
+        {
+            auto part = GenerateTerrainOverlaySprite(sh, { TerrainOverlayKind::quarter, q }, 1, 0);
+            ASSERT_EQ(part.pixels.size(), fill.pixels.size());
+            for (size_t p = 0; p < part.pixels.size(); p++)
+                hits[p] += part.pixels[p] != 0;
+        }
+        for (size_t p = 0; p < hits.size(); p++)
+        {
+            // Every surface pixel is in some quarter; steep shapes can fold onto themselves and count twice.
+            ASSERT_EQ(hits[p] > 0, fill.pixels[p] != 0) << i;
+            ASSERT_LE(hits[p], 2) << i;
+        }
+    }
+}
+
+TEST(TerrainOverlayTest, OutlineDottedCornerAndEdgeAreSubsetsOfTheFill)
+{
+    const TerrainShape sh{ 1, 2, 0, 1 };
+    auto fill = GenerateTerrainOverlaySprite(sh, { TerrainOverlayKind::fill }, 0, 0);
+    auto outline = GenerateTerrainOverlaySprite(sh, { TerrainOverlayKind::outline }, 0, 0);
+    auto dotted = GenerateTerrainOverlaySprite(sh, { TerrainOverlayKind::dotted }, 0, 0);
+    EXPECT_GT(CountCovered(outline), 40u);
+    EXPECT_LT(CountCovered(outline), CountCovered(fill) / 3);
+    EXPECT_LT(CountCovered(dotted), CountCovered(outline));
+    EXPECT_GT(CountCovered(dotted), CountCovered(outline) / 4);
+    auto subset = [&](const TerrainSprite& s) {
+        for (size_t p = 0; p < s.pixels.size(); p++)
+            if (s.pixels[p] != 0 && fill.pixels[p] == 0)
+                return false;
+        return true;
+    };
+    EXPECT_TRUE(subset(outline));
+    EXPECT_TRUE(subset(dotted));
+    for (uint8_t i = 0; i < 4; i++)
+    {
+        auto corner = GenerateTerrainOverlaySprite(sh, { TerrainOverlayKind::corner, i }, 0, 0);
+        auto edge = GenerateTerrainOverlaySprite(sh, { TerrainOverlayKind::edge, i }, 0, 0);
+        EXPECT_TRUE(subset(corner)) << int(i);
+        EXPECT_TRUE(subset(edge)) << int(i);
+        EXPECT_GT(CountCovered(corner), 15u) << int(i);
+        EXPECT_GT(CountCovered(edge), 15u) << int(i);
+        EXPECT_LT(CountCovered(corner), CountCovered(fill) / 2) << int(i);
+    }
+}
+
+TEST(TerrainOverlayTest, CornerHighlightsTheRightCorner)
+{
+    // Flat tile at rotation 0: the north corner (32, 32) is the bottom of the diamond, east (32, 0) the left one.
+    const TerrainShape flat{ 0, 0, 0, 0 };
+    auto north = GenerateTerrainOverlaySprite(flat, { TerrainOverlayKind::corner, 0 }, 0, 0);
+    auto at = [&](const TerrainSprite& s, int sx, int sy) {
+        return s.pixels[static_cast<size_t>(sy - s.yOffset) * s.width + (sx - s.xOffset)] != 0;
+    };
+    EXPECT_TRUE(at(north, 0, 12));   // near the bottom corner (screen 0, 16 around the centre)
+    EXPECT_FALSE(at(north, 0, -12)); // not near the top one
+    auto east = GenerateTerrainOverlaySprite(flat, { TerrainOverlayKind::corner, 1 }, 0, 0);
+    EXPECT_TRUE(at(east, -24, 0));
+    EXPECT_FALSE(at(east, 24, 0));
+}

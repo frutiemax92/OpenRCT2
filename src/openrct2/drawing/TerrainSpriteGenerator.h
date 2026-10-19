@@ -116,4 +116,26 @@ namespace OpenRCT2::Drawing
     // The sprite is positioned like the surface sprites, with the water level as base height.
     TerrainSprite GenerateTerrainWaterSprite(
         const Terrain::TerrainShape& shape, int32_t terrainBaseZ, WaterPattern pattern, int32_t rotation, int32_t zoom);
+
+    // Overlays drawn over the terrain surface (TER-034): grid lines, ownership outlines, selection highlights. They follow
+    // the exact surface of any shape.
+    enum class TerrainOverlayKind : uint8_t
+    {
+        fill,    // the whole surface of the tile
+        outline, // a one pixel line along the tile edges
+        dotted,  // the same, every other pixel
+        corner,  // the surface within reach of one corner; index = Terrain corner N, E, S, W = 0..3
+        edge,    // a band along one edge; index = quadrant touching the edge (Terrain::Quadrant)
+        quarter, // one of the four square quarters of the tile; index = the quarter around corner N, E, S, W = 0..3
+    };
+
+    struct TerrainOverlay
+    {
+        TerrainOverlayKind kind = TerrainOverlayKind::fill;
+        uint8_t index = 0;
+        uint8_t colour = 1; // palette index of the opaque pixels
+    };
+
+    TerrainSprite GenerateTerrainOverlaySprite(
+        const Terrain::TerrainShape& shape, const TerrainOverlay& overlay, int32_t rotation, int32_t zoom);
 } // namespace OpenRCT2::Drawing
