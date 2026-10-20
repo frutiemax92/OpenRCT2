@@ -27,6 +27,7 @@
 #include "../actions/ride/RideSetPriceAction.h"
 #include "../actions/ride/RideSetSettingAction.h"
 #include "../config/Config.h"
+#include "../model/ModelViewer.h"
 #include "../core/Console.hpp"
 #include "../core/EnumUtils.hpp"
 #include "../core/Guard.hpp"
@@ -1165,6 +1166,23 @@ static void ConsoleCommandCountObjects(InteractiveConsole& console, [[maybe_unus
     }
 }
 
+static void ConsoleCommandModelView(InteractiveConsole& console, const arguments_t& argv)
+{
+    if (argv.empty())
+    {
+        console.WriteLineError("Please specify a .glb model file.");
+        return;
+    }
+    std::string error;
+    if (!Model::GetModelViewer().loadFile(argv[0], error))
+    {
+        console.WriteLineError("Could not load the model: " + error);
+        return;
+    }
+    console.WriteLine(Model::GetModelViewer().summary());
+    ContextOpenWindow(WindowClass::modelViewer);
+}
+
 static void ConsoleCommandOpen(InteractiveConsole& console, const arguments_t& argv)
 {
     if (!argv.empty())
@@ -1832,6 +1850,8 @@ static constexpr ConsoleCommand console_command_table[] = {
       "This is a safer method opposed to \"open object_selection\".",
       "load_object <objectfilenodat>" },
     { "load_park", ConsoleCommandLoadPark, "Load park from save directory or by absolute path", "load_park <filename>" },
+    { "model_view", ConsoleCommandModelView, "Shows a .glb model with all its animations and rotations.",
+      "model_view <file.glb>" },
     { "object_count", ConsoleCommandCountObjects, "Shows the number of objects of each type in the scenario.", "object_count" },
     { "open", ConsoleCommandOpen, "Opens the window with the give name.", "open <window>." },
     { "quit", ConsoleCommandClose, "Closes the console.", "quit" },

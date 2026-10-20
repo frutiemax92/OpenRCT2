@@ -77,6 +77,8 @@ public:
                 return dateInfoPanelOpen();
             case WindowClass::debugPaint:
                 return DebugPaintOpen();
+            case WindowClass::modelViewer:
+                return ModelViewerOpen();
             case WindowClass::editorInventionList:
                 return EditorInventionsListOpen();
             case WindowClass::editorObjectSelection:

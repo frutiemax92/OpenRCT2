@@ -85,6 +85,9 @@ namespace OpenRCT2::Ui::Windows
     // DebugPaint
     WindowBase* DebugPaintOpen();
 
+    // ModelViewer
+    WindowBase* ModelViewerOpen();
+
     // EditorInventionsList
     WindowBase* EditorInventionsListOpen();
 
