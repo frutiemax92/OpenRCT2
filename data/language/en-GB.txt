@@ -3885,3 +3885,10 @@ STR_7091    :Perfect shot (no random error)
 STR_7092    :Fire
 STR_7093    :Clear
 STR_7094    :Wind
+STR_7095    :Can't change this hole
+STR_7096    :The cup must be on a green
+STR_7097    :A course has at most 18 holes
+STR_7098    :There is no such hole
+STR_7099    :There is no such course
+STR_7100    :There are too many courses
+STR_7101    :Can't change this course

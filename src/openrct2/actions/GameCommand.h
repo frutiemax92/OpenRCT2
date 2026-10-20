@@ -104,6 +104,8 @@ namespace OpenRCT2
         removeStream,
         placeBuilding,
         removeBuilding,
+        editCourse,
+        editHole,
         count,
     };
 }
