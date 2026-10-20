@@ -27,6 +27,7 @@ set(test_files
    "${CMAKE_CURRENT_SOURCE_DIR}/MultiLaunch.cpp"
    "${CMAKE_CURRENT_SOURCE_DIR}/NetworkTests.cpp"
    "${CMAKE_CURRENT_SOURCE_DIR}/Pathfinding.cpp"
+   "${CMAKE_CURRENT_SOURCE_DIR}/PathSlopeTests.cpp"
    "${CMAKE_CURRENT_SOURCE_DIR}/Platform.cpp"
    "${CMAKE_CURRENT_SOURCE_DIR}/PlayTests.cpp"
    "${CMAKE_CURRENT_SOURCE_DIR}/ProductIdentityTests.cpp"

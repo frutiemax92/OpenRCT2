@@ -99,6 +99,12 @@ namespace OpenRCT2
         Direction getSlopeDirection() const;
         void setSlopeDirection(Direction newSlope);
 
+        // Rise of a sloped path over one tile, in quarter steps (1..4, PTH-003). Paths created before this
+        // field existed read as 2 (the former fixed path slope).
+        uint8_t getSlopeRiseQ() const;
+        void setSlopeRiseQ(uint8_t riseQ);
+        int32_t getSlopeRiseZ() const;
+
         RideId getRideIndex() const;
         void setRideIndex(RideId newRideIndex);
 

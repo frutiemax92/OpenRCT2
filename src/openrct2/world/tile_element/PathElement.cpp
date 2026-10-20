@@ -19,8 +19,15 @@
 #include "../../object/PathAdditionEntry.h"
 #include "../Footpath.h"
 
+#include <algorithm>
+
 namespace OpenRCT2
 {
+    static constexpr uint8_t kSlopeDirectionMask = 0b00000011;
+    static constexpr uint8_t kSlopeRiseMask = 0b00011100;
+    static constexpr uint8_t kSlopeRiseShift = 2;
+    static constexpr uint8_t kPathSlopeDefaultRiseQ = 2;
+
     bool PathElement::isSloped() const
     {
         return flags2.has(FootpathElementFlag::isSloped);
@@ -43,12 +50,29 @@ namespace OpenRCT2
 
     Direction PathElement::getSlopeDirection() const
     {
-        return slopeDirection;
+        return slopeDirection & kSlopeDirectionMask;
     }
 
     void PathElement::setSlopeDirection(Direction newSlope)
     {
-        slopeDirection = newSlope;
+        slopeDirection = (slopeDirection & ~kSlopeDirectionMask) | (newSlope & kSlopeDirectionMask);
+    }
+
+    uint8_t PathElement::getSlopeRiseQ() const
+    {
+        const uint8_t rise = (slopeDirection & kSlopeRiseMask) >> kSlopeRiseShift;
+        return rise == 0 ? kPathSlopeDefaultRiseQ : rise;
+    }
+
+    void PathElement::setSlopeRiseQ(uint8_t riseQ)
+    {
+        riseQ = std::clamp<uint8_t>(riseQ, 1, 4);
+        slopeDirection = (slopeDirection & ~kSlopeRiseMask) | (riseQ << kSlopeRiseShift);
+    }
+
+    int32_t PathElement::getSlopeRiseZ() const
+    {
+        return getSlopeRiseQ() * kCoordsZStep;
     }
 
     bool PathElement::isQueue() const
