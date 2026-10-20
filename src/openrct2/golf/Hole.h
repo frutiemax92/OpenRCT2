@@ -85,9 +85,17 @@ namespace OpenRCT2::Golf
     // Straight distance in yards between two map positions, rounded to the nearest yard (1 tile = 5 yards).
     int32_t distanceYards(const HolePoint& a, const HolePoint& b);
 
+    // MPT-001: a mini putt course is built like a regular one, but only the mini-putt club is used on it.
+    enum class CourseKind : uint8_t
+    {
+        regular,
+        miniPutt,
+    };
+
     struct Course
     {
         uint32_t id = 0;
+        CourseKind kind = CourseKind::regular;
         std::string name;
         int64_t greenFee = 0; // money64 in currency units
         bool open = false;

@@ -178,10 +178,11 @@ namespace OpenRCT2::Golf
         const FixedVec3 cup{ c.cup.x, c.cup.y, c.cup.z };
         const Fixed toCup = horizontalDistance(c.ball, cup);
 
-        if (mustPutt(here))
+        if (mustPutt(here) || c.miniPutt)
         {
             // HOL-031: read the break in proportion to Accuracy and aim uphill of it; reach the cup plus a margin.
-            ShotRequest r = requestFor(c, ClubId::putter, lie);
+            const ClubId puttClub = c.miniPutt ? ClubId::miniPutter : ClubId::putter;
+            ShotRequest r = requestFor(c, puttClub, lie);
             r.surfaceRoughness = here.roughness;
             r.power = kOne;
             const Fixed maxDistance = shotDistance(r);
@@ -204,7 +205,7 @@ namespace OpenRCT2::Golf
             effective = max(effective, toCup / 3);
             const Fixed margin = max(Fixed::fromInt(kPuttMarginMinUnits), toCup * kPuttMarginPercent / 100);
 
-            decision.club = ClubId::putter;
+            decision.club = puttClub;
             decision.putt = true;
             decision.target = cup;
             decision.aimX = aim.x;

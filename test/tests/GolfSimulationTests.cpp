@@ -14,6 +14,7 @@
 #include <gtest/gtest.h>
 #include <map>
 #include <openrct2/golf/GolfSimulation.h>
+#include <openrct2/golf/ObstacleGrid.h>
 
 using namespace OpenRCT2;
 using namespace OpenRCT2::Golf;
@@ -477,4 +478,109 @@ TEST(GolfSimulation, GolfersGetHungryOverTheRoundAndTheClockRunsInGameMinutes)
     // About a point a minute at average physique; eight minutes pass between the first and the last tick.
     EXPECT_LE(after->needs.hungerByte(), start - 6);
     EXPECT_GE(after->needs.hungerByte(), start - 10);
+}
+
+TEST(GolfSimulation, OnAMiniPuttCourseOnlyTheMiniPuttClubIsUsedAndOnlyAccuracyGrows)
+{
+    Course3 c({ 12, 18, 25 }); // short holes, in yards
+    c.courses.findCourse(c.courseId)->kind = CourseKind::miniPutt;
+    // The whole course is carpet.
+    c.world.puttable = [](double, double) { return true; };
+    c.world.roughness = [](double, double) { return 0.03; };
+    GolfSimulation sim(c.environment());
+    const uint32_t id = sim.spawn(aGolfer(c)).id;
+    std::map<ClubId, int> clubs;
+    Tally tally;
+    for (uint32_t t = 1000; t < 1000 + 400000 && !sim.golfers().empty(); t++)
+    {
+        sim.tick(t);
+        if (auto* g = sim.find(id); g != nullptr && g->state == GolferState::swinging)
+            clubs[g->decision.club]++;
+        if (auto* g = sim.find(id); g != nullptr && g->state == GolferState::putting)
+            clubs[g->decision.club]++;
+        if (t % 50 == 0)
+            tally.collect(sim);
+    }
+    tally.collect(sim);
+    ASSERT_TRUE(sim.golfers().empty());
+    EXPECT_EQ(clubs.size(), 1u);
+    EXPECT_GT(clubs[ClubId::miniPutter], 0);
+    const auto left = sim.takeLeft();
+    ASSERT_EQ(left.size(), 1u);
+    EXPECT_GT(left[0].skills.accuracy, left[0].initialSkills.accuracy);
+    EXPECT_EQ(left[0].skills.longPlay, left[0].initialSkills.longPlay);
+    EXPECT_EQ(left[0].skills.foolproof, left[0].initialSkills.foolproof);
+    EXPECT_EQ(left[0].skills.physique, left[0].initialSkills.physique);
+    EXPECT_EQ(tally.count[SimEvent::Type::holeFinished], 3);
+}
+
+TEST(GolfSimulation, AMiniPuttCourseWithWallsAroundItIsPlayable)
+{
+    // MPT acceptance: a mini putt with walls is playable, balls bounce off the walls and Accuracy increases.
+    class WalledWorld final : public IBallWorld
+    {
+    public:
+        SurfaceSample surfaceAt(Fixed, Fixed) const override
+        {
+            SurfaceSample s;
+            s.puttable = true;
+            s.roughness = Fixed::ratio(3, 100);
+            s.bounciness = Fixed::ratio(6, 10);
+            return s;
+        }
+        bool obstacleAt(const FixedVec3& p, Fixed radius, ObstacleContact& contact) const override
+        {
+            return grid.query(p, radius, contact);
+        }
+        ObstacleGrid grid;
+    } world;
+    // A wall around the playing field: x 100..900, y 3100..3500.
+    auto wall = [&](uint32_t id, int cx, int cy, int hx, int hy) {
+        Obstacle o;
+        o.id = id;
+        o.shape = ObstacleShape::box;
+        o.centre = vec(cx, cy, 0);
+        o.halfX = Fixed::fromInt(hx);
+        o.halfY = Fixed::fromInt(hy);
+        o.height = Fixed::fromInt(8);
+        o.restitution = Fixed::ratio(7, 10);
+        o.friction = Fixed::ratio(1, 10);
+        world.grid.add(o);
+    };
+    wall(1, 500, 3090, 420, 6);
+    wall(2, 500, 3510, 420, 6);
+    wall(3, 92, 3300, 6, 220);
+    wall(4, 908, 3300, 6, 220);
+
+    CourseManager courses;
+    const uint32_t courseId = courses.createCourse("Mini")->id;
+    auto* course = courses.findCourse(courseId);
+    course->kind = CourseKind::miniPutt;
+    course->open = true;
+    course->greenFee = 500;
+    for (int i = 0; i < 3; i++)
+    {
+        auto* hole = courses.createHole(courseId);
+        hole->tees[0] = HolePoint{ 160, 3200 + i * 100 };
+        hole->cup = HolePoint{ 800, 3200 + i * 100 };
+    }
+    SeqRandom rng(21);
+    GolfSimulation::Environment env;
+    env.world = &world;
+    env.courses = &courses;
+    env.rng = &rng;
+    env.clubEntrance = vec(160, 3150, 0);
+    env.exit = vec(120, 3150, 0);
+    GolfSimulation sim(env);
+    GolfSimulation::Spawn spawn;
+    spawn.skills = { 50, 50, 50, 50 };
+    spawn.courseId = courseId;
+    spawn.position = vec(130, 3150, 0);
+    sim.spawn(spawn);
+    Tally tally;
+    runUntilEmpty(sim, tally);
+    EXPECT_EQ(tally.count[SimEvent::Type::holeFinished], 3);
+    const auto left = sim.takeLeft();
+    ASSERT_EQ(left.size(), 1u);
+    EXPECT_GT(left[0].skills.accuracy, left[0].initialSkills.accuracy);
 }

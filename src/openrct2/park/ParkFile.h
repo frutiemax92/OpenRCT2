@@ -19,10 +19,10 @@ namespace OpenRCT2
     struct ObjectRepositoryItem;
 
     // Current version that is saved.
-    constexpr uint32_t kParkFileCurrentVersion = 68;
+    constexpr uint32_t kParkFileCurrentVersion = 69;
 
     // The minimum version that is forwards compatible with the current version.
-    constexpr uint32_t kParkFileMinVersion = 68;
+    constexpr uint32_t kParkFileMinVersion = 69;
 
     // The minimum version that is backwards compatible with the current version.
     // If this is increased beyond 0, uncomment the checks in ParkFile.cpp and Context.cpp!
@@ -74,6 +74,8 @@ namespace OpenRCT2
     constexpr uint16_t kGolfCoursesVersion = 67;
     // Holes carry their schedule: Auto or Manual slot and the measured averages (HOL-020).
     constexpr uint16_t kGolfScheduleVersion = 68;
+    // Courses have a kind: regular or mini putt (MPT-001).
+    constexpr uint16_t kGolfCourseKindVersion = 69;
 
     class ParkFileExporter
     {

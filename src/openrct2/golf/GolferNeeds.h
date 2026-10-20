@@ -98,6 +98,7 @@ namespace OpenRCT2::Golf
         eagle,
         holeInOne,
         distanceSign,
+        rangeDistanceSign,  // a ball at the driving range landed near a distance sign (DRV-005)
         sceneryNearHole,
         cleanPaths,
         shortWait,

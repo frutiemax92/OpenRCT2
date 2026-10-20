@@ -475,7 +475,8 @@ namespace OpenRCT2::Golf
             const int32_t played = static_cast<int32_t>(minuteNow() - g.holeStartMinute);
             recordPlay(mutableHole->schedule, played, static_cast<int32_t>(g.waitedMinutes));
         }
-        gainSkills(g.skills, Activity::courseHole, 1);
+        // GLF-021, MPT-003: a mini putt hole trains Accuracy only; a regular hole trains everything.
+        gainSkills(g.skills, course != nullptr && course->kind == CourseKind::miniPutt ? Activity::miniPuttHole : Activity::courseHole, 1);
         emit(SimEvent::Type::holeFinished, g, g.score.toPar());
 
         if (shouldRageQuit(g.needs.happinessByte(), g.rageCauses))
@@ -630,6 +631,7 @@ namespace OpenRCT2::Golf
                     const auto ground = _env.world->surfaceAt(Fixed::fromInt(hole->cup->x), Fixed::fromInt(hole->cup->y));
                     c.cup = { Fixed::fromInt(hole->cup->x), Fixed::fromInt(hole->cup->y), ground.height };
                     c.teeShot = g.score.shots == 0;
+                    c.miniPutt = courseOf(g)->kind == CourseKind::miniPutt;
                     g.decision = decideShot(c);
                     g.shotTargetDistance = g.decision.expectedDistance;
                 }

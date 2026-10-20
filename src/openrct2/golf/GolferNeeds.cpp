@@ -36,6 +36,7 @@ namespace OpenRCT2::Golf
             +45,  // eagle
             +80,  // holeInOne
             +10,  // distanceSign
+            +2,   // rangeDistanceSign
             +10,  // sceneryNearHole
             +3,   // cleanPaths
             +5,   // shortWait

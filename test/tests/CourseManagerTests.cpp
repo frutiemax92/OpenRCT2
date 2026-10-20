@@ -165,6 +165,7 @@ TEST(CourseManager, CoursesAndTheBoundarySurviveASaveAndLoadOfThePark)
         auto* course = golf.createCourse("Test links");
         course->greenFee = 12340;
         course->open = true;
+        course->kind = CourseKind::miniPutt;
         const auto courseId = course->id;
         auto* hole = golf.createHole(courseId);
         hole->tees[0] = HolePoint{ 320, 640 };
@@ -202,6 +203,7 @@ TEST(CourseManager, CoursesAndTheBoundarySurviveASaveAndLoadOfThePark)
         EXPECT_EQ(course.name, "Test links");
         EXPECT_EQ(course.greenFee, 12340);
         EXPECT_TRUE(course.open);
+        EXPECT_EQ(course.kind, CourseKind::miniPutt);
         ASSERT_EQ(course.holes.size(), 2u);
         const auto& hole = course.holes[0];
         EXPECT_EQ(hole.tees[0], (HolePoint{ 320, 640 }));

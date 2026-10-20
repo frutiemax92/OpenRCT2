@@ -896,6 +896,8 @@ namespace OpenRCT2
                     cs.readWrite(course.name);
                     cs.readWrite(course.greenFee);
                     cs.readWrite(course.open);
+                    if (os.getMode() == OrcaStream::Mode::writing || os.getHeader().targetVersion >= kGolfCourseKindVersion)
+                        cs.readWrite(course.kind);
                     uint32_t holeCount = static_cast<uint32_t>(course.holes.size());
                     cs.readWrite(holeCount);
                     if (cs.getMode() == OrcaStream::Mode::reading)

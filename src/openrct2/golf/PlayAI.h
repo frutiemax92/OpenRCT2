@@ -42,6 +42,7 @@ namespace OpenRCT2::Golf
         std::vector<HolePoint> line;     // the playing line from the tee: tee, aim points, cup
         FixedVec3 cup;                   // z from the ground
         bool teeShot = false;
+        bool miniPutt = false;           // only the mini-putt club is allowed (MPT-001)
     };
 
     // Margin past the cup that a putt is aimed to run if it misses, as a fraction of the distance with a minimum, so it

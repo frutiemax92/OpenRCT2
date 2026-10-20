@@ -84,6 +84,10 @@ namespace OpenRCT2::GameActions
                 if (course->findHole(static_cast<uint32_t>(_value)) == nullptr)
                     return Result(Status::invalidParameters, STR_COURSE_CANT_CHANGE, STR_HOLE_NOT_FOUND);
                 break;
+            case CourseEditType::setKind:
+                if (_value != 0 && _value != 1)
+                    return Result(Status::invalidParameters, STR_COURSE_CANT_CHANGE, kStringIdNone);
+                break;
             default:
                 break;
         }
@@ -134,6 +138,9 @@ namespace OpenRCT2::GameActions
             case CourseEditType::removeHole:
                 data.holeId = static_cast<uint32_t>(_value);
                 golf.removeHole(_courseId, data.holeId);
+                break;
+            case CourseEditType::setKind:
+                course->kind = _value == 1 ? Golf::CourseKind::miniPutt : Golf::CourseKind::regular;
                 break;
             default:
                 break;

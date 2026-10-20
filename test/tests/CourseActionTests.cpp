@@ -116,6 +116,15 @@ TEST(CourseActions, CreateRenameAndConfigureACourse)
     EXPECT_EQ(course->greenFee, 4500);
     EXPECT_TRUE(course->open);
 
+    CourseEditAction kind(CourseEditType::setKind, created.courseId, {}, 1);
+    EXPECT_EQ(run(kind).error, Status::ok);
+    EXPECT_EQ(getGameState().golf.findCourse(created.courseId)->kind, Golf::CourseKind::miniPutt);
+    CourseEditAction regular(CourseEditType::setKind, created.courseId, {}, 0);
+    EXPECT_EQ(run(regular).error, Status::ok);
+    EXPECT_EQ(getGameState().golf.findCourse(created.courseId)->kind, Golf::CourseKind::regular);
+    CourseEditAction badKind(CourseEditType::setKind, created.courseId, {}, 2);
+    EXPECT_EQ(run(badKind).error, Status::invalidParameters);
+
     CourseEditAction badFee(CourseEditType::setFee, created.courseId, {}, -1);
     EXPECT_EQ(run(badFee).error, Status::invalidParameters);
     CourseEditAction badOpen(CourseEditType::setOpen, created.courseId, {}, 2);
