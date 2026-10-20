@@ -23,6 +23,7 @@
 #include "../Paint.h"
 #include "../VirtualFloor.h"
 #include "Paint.Banner.h"
+#include "Paint.Building.h"
 #include "Paint.Entrance.h"
 #include "Paint.LargeScenery.h"
 #include "Paint.Path.h"
@@ -289,7 +290,7 @@ static void PaintTileElementBase(PaintSession& session, const CoordsXY& origCoor
                 // Streams are drawn by the procedural terrain renderer together with the surface (STR-005).
                 break;
             case TileElementType::building:
-                // Painting of buildings comes with the building renderer.
+                PaintBuilding(session, baseZ, *(tile_element->asBuilding()));
                 break;
         }
         session.MapPosition = mapPosition;

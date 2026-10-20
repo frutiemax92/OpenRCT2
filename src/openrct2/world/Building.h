@@ -52,6 +52,10 @@ namespace OpenRCT2::Building
     // The lowest-x, lowest-y corner of the footprint that `element` belongs to.
     CoordsXY GetOrigin(const CoordsXY& tile, const BuildingElement& element);
 
+    // The tile of the footprint painted last for a camera rotation, i.e. the one nearest to the camera. It draws the whole
+    // view of the building (BLD-001).
+    CoordsXY GetPaintTile(const BuildingObject& object, const CoordsXY& origin, Direction rotation, uint8_t cameraRotation);
+
     // True when a path lies on the tile (BLD-004).
     bool HasPathAt(const CoordsXY& tile);
 }

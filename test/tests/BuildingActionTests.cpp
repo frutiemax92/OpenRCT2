@@ -251,3 +251,37 @@ TEST(BuildingActionTests, PlaceRejectsUnknownObjectAndOffMapTiles)
     GameActions::BuildingRemoveAction removeOffMap({ -32, -32 });
     EXPECT_EQ(GameActions::Query(&removeOffMap, gameState).error, GameActions::Status::invalidParameters);
 }
+
+TEST(BuildingActionTests, TheNearestTilePaintsTheWholeView)
+{
+    auto context = startPark();
+    ASSERT_NE(context.get(), nullptr);
+    ObjectEntryIndex index{};
+    auto* club = loadClub(*context, index);
+    if (club == nullptr)
+        GTEST_SKIP() << "the club house object is not installed";
+
+    const CoordsXY origin{ 320, 320 };
+    // Camera rotation 0, building rotation 0: the +x +y corner of a 3x2 footprint is the nearest.
+    EXPECT_EQ(Building::GetPaintTile(*club, origin, 0, 0), (CoordsXY{ 384, 352 }));
+    // The opposite camera picks the opposite corner.
+    EXPECT_EQ(Building::GetPaintTile(*club, origin, 0, 2), (CoordsXY{ 320, 320 }));
+
+    for (Direction rotation = 0; rotation < 4; rotation++)
+    {
+        const auto parts = Building::GetParts(*club, origin, rotation);
+        for (uint8_t camera = 0; camera < 4; camera++)
+        {
+            const auto tile = Building::GetPaintTile(*club, origin, rotation, camera);
+            const auto seen = tile.rotate(camera);
+            bool found = false;
+            for (const auto& part : parts)
+            {
+                found |= part.tile == tile;
+                const auto other = part.tile.rotate(camera);
+                EXPECT_LE(other.x + other.y, seen.x + seen.y);
+            }
+            EXPECT_TRUE(found);
+        }
+    }
+}

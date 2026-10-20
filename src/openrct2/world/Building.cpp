@@ -9,6 +9,8 @@
 
 #include "Building.h"
 
+#include <limits>
+
 #include "../object/BuildingObject.h"
 #include "Map.h"
 #include "TileElementsView.h"
@@ -92,6 +94,24 @@ namespace OpenRCT2::Building
         int32_t ox = 0, oy = 0;
         localToOffset(*object, element.getRotation(), element.getPartX(), element.getPartY(), ox, oy);
         return { tile.x - ox * kCoordsXYStep, tile.y - oy * kCoordsXYStep };
+    }
+
+    CoordsXY GetPaintTile(const BuildingObject& object, const CoordsXY& origin, Direction rotation, uint8_t cameraRotation)
+    {
+        auto parts = GetParts(object, origin, rotation);
+        auto best = parts.front().tile;
+        auto bestKey = std::numeric_limits<int32_t>::min();
+        for (const auto& part : parts)
+        {
+            auto seen = part.tile.rotate(cameraRotation);
+            auto key = seen.x + seen.y;
+            if (key > bestKey)
+            {
+                bestKey = key;
+                best = part.tile;
+            }
+        }
+        return best;
     }
 
     bool HasPathAt(const CoordsXY& tile)
