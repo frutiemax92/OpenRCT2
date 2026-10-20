@@ -23,6 +23,7 @@ namespace OpenRCT2
         jumpingFountain,
         balloon,
         duck,
+        golfBall,
         count,
         null = 255
     };

@@ -3877,3 +3877,5 @@ STR_7083    :Buildings
 STR_7084    :Entrance must open onto a footpath
 STR_7085    :Model viewer
 STR_7086    :Pause animations
+STR_7087    :Golf ball trail
+STR_7088    :{SMALLFONT}{BLACK}Draw a short trail behind golf balls in flight

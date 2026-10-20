@@ -25,6 +25,7 @@
 #include "../world/Map.h"
 #include "Balloon.h"
 #include "Duck.h"
+#include "GolfBall.h"
 #include "EntityTweener.h"
 #include "JumpingFountain.h"
 #include "MoneyEffect.h"
@@ -71,6 +72,7 @@ namespace OpenRCT2
             case EntityType::jumpingFountain:
             case EntityType::balloon:
             case EntityType::duck:
+            case EntityType::golfBall:
                 return true;
             default:
                 return false;
@@ -260,7 +262,7 @@ namespace OpenRCT2
         uint16_t count = 0;
         for (auto id : { EntityType::steamParticle, EntityType::moneyEffect, EntityType::crashedVehicleParticle,
                          EntityType::explosionCloud, EntityType::crashSplash, EntityType::explosionFlare,
-                         EntityType::jumpingFountain, EntityType::balloon, EntityType::duck })
+                         EntityType::jumpingFountain, EntityType::balloon, EntityType::duck, EntityType::golfBall })
         {
             count += getEntityListCount(id);
         }
@@ -353,7 +355,7 @@ namespace OpenRCT2
 
         miscUpdateAllTypes<
             SteamParticle, MoneyEffect, VehicleCrashParticle, ExplosionCloud, CrashSplashParticle, ExplosionFlare,
-            JumpingFountain, Balloon, Duck>();
+            JumpingFountain, Balloon, Duck, GolfBall>();
     }
 
     void EntityRegistry::updateMoneyEffect()

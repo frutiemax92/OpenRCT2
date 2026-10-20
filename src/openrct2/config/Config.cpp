@@ -197,6 +197,7 @@ namespace OpenRCT2::Config
             model->fullscreenWidth = reader->GetInt32("fullscreen_width", -1);
             model->rct2Path = reader->GetString("game_path", "");
             model->landscapeSmoothing = reader->GetBoolean("landscape_smoothing", true);
+            model->golfBallTrail = reader->GetBoolean("golf_ball_trail", true);
             model->language = reader->GetEnum<int32_t>("language", Platform::GetLocaleLanguage(), Enum_LanguageEnum);
             model->measurementFormat = reader->GetEnum<MeasurementFormat>(
                 "measurement_format", Platform::GetLocaleMeasurementFormat(), Enum_MeasurementFormat);
@@ -307,6 +308,7 @@ namespace OpenRCT2::Config
         writer->WriteInt32("fullscreen_width", model->fullscreenWidth);
         writer->WriteString("game_path", model->rct2Path);
         writer->WriteBoolean("landscape_smoothing", model->landscapeSmoothing);
+        writer->WriteBoolean("golf_ball_trail", model->golfBallTrail);
         writer->WriteEnum<int32_t>("language", model->language, Enum_LanguageEnum);
         writer->WriteEnum<MeasurementFormat>("measurement_format", model->measurementFormat, Enum_MeasurementFormat);
         writer->WriteBoolean("play_intro", model->playIntro);

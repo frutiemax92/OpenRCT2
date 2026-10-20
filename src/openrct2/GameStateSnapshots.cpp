@@ -13,6 +13,7 @@
 #include "core/CircularBuffer.h"
 #include "entity/Balloon.h"
 #include "entity/Duck.h"
+#include "entity/GolfBall.h"
 #include "entity/EntityList.h"
 #include "entity/EntityRegistry.h"
 #include "entity/Guest.h"
@@ -100,7 +101,7 @@ struct GameStateSnapshot_t
 
         // Encodes and checks the size of each of the entity so that we
         // can fail gracefully when fields added/removed
-        if (!EntitiesSizeCheck<Vehicle, Guest, Staff, Litter, MoneyEffect, Balloon, Duck, JumpingFountain, SteamParticle>(ds))
+        if (!EntitiesSizeCheck<Vehicle, Guest, Staff, Litter, MoneyEffect, Balloon, Duck, JumpingFountain, SteamParticle, GolfBall>(ds))
         {
             LOG_ERROR("Entity index corrupted!");
             return;
@@ -149,6 +150,9 @@ struct GameStateSnapshot_t
                     break;
                 case EntityType::duck:
                     reinterpret_cast<Duck&>(sprite).serialise(ds);
+                    break;
+                case EntityType::golfBall:
+                    reinterpret_cast<GolfBall&>(sprite).serialise(ds);
                     break;
                 case EntityType::jumpingFountain:
                     reinterpret_cast<JumpingFountain&>(sprite).serialise(ds);
@@ -506,6 +510,28 @@ struct GameStateSnapshots final : public IGameStateSnapshots
         COMPARE_FIELD(VehicleCrashParticle, accelerationZ);
     }
 
+    void CompareSpriteDataGolfBall(const GolfBall& spriteBase, const GolfBall& spriteCmp, GameStateSpriteChange& changeData) const
+    {
+        // The simulation state is made of 64 bit fixed-point numbers; compare each of them by its raw value.
+        auto compare = [&](const char* name, const Fixed& a, const Fixed& b) {
+            if (a == b)
+                return;
+            const auto offset = reinterpret_cast<uintptr_t>(&a) - reinterpret_cast<uintptr_t>(&spriteBase);
+            changeData.diffs.push_back(GameStateSpriteChange::Diff{ static_cast<size_t>(offset), sizeof(int64_t), "GolfBall", name,
+                                                                    static_cast<uint64_t>(a.raw()),
+                                                                    static_cast<uint64_t>(b.raw()) });
+        };
+        compare("position.x", spriteBase.ball.position.x, spriteCmp.ball.position.x);
+        compare("position.y", spriteBase.ball.position.y, spriteCmp.ball.position.y);
+        compare("position.z", spriteBase.ball.position.z, spriteCmp.ball.position.z);
+        compare("velocity.x", spriteBase.ball.velocity.x, spriteCmp.ball.velocity.x);
+        compare("velocity.y", spriteBase.ball.velocity.y, spriteCmp.ball.velocity.y);
+        compare("velocity.z", spriteBase.ball.velocity.z, spriteCmp.ball.velocity.z);
+        compare("sideSpin", spriteBase.ball.sideSpin, spriteCmp.ball.sideSpin);
+        compare("backSpin", spriteBase.ball.backSpin, spriteCmp.ball.backSpin);
+        COMPARE_FIELD(GolfBall, restingTicks);
+    }
+
     void CompareSpriteDataDuck(const Duck& spriteBase, const Duck& spriteCmp, GameStateSpriteChange& changeData) const
     {
         COMPARE_FIELD(Duck, frame);
@@ -619,6 +645,11 @@ struct GameStateSnapshots final : public IGameStateSnapshots
                     CompareSpriteDataDuck(
                         static_cast<const Duck&>(spriteBase.base), static_cast<const Duck&>(spriteCmp.base), changeData);
                     break;
+                case EntityType::golfBall:
+                    CompareSpriteDataGolfBall(
+                        static_cast<const GolfBall&>(spriteBase.base), static_cast<const GolfBall&>(spriteCmp.base),
+                        changeData);
+                    break;
                 case EntityType::null:
                     break;
                 default:
@@ -716,6 +747,8 @@ struct GameStateSnapshots final : public IGameStateSnapshots
                 return "Misc: Balloon";
             case EntityType::duck:
                 return "Misc: Duck";
+            case EntityType::golfBall:
+                return "Misc: Golf ball";
             default:
                 break;
         }

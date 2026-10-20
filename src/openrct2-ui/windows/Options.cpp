@@ -142,6 +142,7 @@ namespace OpenRCT2::Ui::Windows
         WIDX_ENABLE_LIGHT_FX_FOR_VEHICLES_CHECKBOX,
         WIDX_RENDER_WEATHER_EFFECTS_CHECKBOX,
         WIDX_DISABLE_LIGHTNING_EFFECT_CHECKBOX,
+        WIDX_GOLF_BALL_TRAIL_CHECKBOX,
 
         // Culture / Units
         WIDX_LANGUAGE_LABEL = WIDX_PAGE_START,
@@ -310,12 +311,13 @@ namespace OpenRCT2::Ui::Windows
         makeWidget({155, kFrameRenderingStart + 90}, {145,  14}, WidgetType::dropdownMenu, WindowColour::secondary, kStringIdNone,              STR_VIRTUAL_FLOOR_STYLE_TIP   ), // Virtual floor dropdown
         makeWidget({288, kFrameRenderingStart + 91}, { 11,  12}, WidgetType::button,       WindowColour::secondary, STR_DROPDOWN_GLYPH,         STR_VIRTUAL_FLOOR_STYLE_TIP   ), // Virtual floor dropdown
 
-        makeWidget({ 5,  kFrameEffectStart + 0}, {300, 94}, WidgetType::groupbox, WindowColour::secondary, STR_EFFECTS_GROUP                                             ), // Rendering group
+        makeWidget({ 5,  kFrameEffectStart + 0}, {300, 110}, WidgetType::groupbox, WindowColour::secondary, STR_EFFECTS_GROUP                                             ), // Rendering group
         makeWidget({10, kFrameEffectStart + 15}, {281, 12}, WidgetType::checkbox, WindowColour::secondary, STR_CYCLE_DAY_NIGHT,          STR_CYCLE_DAY_NIGHT_TIP         ), // Cycle day-night
         makeWidget({25, kFrameEffectStart + 30}, {266, 12}, WidgetType::checkbox, WindowColour::secondary, STR_ENABLE_LIGHTING_EFFECTS,  STR_ENABLE_LIGHTING_EFFECTS_TIP ), // Enable light fx
         makeWidget({40, kFrameEffectStart + 45}, {251, 12}, WidgetType::checkbox, WindowColour::secondary, STR_ENABLE_LIGHTING_VEHICLES, STR_ENABLE_LIGHTING_VEHICLES_TIP), // Enable light fx for vehicles
         makeWidget({10, kFrameEffectStart + 60}, {281, 12}, WidgetType::checkbox, WindowColour::secondary, STR_RENDER_WEATHER_EFFECTS,   STR_RENDER_WEATHER_EFFECTS_TIP  ), // Render weather effects
-        makeWidget({25, kFrameEffectStart + 75}, {266, 12}, WidgetType::checkbox, WindowColour::secondary, STR_DISABLE_LIGHTNING_EFFECT, STR_DISABLE_LIGHTNING_EFFECT_TIP)  // Disable lightning effect
+        makeWidget({25, kFrameEffectStart + 75}, {266, 12}, WidgetType::checkbox, WindowColour::secondary, STR_DISABLE_LIGHTNING_EFFECT, STR_DISABLE_LIGHTNING_EFFECT_TIP), // Disable lightning effect
+        makeWidget({10, kFrameEffectStart + 90}, {281, 12}, WidgetType::checkbox, WindowColour::secondary, STR_GOLF_BALL_TRAIL,          STR_GOLF_BALL_TRAIL_TIP         )  // Golf ball trail
     );
 
     static constexpr auto window_options_culture_widgets = makeWidgets(
@@ -1007,6 +1009,11 @@ namespace OpenRCT2::Ui::Windows
         {
             switch (widgetIndex)
             {
+                case WIDX_GOLF_BALL_TRAIL_CHECKBOX:
+                    Config::Get().general.golfBallTrail ^= 1;
+                    Config::Save();
+                    GfxInvalidateScreen();
+                    break;
                 case WIDX_TILE_SMOOTHING_CHECKBOX:
                     Config::Get().general.landscapeSmoothing ^= 1;
                     Config::Save();
@@ -1099,6 +1106,7 @@ namespace OpenRCT2::Ui::Windows
         void RenderingPrepareDraw()
         {
             setCheckboxValue(WIDX_TILE_SMOOTHING_CHECKBOX, Config::Get().general.landscapeSmoothing);
+            setCheckboxValue(WIDX_GOLF_BALL_TRAIL_CHECKBOX, Config::Get().general.golfBallTrail);
             setCheckboxValue(WIDX_GRIDLINES_CHECKBOX, Config::Get().general.alwaysShowGridlines);
             setCheckboxValue(WIDX_DAY_NIGHT_CHECKBOX, Config::Get().general.dayNightCycle);
             setCheckboxValue(WIDX_SHOW_GUEST_PURCHASES_CHECKBOX, Config::Get().general.showGuestPurchases);

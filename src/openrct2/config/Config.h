@@ -50,6 +50,7 @@ namespace OpenRCT2::Config
 
         // Map rendering
         bool landscapeSmoothing;
+        bool golfBallTrail;
         bool alwaysShowGridlines;
         VirtualFloorStyles virtualFloorStyle;
         bool dayNightCycle;

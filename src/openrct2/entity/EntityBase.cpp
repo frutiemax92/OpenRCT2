@@ -42,6 +42,9 @@ namespace OpenRCT2
             case EntityType::duck:
                 maxZoom = ZoomLevel{ 1 };
                 break;
+            case EntityType::golfBall:
+                maxZoom = ZoomLevel{ 1 };
+                break;
             case EntityType::steamParticle:
             case EntityType::moneyEffect:
             case EntityType::explosionCloud:

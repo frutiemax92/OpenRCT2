@@ -26,6 +26,7 @@
 #include "../drawing/Drawing.Screen.h"
 #include "../entity/Balloon.h"
 #include "../entity/Duck.h"
+#include "../entity/GolfBall.h"
 #include "../entity/EntityList.h"
 #include "../entity/EntityRegistry.h"
 #include "../entity/JumpingFountain.h"
@@ -2755,6 +2756,42 @@ namespace OpenRCT2
     }
 
     template<>
+    void ParkFile::ReadWriteEntity(OrcaStream& os, OrcaStream::ChunkStream& cs, GolfBall& golfBall)
+    {
+        ReadWriteEntityCommon(cs, golfBall);
+        auto fixed = [&cs](Fixed& value) {
+            int64_t raw = value.raw();
+            cs.readWrite(raw);
+            value = Fixed::fromRaw(raw);
+        };
+        auto vec = [&fixed](FixedVec3& v) {
+            fixed(v.x);
+            fixed(v.y);
+            fixed(v.z);
+        };
+        auto& ball = golfBall.ball;
+        vec(ball.position);
+        vec(ball.velocity);
+        fixed(ball.sideSpin);
+        fixed(ball.backSpin);
+        cs.readWrite(ball.state);
+        cs.readWrite(ball.owner);
+        vec(ball.lastSafePosition);
+        vec(ball.hazardEntry);
+        vec(ball.shotOrigin);
+        cs.readWrite(ball.passingObstacle);
+        cs.readWrite(ball.lippedOut);
+        cs.readWrite(ball.bounces);
+        cs.readWrite(ball.lieSurface);
+        cs.readWrite(golfBall.restingTicks);
+        if (cs.getMode() == OrcaStream::Mode::reading)
+        {
+            golfBall.trailCount = 0;
+            golfBall.trail = {};
+        }
+    }
+
+    template<>
     void ParkFile::ReadWriteEntity(OrcaStream& os, OrcaStream::ChunkStream& cs, Duck& duck)
     {
         ReadWriteEntityCommon(cs, duck);
@@ -2843,6 +2880,10 @@ namespace OpenRCT2
                     CrashSplashParticle, ExplosionFlare, JumpingFountain, Balloon, Duck>(gameState, os, cs);
 
                 auto version = os.getHeader().targetVersion;
+                if (version >= kGolfBallEntityVersion)
+                {
+                    ReadEntitiesOfType<GolfBall>(gameState, os, cs);
+                }
                 if (version < kPeepAnimationObjectsVersion)
                 {
                     ConvertPeepAnimationTypeToObjects(gameState);
@@ -2852,7 +2893,7 @@ namespace OpenRCT2
             {
                 WriteEntitiesOfTypes<
                     Vehicle, Guest, Staff, Litter, SteamParticle, MoneyEffect, VehicleCrashParticle, ExplosionCloud,
-                    CrashSplashParticle, ExplosionFlare, JumpingFountain, Balloon, Duck>(gameState, os, cs);
+                    CrashSplashParticle, ExplosionFlare, JumpingFountain, Balloon, Duck, GolfBall>(gameState, os, cs);
             }
         });
     }
