@@ -10,6 +10,7 @@
 #pragma once
 
 #include "../model/ImposterCache.h"
+#include "../model/ImposterWorker.h"
 #include "ImageIndexType.h"
 
 #include <memory>
@@ -41,6 +42,14 @@ namespace OpenRCT2::Drawing
         // until the next BeginFrame. Safe to call from paint threads.
         ImageIndex GetImage(const Model::ImposterKey& key);
 
+        // Rasterises missing poses on worker threads (R3D-009): GetImage then returns kImageIndexUndefined for a pose until
+        // its image is ready, which BeginFrame collects. 0 threads goes back to rasterising on the calling thread.
+        void SetWorkerThreads(size_t threads);
+        // Moves finished worker images into the cache; BeginFrame does this too. Returns how many arrived.
+        size_t CollectFinished();
+        // Blocks until all requested poses are rasterised and collected (tests, screenshots).
+        void WaitForWorkers();
+
         size_t GetSpriteCount() const;
 
     private:
@@ -50,7 +59,7 @@ namespace OpenRCT2::Drawing
         {
             std::shared_ptr<const Model::GlbModel> model;
             float unitsPerMetre;
-            Model::TextureSet textures;
+            std::shared_ptr<const Model::TextureSet> textures;
         };
 
         mutable std::mutex _mutex;
@@ -58,6 +67,8 @@ namespace OpenRCT2::Drawing
         std::unordered_map<Model::ImposterKey, ImageIndex, Model::ImposterKeyHash> _images;
         std::unordered_map<uint32_t, Entry> _models;
         std::vector<std::pair<uint8_t, Model::PaletteColour>> _palette;
+        std::shared_ptr<const std::vector<std::pair<uint8_t, Model::PaletteColour>>> _sharedPalette;
+        std::unique_ptr<Model::ImposterWorker> _worker;
         uint32_t _nextId = 1;
     };
 } // namespace OpenRCT2::Drawing

@@ -22,6 +22,7 @@ set(test_files
    "${CMAKE_CURRENT_SOURCE_DIR}/GameAudioTests.cpp"
    "${CMAKE_CURRENT_SOURCE_DIR}/ImageImporterTests.cpp"
    "${CMAKE_CURRENT_SOURCE_DIR}/ImposterCacheTests.cpp"
+   "${CMAKE_CURRENT_SOURCE_DIR}/ImposterWorkerTests.cpp"
    "${CMAKE_CURRENT_SOURCE_DIR}/IniReaderTest.cpp"
    "${CMAKE_CURRENT_SOURCE_DIR}/IniWriterTest.cpp"
    "${CMAKE_CURRENT_SOURCE_DIR}/LanguagePackTest.cpp"

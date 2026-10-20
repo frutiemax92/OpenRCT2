@@ -85,6 +85,7 @@
 #include <exception>
 #include <future>
 #include <memory>
+#include <thread>
 #include <string>
 
 using namespace OpenRCT2;
@@ -1315,6 +1316,13 @@ namespace OpenRCT2
             PROFILED_FUNCTION();
 
             Drawing::TerrainSpriteStore::Instance().BeginFrame();
+            // Model sprites are rasterised on worker threads once something is drawn (R3D-009).
+            static const bool workersStarted = [] {
+                const auto cores = std::thread::hardware_concurrency();
+                Drawing::ModelSpriteStore::Instance().SetWorkerThreads(cores > 2 ? 2 : 1);
+                return true;
+            }();
+            (void)workersStarted;
             Drawing::ModelSpriteStore::Instance().BeginFrame();
             _drawingEngine->BeginDraw();
             _painter->Paint(*_drawingEngine);
