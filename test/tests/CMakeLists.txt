@@ -18,6 +18,7 @@ set(test_files
    "${CMAKE_CURRENT_SOURCE_DIR}/Endianness.cpp"
    "${CMAKE_CURRENT_SOURCE_DIR}/EnumMapTest.cpp"
    "${CMAKE_CURRENT_SOURCE_DIR}/FixedTests.cpp"
+   "${CMAKE_CURRENT_SOURCE_DIR}/FixedVecTests.cpp"
    "${CMAKE_CURRENT_SOURCE_DIR}/FormattingTests.cpp"
    "${CMAKE_CURRENT_SOURCE_DIR}/GlbModelTests.cpp"
    "${CMAKE_CURRENT_SOURCE_DIR}/GameAudioTests.cpp"
