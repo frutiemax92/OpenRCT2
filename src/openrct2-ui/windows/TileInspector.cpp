@@ -2136,6 +2136,10 @@ namespace OpenRCT2::Ui::Windows
                     case TileElementType::banner:
                         p = TileInspectorPage::banner;
                         break;
+
+                    case TileElementType::stream:
+                        p = TileInspectorPage::standard;
+                        break;
                 }
             }
 

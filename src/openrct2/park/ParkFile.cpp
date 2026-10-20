@@ -1313,6 +1313,7 @@ namespace OpenRCT2
                                 break;
                             }
                             case TileElementType::surface:
+                            case TileElementType::stream:
                                 break;
                             case TileElementType::path:
                             {

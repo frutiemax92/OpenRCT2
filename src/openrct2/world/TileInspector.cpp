@@ -27,6 +27,7 @@
 #include "tile_element/BannerElement.h"
 #include "tile_element/EntranceElement.h"
 #include "tile_element/LargeSceneryElement.h"
+#include "tile_element/StreamElement.h"
 #include "tile_element/PathElement.h"
 #include "tile_element/Slope.h"
 #include "tile_element/SmallSceneryElement.h"
@@ -271,6 +272,14 @@ namespace OpenRCT2::TileInspector
                     unblockedEdges = (unblockedEdges << 1 | unblockedEdges >> 3) & 0xF;
                     tileElement->asBanner()->setAllowedEdges(unblockedEdges);
                     tileElement->asBanner()->setPosition((tileElement->asBanner()->getPosition() + 1) & 3);
+                    break;
+                }
+                case TileElementType::stream:
+                {
+                    auto* stream = tileElement->asStream();
+                    const auto edges = stream->getEdges();
+                    stream->setEdges(static_cast<uint8_t>((edges << 1 | edges >> 3) & 0xF));
+                    stream->setFlowDirection(DirectionNext(stream->getFlowDirection()));
                     break;
                 }
                 case TileElementType::surface:

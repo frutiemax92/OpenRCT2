@@ -285,6 +285,9 @@ static void PaintTileElementBase(PaintSession& session, const CoordsXY& origCoor
             case TileElementType::banner:
                 PaintBanner(session, direction, baseZ, *(tile_element->asBanner()));
                 break;
+            case TileElementType::stream:
+                // Streams are drawn by the procedural terrain renderer together with the surface (STR-005).
+                break;
         }
         session.MapPosition = mapPosition;
     } while (!(tile_element++)->isLastForTile());

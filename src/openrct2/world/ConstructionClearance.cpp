@@ -398,5 +398,8 @@ void MapGetObstructionErrorText(TileElement* tileElement, GameActions::Result& r
         }
         case TileElementType::banner:
             break;
+        case TileElementType::stream:
+            res.errorMessage = STR_X_IN_THE_WAY;
+            break;
     }
 }

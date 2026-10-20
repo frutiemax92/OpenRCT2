@@ -23,5 +23,6 @@ namespace OpenRCT2
         wall = 5,
         largeScenery = 6,
         banner = 7,
+        stream = 8,
     };
 }

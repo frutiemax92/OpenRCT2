@@ -48,6 +48,7 @@ namespace OpenRCT2
     struct WallElement;
     struct EntranceElement;
     struct BannerElement;
+    struct StreamElement;
 
 #pragma pack(push, 1)
     struct TileElementBase
@@ -120,6 +121,8 @@ namespace OpenRCT2
         EntranceElement* asEntrance();
         const BannerElement* asBanner() const;
         BannerElement* asBanner();
+        const StreamElement* asStream() const;
+        StreamElement* asStream();
     };
 #pragma pack(pop)
 } // namespace OpenRCT2

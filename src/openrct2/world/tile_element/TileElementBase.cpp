@@ -12,6 +12,7 @@
 #include "../../core/EnumUtils.hpp"
 #include "../Map.h"
 #include "BannerElement.h"
+#include "StreamElement.h"
 #include "EntranceElement.h"
 #include "LargeSceneryElement.h"
 #include "PathElement.h"
@@ -206,5 +207,13 @@ namespace OpenRCT2
     BannerElement* TileElementBase::asBanner()
     {
         return as<BannerElement>();
+    }
+    const StreamElement* TileElementBase::asStream() const
+    {
+        return as<StreamElement>();
+    }
+    StreamElement* TileElementBase::asStream()
+    {
+        return as<StreamElement>();
     }
 } // namespace OpenRCT2
