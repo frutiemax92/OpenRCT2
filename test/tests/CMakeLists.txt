@@ -63,6 +63,7 @@ set(test_files
    "${CMAKE_CURRENT_SOURCE_DIR}/HoleDifficultyTests.cpp"
    "${CMAKE_CURRENT_SOURCE_DIR}/HoleScheduleTests.cpp"
    "${CMAKE_CURRENT_SOURCE_DIR}/GolferNeedsTests.cpp"
+   "${CMAKE_CURRENT_SOURCE_DIR}/GolferSkillsTests.cpp"
    "${CMAKE_CURRENT_SOURCE_DIR}/PlayAITests.cpp"
    "${CMAKE_CURRENT_SOURCE_DIR}/CourseManagerTests.cpp"
    "${CMAKE_CURRENT_SOURCE_DIR}/CourseActionTests.cpp"
