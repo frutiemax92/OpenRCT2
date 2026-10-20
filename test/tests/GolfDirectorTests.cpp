@@ -299,3 +299,17 @@ TEST(GolfDirector, TheSimulationIsDeterministic)
     };
     EXPECT_EQ(run(), run());
 }
+
+TEST(GolfDirector, PopularityReflectsCourseScenery)
+{
+    Park parkWithoutScenery;
+    const auto inPlain = parkWithoutScenery.director->popularityInputs();
+    EXPECT_EQ(inPlain.sceneryScore, 0);
+
+    Park parkWithScenery;
+    auto* course = parkWithScenery.courses.findCourse(parkWithScenery.courseId);
+    for (auto& h : course->holes)
+        h.sceneryScore = 80;
+    const auto inScenery = parkWithScenery.director->popularityInputs();
+    EXPECT_EQ(inScenery.sceneryScore, 80);
+}

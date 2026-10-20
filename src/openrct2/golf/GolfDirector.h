@@ -30,6 +30,9 @@ namespace OpenRCT2::Golf
         struct Sources
         {
             std::function<std::vector<Service>()> services;       // buildings that serve needs
+            std::function<std::vector<Bench>()> benches;          // path benches (PTH-021)
+            std::function<std::vector<LitterBin>()> bins;         // litter bins (PTH-022)
+            std::function<int32_t()> sceneryScore;                // scenery score (0..100, SCN-003)
             std::function<FixedVec3()> spawnPoint;                // where arriving golfers appear
             std::function<FixedVec3()> clubEntrance;              // the check-in desk
             std::function<FixedVec3()> exitPoint;
@@ -114,13 +117,14 @@ namespace OpenRCT2::Golf
             return _day;
         }
 
+        PopularityInputs popularityInputs() const;
+
     private:
         void everyMinute(uint32_t ticks);
         void everyDay();
         void admitGroup(uint32_t courseId, bool tournamentField);
         void sendEveryoneHome();
         void processEvents();
-        PopularityInputs popularityInputs() const;
         uint32_t openCourse() const;
 
         GolfSimulation _sim;

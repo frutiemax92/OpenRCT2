@@ -41,6 +41,24 @@ namespace OpenRCT2::Golf
         int64_t price = 0;
     };
 
+    // A path bench where golfers sit to restore energy (PTH-021, GLF-031). Max 2 occupants per bench.
+    struct Bench
+    {
+        uint32_t id = 0;
+        FixedVec3 position;
+        uint8_t occupants = 0;
+        static constexpr uint8_t kMaxOccupants = 2;
+    };
+
+    // A litter bin where golfers drop food and drink containers (PTH-022).
+    struct LitterBin
+    {
+        uint32_t id = 0;
+        FixedVec3 position;
+        uint32_t trashCount = 0;
+        static constexpr uint32_t kCapacity = 20;
+    };
+
     // What the simulation did, for the interface (thoughts, news, sounds) and the economy.
     struct SimEvent
     {
@@ -57,6 +75,9 @@ namespace OpenRCT2::Golf
             roundFinished,
             tooHard,
             lostBall,
+            restedOnBench,
+            talkedWithGolfer,
+            littered,
         };
         Type type = Type::thought;
         uint32_t golferId = 0;
@@ -92,6 +113,8 @@ namespace OpenRCT2::Golf
             FixedVec3 clubEntrance;   // the check-in desk
             FixedVec3 exit;           // where golfers leave
             std::vector<Service> services;
+            std::vector<Bench> benches;
+            std::vector<LitterBin> bins;
         };
 
         explicit GolfSimulation(Environment environment);

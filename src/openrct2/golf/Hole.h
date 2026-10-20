@@ -59,6 +59,7 @@ namespace OpenRCT2::Golf
         std::array<std::optional<HolePoint>, kMaxAimPoints> aimPoints; // used in order: aim point 0 first
         int32_t parOverride = 0; // 0 for the computed par (men's tee)
         HoleSchedule schedule;   // the time slot and what groups really take (HOL-020)
+        int32_t sceneryScore = 0; // 0..100: scenery near the hole (SCN-003)
 
         bool hasTee(TeeCategory category) const
         {

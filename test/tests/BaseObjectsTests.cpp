@@ -30,6 +30,8 @@
 #include <openrct2/object/ObjectManager.h>
 #include <openrct2/object/ObjectRepository.h>
 #include <openrct2/object/BuildingObject.h>
+#include <openrct2/object/PathAdditionEntry.h>
+#include <openrct2/object/PathAdditionObject.h>
 #include <openrct2/object/StreamObject.h>
 #include <openrct2/object/TerrainEdgeObject.h>
 #include <openrct2/object/TerrainSurfaceObject.h>
@@ -284,6 +286,34 @@ TEST_F(BaseObjects, AllBuildingKindsLoadWithTheirProperties)
         EXPECT_EQ(bld->FootprintY, exp.footprintY) << exp.id;
         EXPECT_EQ(bld->Services, exp.services) << exp.id;
         EXPECT_TRUE(bld->HasEntrance) << exp.id;
+    }
+}
+
+TEST_F(BaseObjects, PathAdditionsLoadWithTheirProperties)
+{
+    struct PathAdditionExpectation
+    {
+        const char* id;
+        PathAdditionDrawType drawType;
+        PathAdditionFlag flag;
+    };
+
+    const PathAdditionExpectation expectations[] = {
+        { "golf.path_addition.bench", PathAdditionDrawType::bench, PathAdditionFlag::isBench },
+        { "golf.path_addition.bin", PathAdditionDrawType::bin, PathAdditionFlag::isBin },
+        { "golf.path_addition.lamp", PathAdditionDrawType::light, PathAdditionFlag::lamp },
+    };
+
+    for (const auto& exp : expectations)
+    {
+        auto* obj = Load(exp.id);
+        ASSERT_NE(nullptr, obj) << "Failed to load " << exp.id;
+        EXPECT_EQ(ObjectType::pathAdditions, obj->GetObjectType()) << exp.id;
+        auto* entry = static_cast<PathAdditionEntry*>(obj->GetLegacyData());
+        ASSERT_NE(nullptr, entry) << exp.id;
+        EXPECT_EQ(exp.drawType, entry->draw_type) << exp.id;
+        EXPECT_TRUE(entry->flags.has(exp.flag)) << exp.id;
+        EXPECT_GT(entry->price, 0) << exp.id;
     }
 }
 

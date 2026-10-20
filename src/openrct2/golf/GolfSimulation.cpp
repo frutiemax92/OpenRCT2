@@ -313,6 +313,34 @@ namespace OpenRCT2::Golf
                 bestDistance = d;
             }
         }
+
+        // PTH-021: a golfer with low energy prefers or uses a path bench if available.
+        if (need == NeedKind::energy && !_env.benches.empty())
+        {
+            Bench* bestBench = nullptr;
+            Fixed bestBenchDist = Fixed::fromInt(1000000);
+            for (auto& b : _env.benches)
+            {
+                if (b.occupants >= Bench::kMaxOccupants)
+                    continue;
+                const Fixed d = horizontal(b.position, g.position);
+                if (d < bestBenchDist)
+                {
+                    bestBench = &b;
+                    bestBenchDist = d;
+                }
+            }
+            if (bestBench != nullptr && (best == nullptr || bestBenchDist < bestDistance))
+            {
+                bestBench->occupants++;
+                g.restingBenchId = bestBench->id;
+                g.destination = bestBench->position;
+                g.facilityTicksLeft = kWalkingToFacility;
+                setState(g, GolferState::resting);
+                return true;
+            }
+        }
+
         if (best == nullptr)
             return false;
         g.facilityNeed = need;
@@ -327,6 +355,13 @@ namespace OpenRCT2::Golf
     {
         if (g.state == GolferState::rageQuitting || g.state == GolferState::leaving || g.finished)
             return;
+        if (g.restingBenchId != 0)
+        {
+            for (auto& b : _env.benches)
+                if (b.id == g.restingBenchId && b.occupants > 0)
+                    b.occupants--;
+            g.restingBenchId = 0;
+        }
         g.rageQuit = true;
         g.ballInPlay = false;
         g.destination = _env.exit;
@@ -349,6 +384,13 @@ namespace OpenRCT2::Golf
 
     void GolfSimulation::leave(Golfer& g)
     {
+        if (g.restingBenchId != 0)
+        {
+            for (auto& b : _env.benches)
+                if (b.id == g.restingBenchId && b.occupants > 0)
+                    b.occupants--;
+            g.restingBenchId = 0;
+        }
         g.ballInPlay = false;
         g.destination = _env.exit;
         setState(g, GolferState::leaving);
@@ -456,6 +498,12 @@ namespace OpenRCT2::Golf
 
         if (course != nullptr && hole != nullptr)
         {
+            // SCN-003: nice scenery near the hole contributes to golfer happiness.
+            if (hole->sceneryScore > 0)
+            {
+                applyHappiness(g.needs, HappinessEvent::sceneryNearHole);
+                think(g, ThoughtType::enjoyingTheRound);
+            }
             // HOL-041: a hole too hard for the golfer costs happiness and is remembered as a cause of anger.
             const auto& difficulty = difficultyOf(g.courseId, hole->id);
             if (isTooHard(difficulty, g.currentSkills()))
@@ -602,7 +650,34 @@ namespace OpenRCT2::Golf
             }
             case GolferState::waitingForTeeTime:
                 if (minuteNow() >= g.teeTimeMinute && !groupBusy(g))
+                {
                     teeOff(g);
+                    break;
+                }
+                // GLF-031: golfers in the same group waiting at the tee chat with each other.
+                if (g.stateTicks > 10 && g.stateTicks % 20 == 0)
+                {
+                    for (auto& other : _golfers)
+                    {
+                        if (other.id != g.id && other.groupId == g.groupId && other.state == GolferState::waitingForTeeTime
+                            && other.holeIndex == g.holeIndex)
+                        {
+                            setState(g, GolferState::talking);
+                            setState(other, GolferState::talking);
+                            applyHappiness(g.needs, HappinessEvent::shortWait);
+                            applyHappiness(other.needs, HappinessEvent::shortWait);
+                            emit(SimEvent::Type::talkedWithGolfer, g);
+                            emit(SimEvent::Type::talkedWithGolfer, other);
+                            break;
+                        }
+                    }
+                }
+                break;
+            case GolferState::talking:
+                if (minuteNow() >= g.teeTimeMinute || g.stateTicks >= static_cast<uint32_t>(kTalkMinutes * kTicksPerGameMinute))
+                {
+                    setState(g, GolferState::waitingForTeeTime);
+                }
                 break;
             case GolferState::preparingShot:
             {
@@ -764,6 +839,96 @@ namespace OpenRCT2::Golf
                 g.money -= std::min<int64_t>(g.money, service->price);
                 _income += service->price;
                 emit(SimEvent::Type::usedFacility, g, static_cast<int32_t>(service->price));
+
+                // PTH-022: food and drink generate litter. If a bin is within reach, use it; otherwise litter.
+                if (service->food || service->drink)
+                {
+                    LitterBin* nearestBin = nullptr;
+                    Fixed nearestBinDist = Fixed::fromInt(1000000);
+                    constexpr Fixed kMaxBinDistance = Fixed::fromInt(10 * 32); // 10 tiles
+                    for (auto& bin : _env.bins)
+                    {
+                        const Fixed d = horizontal(bin.position, g.position);
+                        if (d <= kMaxBinDistance && d < nearestBinDist)
+                        {
+                            nearestBin = &bin;
+                            nearestBinDist = d;
+                        }
+                    }
+                    if (nearestBin != nullptr && nearestBin->trashCount < LitterBin::kCapacity)
+                    {
+                        nearestBin->trashCount++;
+                        applyHappiness(g.needs, HappinessEvent::cleanPaths);
+                    }
+                    else
+                    {
+                        emit(SimEvent::Type::littered, g);
+                        applyHappiness(g.needs, HappinessEvent::litter);
+                        for (auto& other : _golfers)
+                        {
+                            if (other.id != g.id && !other.finished
+                                && horizontal(other.position, g.position) <= Fixed::fromInt(3 * 32))
+                            {
+                                applyHappiness(other.needs, HappinessEvent::litter);
+                            }
+                        }
+                    }
+                }
+
+                if (g.facilityResumeBall)
+                {
+                    g.facilityResumeBall = false;
+                    g.destination = g.ball.position;
+                    setState(g, GolferState::walkingToBall);
+                }
+                else
+                {
+                    startHole(g);
+                }
+                break;
+            }
+            case GolferState::resting:
+            {
+                Bench* bench = nullptr;
+                for (auto& b : _env.benches)
+                {
+                    if (b.id == g.restingBenchId)
+                    {
+                        bench = &b;
+                        break;
+                    }
+                }
+                if (bench == nullptr)
+                {
+                    if (g.facilityResumeBall)
+                    {
+                        g.facilityResumeBall = false;
+                        g.destination = g.ball.position;
+                        setState(g, GolferState::walkingToBall);
+                    }
+                    else
+                    {
+                        startHole(g);
+                    }
+                    break;
+                }
+                if (g.facilityTicksLeft == kWalkingToFacility)
+                {
+                    if (walk(g, bench->position))
+                        g.facilityTicksLeft = static_cast<uint32_t>(2 * kTicksPerGameMinute);
+                    break;
+                }
+                if (g.facilityTicksLeft > 0)
+                {
+                    g.facilityTicksLeft--;
+                    break;
+                }
+                // Rest is complete: restore 2 minutes worth of energy
+                g.needs.energy = std::min(255 * 16, g.needs.energy + kRestEnergyPerMinute * 16 * 2);
+                if (bench->occupants > 0)
+                    bench->occupants--;
+                g.restingBenchId = 0;
+                emit(SimEvent::Type::restedOnBench, g);
                 if (g.facilityResumeBall)
                 {
                     g.facilityResumeBall = false;

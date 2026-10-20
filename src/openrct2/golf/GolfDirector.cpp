@@ -79,6 +79,29 @@ namespace OpenRCT2::Golf
                 ? &_sim.environment().courses->courses().front()
                 : nullptr)
             in.priceFairness = std::min(100, priceFairnessPercent(course->greenFee, static_cast<int32_t>(course->playableHoles())));
+
+        if (_sources.sceneryScore)
+        {
+            in.sceneryScore = _sources.sceneryScore();
+        }
+        else if (_sim.environment().courses != nullptr)
+        {
+            int32_t totalScenery = 0;
+            int32_t holeCount = 0;
+            for (const auto& c : _sim.environment().courses->courses())
+            {
+                for (const auto& h : c.holes)
+                {
+                    if (h.isComplete())
+                    {
+                        totalScenery += h.sceneryScore;
+                        holeCount++;
+                    }
+                }
+            }
+            if (holeCount > 0)
+                in.sceneryScore = std::clamp(totalScenery / holeCount, 0, 100);
+        }
         return in;
     }
 
@@ -275,6 +298,10 @@ namespace OpenRCT2::Golf
             auto& env = _sim.environment();
             if (_sources.services)
                 env.services = _sources.services();
+            if (_sources.benches)
+                env.benches = _sources.benches();
+            if (_sources.bins)
+                env.bins = _sources.bins();
             if (_sources.clubEntrance)
                 env.clubEntrance = _sources.clubEntrance();
             if (_sources.exitPoint)

@@ -437,6 +437,7 @@ namespace OpenRCT2::ObjectFactory
         { "footpath_banner", ObjectType::banners },
         { "footpath_legacy", ObjectType::paths },
         { "footpath_item", ObjectType::pathAdditions },
+        { "path_addition", ObjectType::pathAdditions },
         { "scenery_group", ObjectType::sceneryGroup },
         { "park_entrance", ObjectType::parkEntrance },
         { "water", ObjectType::water },

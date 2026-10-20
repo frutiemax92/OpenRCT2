@@ -120,6 +120,7 @@ namespace OpenRCT2::Golf
         uint32_t facilityTicksLeft = 0;  // kWalkingToFacility while on the way there
         uint32_t facilityService = 0;    // id of the Service being visited
         bool facilityResumeBall = false; // after the visit, go back to the ball instead of the next hole
+        uint32_t restingBenchId = 0;     // id of the bench being used (PTH-021)
         bool searchedBall = false;       // the lost ball check was done for the current lie
         NeedKind facilityNeed = NeedKind::none;
         bool wantsCart = false;

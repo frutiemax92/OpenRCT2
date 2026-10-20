@@ -398,6 +398,52 @@ def building_view(footprint, rotation, colour):
     return image, -fy * 32, -height + (fx + fy) * 8
 
 
+def path_addition_icon(colour):
+    image = Image(32, 32, (0, 0, 0), 0)
+    image.fill_rect(6, 10, 20, 12, shade(colour, 1.0))
+    image.fill_rect(8, 12, 16, 8, shade(colour, 1.2))
+    return image
+
+
+def path_addition_view(colour, broken=False, full=False):
+    image = Image(16, 16, (0, 0, 0), 0)
+    c = shade(colour, 0.7 if broken else (1.3 if full else 1.0))
+    image.fill_rect(2, 4, 12, 8, c)
+    return image
+
+
+def path_addition(name, description, render_as, is_bench, is_bin, is_lamp, colour, palette, price=300):
+    images = {"images/icon.png": quantise(path_addition_icon(colour), palette).png()}
+    table = [{"path": "images/icon.png", "x": 0, "y": 0}]
+    # 4 intact
+    for rot in range(4):
+        path = "images/intact_%d.png" % rot
+        images[path] = quantise(path_addition_view(colour, False, False), palette).png()
+        table.append({"path": path, "x": -8, "y": -8})
+    # 4 broken
+    for rot in range(4):
+        path = "images/broken_%d.png" % rot
+        images[path] = quantise(path_addition_view(colour, True, False), palette).png()
+        table.append({"path": path, "x": -8, "y": -8})
+    # 4 full (if bin)
+    if is_bin:
+        for rot in range(4):
+            path = "images/full_%d.png" % rot
+            images[path] = quantise(path_addition_view(colour, False, True), palette).png()
+            table.append({"path": path, "x": -8, "y": -8})
+
+    properties = {
+        "renderAs": render_as,
+        "price": price,
+        "isBench": is_bench,
+        "isBin": is_bin,
+        "isLamp": is_lamp,
+        "cursor": "CURSOR_BENCH_DOWN" if is_bench else ("CURSOR_BIN_DOWN" if is_bin else "CURSOR_LAMPPOST_DOWN"),
+    }
+    data = manifest("golf.path_addition." + name, "path_addition", description, properties, table)
+    return object_files(data, images)
+
+
 def building_icon(colour):
     image = Image(32, 32, (0, 0, 0), 0)
     image.fill_rect(6, 12, 20, 14, shade(colour, 0.9))
@@ -504,6 +550,12 @@ def build(layout=None, palette=None):
         building("restroom", "Restroom", "restroom", (1, 1), (0x80, 0x80, 0x80),
                  ["toilet"], palette,
                  build_cost=6000, remove_cost=1200, upkeep=60, capacity=8))
+    out["path_addition/golf.path_addition.bench.parkobj"] = pack(
+        path_addition("bench", "Park bench", "bench", True, False, False, (0x8B, 0x5A, 0x2B), palette, price=50))
+    out["path_addition/golf.path_addition.bin.parkobj"] = pack(
+        path_addition("bin", "Litter bin", "bin", False, True, False, (0x4A, 0x70, 0x4A), palette, price=30))
+    out["path_addition/golf.path_addition.lamp.parkobj"] = pack(
+        path_addition("lamp", "Lamp post", "lamp", False, False, True, (0x20, 0x20, 0x30), palette, price=40))
     return out
 
 

@@ -151,6 +151,9 @@ class ObjectTests(unittest.TestCase):
         expected.add("building/golf.building.driving_range_kiosk.parkobj")
         expected.add("building/golf.building.cart_rental.parkobj")
         expected.add("building/golf.building.restroom.parkobj")
+        expected.add("path_addition/golf.path_addition.bench.parkobj")
+        expected.add("path_addition/golf.path_addition.bin.parkobj")
+        expected.add("path_addition/golf.path_addition.lamp.parkobj")
         self.assertEqual(expected, set(FILES))
 
     def test_manifests_are_our_own(self):
@@ -265,6 +268,23 @@ class ObjectTests(unittest.TestCase):
             self.assertEqual(services, set(props["services"]))
             tile = props["entrance"]["tile"]
             self.assertTrue(0 <= tile[0] < footprint[0] and 0 <= tile[1] < footprint[1])
+
+    def test_all_path_addition_kinds_and_properties(self):
+        expected = {
+            "bench": ("bench", True, False, False, 1 + 8),
+            "bin": ("bin", False, True, False, 1 + 12),
+            "lamp": ("lamp", False, False, True, 1 + 8),
+        }
+        for name, (render_as, is_bench, is_bin, is_lamp, num_images) in expected.items():
+            _, data = open_object("path_addition/golf.path_addition.%s.parkobj" % name)
+            self.assertEqual("path_addition", data["objectType"])
+            self.assertEqual(num_images, len(data["images"]))
+            props = data["properties"]
+            self.assertEqual(render_as, props["renderAs"])
+            self.assertEqual(is_bench, props.get("isBench", False))
+            self.assertEqual(is_bin, props.get("isBin", False))
+            self.assertEqual(is_lamp, props.get("isLamp", False))
+            self.assertGreater(props["price"], 0)
 
     def test_weather_size_matches_the_engine(self):
         with open(os.path.join(ROOT, "src", "openrct2", "world", "Weather.h"), "r", encoding="utf-8") as f:

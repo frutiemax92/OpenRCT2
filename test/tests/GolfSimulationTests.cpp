@@ -611,3 +611,131 @@ TEST(GolfSimulation, AMiniPuttCourseWithWallsAroundItIsPlayable)
     ASSERT_EQ(left.size(), 1u);
     EXPECT_GT(left[0].skills.accuracy, left[0].initialSkills.accuracy);
 }
+
+TEST(GolfSimulation, GolferSitsOnBenchWhenLowOnEnergy)
+{
+    Course3 c;
+    auto env = c.environment();
+    Bench bench;
+    bench.id = 1;
+    bench.position = vec(400, 3100, 0);
+    bench.occupants = 0;
+    env.benches.push_back(bench);
+    GolfSimulation sim(env);
+    auto spawn = aGolfer(c);
+    auto& g = sim.spawn(spawn);
+    g.needs.energy = 50 * 16;
+    Tally tally;
+    runUntilEmpty(sim, tally);
+    EXPECT_GE(tally.count[SimEvent::Type::restedOnBench], 1);
+    const auto left = sim.takeLeft();
+    ASSERT_EQ(left.size(), 1u);
+    EXPECT_GT(left[0].needs.energy, 50 * 16);
+}
+
+TEST(GolfSimulation, BenchCapacityIsLimitedToTwoOccupants)
+{
+    Course3 c;
+    auto env = c.environment();
+    Bench bench;
+    bench.id = 1;
+    bench.position = vec(400, 3100, 0);
+    bench.occupants = 2; // already full
+    env.benches.push_back(bench);
+    GolfSimulation sim(env);
+    auto spawn = aGolfer(c);
+    auto& g = sim.spawn(spawn);
+    g.needs.energy = 50 * 16;
+    Tally tally;
+    runUntilEmpty(sim, tally);
+    EXPECT_EQ(tally.count[SimEvent::Type::restedOnBench], 0);
+}
+
+TEST(GolfSimulation, GolfersTalkWhileWaitingAtTee)
+{
+    Course3 c;
+    auto env = c.environment();
+    GolfSimulation sim(env);
+    // Group 1 books first tee time
+    auto g1 = aGolfer(c);
+    g1.groupId = 1;
+    sim.spawn(g1);
+
+    // Group 2 will have a tee time in the future and wait at the tee
+    auto s1 = aGolfer(c);
+    s1.groupId = 2;
+    auto s2 = aGolfer(c);
+    s2.groupId = 2;
+    sim.spawn(s1);
+    sim.spawn(s2);
+
+    Tally tally;
+    runUntilEmpty(sim, tally);
+    EXPECT_GE(tally.count[SimEvent::Type::talkedWithGolfer], 2);
+}
+
+TEST(GolfSimulation, GolferDisposesTrashInNearbyBin)
+{
+    Course3 c;
+    auto env = c.environment();
+    Service foodTruck;
+    foodTruck.id = 1;
+    foodTruck.position = vec(400, 3100, 0);
+    foodTruck.food = true;
+    foodTruck.price = 200;
+    env.services.push_back(foodTruck);
+
+    LitterBin bin;
+    bin.id = 1;
+    bin.position = vec(410, 3110, 0);
+    bin.trashCount = 0;
+    env.bins.push_back(bin);
+
+    GolfSimulation sim(env);
+    auto spawn = aGolfer(c);
+    auto& g = sim.spawn(spawn);
+    g.needs.hunger = 70 * 16;
+    Tally tally;
+    runUntilEmpty(sim, tally);
+    EXPECT_EQ(tally.count[SimEvent::Type::littered], 0);
+    EXPECT_GT(sim.environment().bins[0].trashCount, 0u);
+}
+
+TEST(GolfSimulation, GolferLittersWhenNoBinNearby)
+{
+    Course3 c;
+    auto env = c.environment();
+    Service foodTruck;
+    foodTruck.id = 1;
+    foodTruck.position = vec(400, 3100, 0);
+    foodTruck.food = true;
+    foodTruck.price = 200;
+    env.services.push_back(foodTruck);
+
+    GolfSimulation sim(env);
+    auto spawn = aGolfer(c);
+    auto& g = sim.spawn(spawn);
+    g.needs.hunger = 70 * 16;
+    Tally tally;
+    runUntilEmpty(sim, tally);
+    EXPECT_GE(tally.count[SimEvent::Type::littered], 1);
+}
+
+TEST(GolfSimulation, SceneryNearHoleRaisesHappiness)
+{
+    Course3 c;
+    auto* course = c.courses.findCourse(c.courseId);
+    course->holes[0].sceneryScore = 50;
+
+    auto env = c.environment();
+    GolfSimulation sim(env);
+    auto spawn = aGolfer(c);
+    sim.spawn(spawn);
+    Tally tally;
+    runUntilEmpty(sim, tally);
+    const auto left = sim.takeLeft();
+    ASSERT_EQ(left.size(), 1u);
+    EXPECT_TRUE(std::any_of(left[0].thoughts.begin(), left[0].thoughts.end(), [](const Thought& t) {
+        return t.type == ThoughtType::enjoyingTheRound;
+    }));
+}
