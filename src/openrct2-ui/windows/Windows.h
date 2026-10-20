@@ -88,6 +88,9 @@ namespace OpenRCT2::Ui::Windows
     // ModelViewer
     WindowBase* ModelViewerOpen();
 
+    // ShotTool
+    WindowBase* ShotToolOpen();
+
     // EditorInventionsList
     WindowBase* EditorInventionsListOpen();
 

@@ -79,6 +79,8 @@ public:
                 return DebugPaintOpen();
             case WindowClass::modelViewer:
                 return ModelViewerOpen();
+            case WindowClass::shotTool:
+                return ShotToolOpen();
             case WindowClass::editorInventionList:
                 return EditorInventionsListOpen();
             case WindowClass::editorObjectSelection:

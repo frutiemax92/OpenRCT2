@@ -3879,3 +3879,8 @@ STR_7085    :Model viewer
 STR_7086    :Pause animations
 STR_7087    :Golf ball trail
 STR_7088    :{SMALLFONT}{BLACK}Draw a short trail behind golf balls in flight
+STR_7089    :Shot tool
+STR_7090    :Choose the tee on the map
+STR_7091    :Perfect shot (no random error)
+STR_7092    :Fire
+STR_7093    :Clear

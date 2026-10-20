@@ -98,6 +98,7 @@ namespace OpenRCT2
         editorStepController = 140,
         editorStatusLine = 141,
         modelViewer = 142,
+        shotTool = 143,
 
         // Only used for colour schemes
         staff = 220,
