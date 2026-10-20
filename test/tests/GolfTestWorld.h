@@ -9,6 +9,7 @@
 
 #pragma once
 
+#include <functional>
 #include <openrct2/golf/BallPhysics.h>
 
 // A configurable flat or sloped world for the ball physics tests.
@@ -120,6 +121,42 @@ namespace GolfTest
         FixedVec3 wind() const override
         {
             return windVelocity;
+        }
+    };
+
+    // A world defined by functions, so each test describes the course it needs.
+    class FunctionWorld final : public IBallWorld
+    {
+    public:
+        std::function<double(double, double)> height = [](double, double) { return 0.0; };
+        std::function<bool(double, double)> hazard = [](double, double) { return false; };
+        std::function<bool(double, double)> blocked = [](double, double) { return false; };
+        std::function<bool(double, double)> puttable = [](double, double) { return false; };
+        std::function<double(double, double)> roughness = [](double, double) { return 0.15; };
+
+        SurfaceSample surfaceAt(Fixed x, Fixed y) const override
+        {
+            SurfaceSample s;
+            const double px = x.toDouble(), py = y.toDouble();
+            s.height = Fixed::fromRaw(static_cast<int64_t>(height(px, py) * 65536.0));
+            // Normal from finite differences of the height function.
+            const double gx = (height(px + 1, py) - height(px - 1, py)) / 2;
+            const double gy = (height(px, py + 1) - height(px, py - 1)) / 2;
+            s.normal = normalised(FixedVec3{ Fixed::fromRaw(static_cast<int64_t>(-gx * 65536.0)),
+                                             Fixed::fromRaw(static_cast<int64_t>(-gy * 65536.0)), Fixed::fromInt(1) });
+            s.hazard = hazard(px, py);
+            s.puttable = puttable(px, py);
+            s.roughness = Fixed::fromRaw(static_cast<int64_t>(roughness(px, py) * 65536.0));
+            if (s.hazard)
+            {
+                s.distanceFactor = Fixed::ratio(55, 100);
+                s.accuracyFactor = Fixed::ratio(75, 100);
+            }
+            return s;
+        }
+        bool obstacleAt(const FixedVec3& p, Fixed, ObstacleContact&) const override
+        {
+            return blocked(p.x.toDouble(), p.y.toDouble());
         }
     };
 } // namespace GolfTest
