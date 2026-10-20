@@ -17,7 +17,9 @@
 #include "../interface/Cursors.h"
 #include "../interface/ScreenCoords.hpp"
 #include "../localisation/Language.h"
+#include "../world/MapLimits.h"
 
+#include <algorithm>
 #include <iterator>
 
 namespace OpenRCT2
@@ -235,6 +237,11 @@ namespace OpenRCT2
             }
 
             SetPrimarySceneryGroup(ObjectEntryDescriptor(Json::GetString(properties["sceneryGroup"])));
+
+            int32_t tallest = 0;
+            for (const auto& tile : _tiles)
+                tallest = std::max(tallest, tile.zClearance);
+            Collision = readObjectCollision(properties, tallest, kCoordsXYStep, kCoordsXYStep);
         }
 
         PopulateTablesFromJson(context, root);

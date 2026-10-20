@@ -17,6 +17,7 @@
 #include "../interface/Cursors.h"
 #include "../interface/ScreenCoords.hpp"
 #include "../localisation/Language.h"
+#include "../world/MapLimits.h"
 
 namespace OpenRCT2
 {
@@ -117,6 +118,8 @@ namespace OpenRCT2
             _legacyType.scrolling_mode = Json::GetNumber<uint8_t>(properties["scrollingMode"], kScrollingModeNone);
 
             SetPrimarySceneryGroup(ObjectEntryDescriptor(Json::GetString(properties["sceneryGroup"])));
+            // A wall is a thin slab along one tile edge; its height is stored in 8-unit steps.
+            Collision = readObjectCollision(properties, _legacyType.height * kCoordsZStep, kCoordsXYStep, 4);
 
             // clang-format off
         _legacyType.flags = Json::GetFlagHolder<WallSceneryFlags, WallSceneryFlag>(

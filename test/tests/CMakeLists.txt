@@ -33,6 +33,7 @@ set(test_files
    "${CMAKE_CURRENT_SOURCE_DIR}/ReplayTests.cpp"
    "${CMAKE_CURRENT_SOURCE_DIR}/RideRatings.cpp"
    "${CMAKE_CURRENT_SOURCE_DIR}/EntityImportTests.cpp"
+   "${CMAKE_CURRENT_SOURCE_DIR}/ObjectCollisionTests.cpp"
    "${CMAKE_CURRENT_SOURCE_DIR}/ParkImportExportTests.cpp"
    "${CMAKE_CURRENT_SOURCE_DIR}/SawyerCodingTest.cpp"
    "${CMAKE_CURRENT_SOURCE_DIR}/ScenarioPatcherTests.cpp"

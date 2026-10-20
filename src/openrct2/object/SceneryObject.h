@@ -10,6 +10,7 @@
 #pragma once
 
 #include "Object.h"
+#include "ObjectCollision.h"
 
 namespace OpenRCT2
 {
@@ -20,6 +21,9 @@ namespace OpenRCT2
 
     public:
         virtual ~SceneryObject() = default;
+
+        // Ball collision shape (spec §5.3, SCN-002).
+        ObjectCollision Collision{};
 
         const ObjectEntryDescriptor& GetPrimarySceneryGroup() const
         {

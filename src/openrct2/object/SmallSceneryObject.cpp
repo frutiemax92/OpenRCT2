@@ -254,6 +254,7 @@ void SmallSceneryObject::PerformFixes()
             }
 
             SetPrimarySceneryGroup(ObjectEntryDescriptor(Json::GetString(properties["sceneryGroup"])));
+            Collision = readObjectCollision(properties, _legacyType.height);
         }
 
         PopulateTablesFromJson(context, root);
