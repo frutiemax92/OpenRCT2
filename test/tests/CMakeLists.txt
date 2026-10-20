@@ -60,6 +60,7 @@ set(test_files
    "${CMAKE_CURRENT_SOURCE_DIR}/ShotTests.cpp"
    "${CMAKE_CURRENT_SOURCE_DIR}/GolfRulesTests.cpp"
    "${CMAKE_CURRENT_SOURCE_DIR}/GolfHoleTests.cpp"
+   "${CMAKE_CURRENT_SOURCE_DIR}/HoleDifficultyTests.cpp"
    "${CMAKE_CURRENT_SOURCE_DIR}/CourseManagerTests.cpp"
    "${CMAKE_CURRENT_SOURCE_DIR}/CourseActionTests.cpp"
    "${CMAKE_CURRENT_SOURCE_DIR}/CourseWorldTests.cpp"
