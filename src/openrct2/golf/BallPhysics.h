@@ -44,6 +44,7 @@ namespace OpenRCT2::Golf
         Fixed bounciness = Fixed::ratio(45, 100);
         uint8_t surface = 0;               // surface object index, for the lie (BAL-040)
         bool water = false;                // water or stream: the ball is lost (BAL-050)
+        bool stream = false;               // stream band: slows rolling ball by 80% (STR-006)
         bool outOfBounds = false;          // beyond the course boundary or off the map (BAL-051)
         bool path = false;                 // path or street ("hardpan")
         bool hazard = false;               // sand-like hazard (TER-041 isHazard)

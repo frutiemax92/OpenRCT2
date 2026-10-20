@@ -236,6 +236,11 @@ namespace OpenRCT2::Golf
             if (length(ball.velocity) < p.stopSpeed && length(slope) <= deceleration)
             {
                 ball.velocity = {};
+                if (here.stream)
+                {
+                    loseInHazard(c, here);
+                    return;
+                }
                 ball.state = BallState::AtRest;
                 markSafe(ball, here, ball.position.x, ball.position.y);
                 return;
@@ -248,11 +253,25 @@ namespace OpenRCT2::Golf
             ball.position.y += ball.velocity.y * c.dt;
 
             const SurfaceSample next = c.world.surfaceAt(ball.position.x, ball.position.y);
-            if (next.water || next.outOfBounds)
+            if (next.outOfBounds || (next.water && !next.stream))
             {
                 ball.position.z = next.height;
                 loseInHazard(c, next);
                 return;
+            }
+            if (next.stream)
+            {
+                // STR-006: a rolling ball crossing a stream loses 80% of its speed
+                if (!here.stream)
+                {
+                    ball.velocity = ball.velocity * Fixed::ratio(20, 100);
+                }
+                if (length(ball.velocity) < p.stopSpeed)
+                {
+                    ball.position.z = next.height;
+                    loseInHazard(c, next);
+                    return;
+                }
             }
             if (next.height - oldZ > p.leaveGroundDrop * 2)
             {

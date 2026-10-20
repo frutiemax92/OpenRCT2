@@ -60,6 +60,8 @@ namespace GolfTest
         Fixed slopeY{};
         Fixed cliffX = Fixed::fromInt(100000); // beyond this x the ground is 40 lower
         Fixed waterFromX = Fixed::fromInt(100000);
+        Fixed streamFromX = Fixed::fromInt(100000);
+        Fixed streamToX = Fixed::fromInt(100000);
         Fixed outOfBoundsFromX = Fixed::fromInt(100000);
         FixedVec3 windVelocity{};
         bool hasCup = false;
@@ -80,6 +82,11 @@ namespace GolfTest
             // normal of the plane z = slopeX x + slopeY y: (-sx, -sy, 1) normalised
             s.normal = normalised(FixedVec3{ -slopeX, -slopeY, Fixed::fromInt(1) });
             s.water = x >= waterFromX;
+            if (x >= streamFromX && x <= streamToX)
+            {
+                s.water = true;
+                s.stream = true;
+            }
             s.outOfBounds = x >= outOfBoundsFromX;
             return s;
         }

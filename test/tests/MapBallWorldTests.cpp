@@ -282,8 +282,34 @@ TEST(MapBallWorld, PathsAreHardpan)
     const auto s = world.surfaceAt(Fixed::fromInt(pathTile->x + 16), Fixed::fromInt(pathTile->y + 16));
     EXPECT_TRUE(s.path);
     EXPECT_EQ(s.roughness, Fixed::ratio(10, 100));
-    EXPECT_EQ(s.bounciness, Fixed::ratio(55, 100));
+    EXPECT_EQ(s.bounciness, Fixed::ratio(80, 100));
     EXPECT_FALSE(s.puttable);
+}
+
+TEST(MapBallWorld, LieFollowsQuadrantUnderTheBall)
+{
+    auto context = startPark();
+    ASSERT_NE(context.get(), nullptr);
+    MapBallWorld world;
+
+    const CoordsXY tile{ 320, 320 };
+    auto* surface = MapGetSurfaceElementAt(tile);
+    ASSERT_NE(surface, nullptr);
+
+    // Set 4 distinct surfaces for 4 quadrants (TER-020, TER-021, TER-023)
+    surface->setQuadrantSurfaceIndex(Quadrant::northEast, 10);
+    surface->setQuadrantSurfaceIndex(Quadrant::southEast, 20);
+    surface->setQuadrantSurfaceIndex(Quadrant::southWest, 30);
+    surface->setQuadrantSurfaceIndex(Quadrant::northWest, 40);
+
+    // NE: near x = 31, y = 16
+    EXPECT_EQ(world.surfaceAt(Fixed::fromInt(tile.x + 31), Fixed::fromInt(tile.y + 16)).surface, 10);
+    // SE: near x = 16, y = 1
+    EXPECT_EQ(world.surfaceAt(Fixed::fromInt(tile.x + 16), Fixed::fromInt(tile.y + 1)).surface, 20);
+    // SW: near x = 1, y = 16
+    EXPECT_EQ(world.surfaceAt(Fixed::fromInt(tile.x + 1), Fixed::fromInt(tile.y + 16)).surface, 30);
+    // NW: near x = 16, y = 31
+    EXPECT_EQ(world.surfaceAt(Fixed::fromInt(tile.x + 16), Fixed::fromInt(tile.y + 31)).surface, 40);
 }
 
 TEST(MapBallWorld, TheWindIsPassedToTheSimulation)

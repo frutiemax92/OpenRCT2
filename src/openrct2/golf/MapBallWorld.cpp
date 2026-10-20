@@ -278,6 +278,7 @@ namespace OpenRCT2::Golf
             if (distanceToStream(element->getEdges(), u, v) <= Fixed::ratio(object->Width, 2))
             {
                 s.water = true;
+                s.stream = true;
                 return s;
             }
         }

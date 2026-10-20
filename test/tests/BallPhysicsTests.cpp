@@ -301,6 +301,44 @@ TEST(BallPhysics, ARollingBallThatEntersWaterIsLost)
     EXPECT_LT(ball.hazardEntry.x, Fixed::fromInt(150));
 }
 
+TEST(BallPhysics, RollingBallCrossingStreamLosesEightyPercentSpeed)
+{
+    TestWorld world;
+    world.surface.roughness = Fixed::ratio(5, 100);
+    world.streamFromX = Fixed::fromInt(150);
+    world.streamToX = Fixed::fromInt(155);
+    SeqRandom rng;
+    auto ball = ballAt(world, 140, 100, BallState::Rolling);
+    ball.velocity = vec(10, 0, 0);
+
+    // Roll until past 150
+    while (ball.position.x < Fixed::fromInt(150))
+        stepBall(ball, world, rng);
+
+    // Right after entering the stream at x >= 150, speed should be ~20% of 10 = ~2
+    EXPECT_GE(ball.position.x, Fixed::fromInt(150));
+    EXPECT_NEAR(ball.velocity.x.toDouble(), 2.0, 0.4);
+
+    // Ball continues and makes it across
+    runUntilSettled(ball, world, rng);
+    EXPECT_EQ(ball.state, BallState::AtRest);
+    EXPECT_GT(ball.position.x, Fixed::fromInt(155));
+}
+
+TEST(BallPhysics, SlowBallStoppingInStreamIsWaterHazard)
+{
+    TestWorld world;
+    world.streamFromX = Fixed::fromInt(150);
+    world.streamToX = Fixed::fromInt(160);
+    SeqRandom rng;
+    auto ball = ballAt(world, 148, 100, BallState::Rolling);
+    ball.velocity = FixedVec3{ Fixed::ratio(4, 10), Fixed{}, Fixed{} };
+    runUntilSettled(ball, world, rng);
+    EXPECT_EQ(ball.state, BallState::Lost);
+    EXPECT_GE(ball.position.x, Fixed::fromInt(150));
+    EXPECT_LE(ball.position.x, Fixed::fromInt(160));
+}
+
 TEST(BallPhysics, OutOfBoundsEndsTheShot)
 {
     TestWorld world;

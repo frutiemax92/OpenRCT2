@@ -52,9 +52,9 @@ namespace OpenRCT2::Golf
         // through this predicate).
         using BoundsFn = std::function<bool(const CoordsXY&)>;
 
-        // The surface the ball interacts with: roughness 0.10 and bounciness 0.55 on paths and streets.
+        // The surface the ball interacts with: roughness 0.10 and bounciness 0.80 on paths and streets (PTH-006).
         static constexpr int32_t kPathRoughnessPercent = 10;
-        static constexpr int32_t kPathBouncinessPercent = 55;
+        static constexpr int32_t kPathBouncinessPercent = 80;
         // A path counts as the ground under the ball when it lies within this many z units of the terrain.
         static constexpr int32_t kPathHeightTolerance = 16;
 
