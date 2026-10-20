@@ -99,6 +99,10 @@ namespace OpenRCT2::Golf
         {
             return _env;
         }
+        const Environment& environment() const
+        {
+            return _env;
+        }
 
         struct Spawn
         {

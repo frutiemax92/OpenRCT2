@@ -12,6 +12,7 @@
 #include "BallPhysics.h"
 #include "GameClock.h"
 #include "Golfer.h"
+#include "Popularity.h"
 #include "GolferSkills.h"
 #include "Shot.h"
 #include "../world/Weather.h"
@@ -44,7 +45,6 @@ namespace OpenRCT2::Golf
 
     // Parameters of the arrival rate, all in one place (GLF-004).
     constexpr int32_t kBaseArrivalsPer1000Minutes = 220;   // groups per 1000 game minutes at popularity 1000 and a fair price
-    constexpr int32_t kPopularityMax = 1000;
     constexpr int32_t kFairFeePerHole = 250;                // currency units per hole that golfers find fair
     constexpr int32_t kRainArrivalPercent = 50;
     constexpr int32_t kHeavyWeatherArrivalPercent = 20;
