@@ -73,7 +73,8 @@ namespace OpenRCT2
     TileElement* MapGetNthElementAt(const CoordsXY& coords, int32_t n);
     TileElement* MapGetFirstTileElementWithBaseHeightBetween(const TileCoordsXYRangedZ& loc, TileElementType type);
     void MapSetTileElement(const TileCoordsXY& tilePos, TileElement* elements);
-    int32_t MapHeightFromSlope(const CoordsXY& coords, int32_t slopeDirection, bool isSloped);
+    // riseZ is the height the slope gains over the tile, in world units (16 for the legacy path slope).
+    int32_t MapHeightFromSlope(const CoordsXY& coords, int32_t slopeDirection, bool isSloped, int32_t riseZ = 16);
     BannerElement* MapGetBannerElementAt(const CoordsXYZ& bannerPos, Direction position);
     SurfaceElement* MapGetSurfaceElementAt(const TileCoordsXY& coords);
     SurfaceElement* MapGetSurfaceElementAt(const CoordsXY& coords);

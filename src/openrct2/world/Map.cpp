@@ -640,23 +640,29 @@ namespace OpenRCT2
      *
      *  rct2: 0x006A7B84
      */
-    int32_t MapHeightFromSlope(const CoordsXY& coords, int32_t slopeDirection, bool isSloped)
+    int32_t MapHeightFromSlope(const CoordsXY& coords, int32_t slopeDirection, bool isSloped, int32_t riseZ)
     {
         if (!isSloped)
             return 0;
 
+        // Position along the slope, 0..31 across the tile.
+        int32_t along = 0;
         switch (slopeDirection % kNumOrthogonalDirections)
         {
             case TILE_ELEMENT_DIRECTION_WEST:
-                return (31 - (coords.x & 31)) / 2;
+                along = 31 - (coords.x & 31);
+                break;
             case TILE_ELEMENT_DIRECTION_NORTH:
-                return (coords.y & 31) / 2;
+                along = coords.y & 31;
+                break;
             case TILE_ELEMENT_DIRECTION_EAST:
-                return (coords.x & 31) / 2;
+                along = coords.x & 31;
+                break;
             case TILE_ELEMENT_DIRECTION_SOUTH:
-                return (31 - (coords.y & 31)) / 2;
+                along = 31 - (coords.y & 31);
+                break;
         }
-        return 0;
+        return along * riseZ / 32;
     }
 
     bool MapIsLocationValid(const CoordsXY& coords)

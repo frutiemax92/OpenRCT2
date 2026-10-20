@@ -138,11 +138,18 @@ namespace OpenRCT2
         return nextFlags & PEEP_NEXT_FLAG_IS_SURFACE;
     }
 
-    void Peep::setNextFlags(uint8_t next_direction, bool is_sloped, bool is_surface)
+    int32_t Peep::getNextRiseZ() const
+    {
+        const int32_t riseQ = (nextFlags & PEEP_NEXT_FLAG_RISE_MASK) >> 5;
+        return (riseQ == 0 ? 2 : riseQ) * kCoordsZStep;
+    }
+
+    void Peep::setNextFlags(uint8_t next_direction, bool is_sloped, bool is_surface, uint8_t riseQ)
     {
         nextFlags = next_direction & PEEP_NEXT_FLAG_DIRECTION_MASK;
         nextFlags |= is_sloped ? PEEP_NEXT_FLAG_IS_SLOPED : 0;
         nextFlags |= is_surface ? PEEP_NEXT_FLAG_IS_SURFACE : 0;
+        nextFlags |= is_sloped ? ((riseQ & 0b111) << 5) : 0;
     }
 
     bool Peep::canBePickedUp() const
@@ -809,7 +816,7 @@ namespace OpenRCT2
                 {
                     int32_t height = MapHeightFromSlope(
                                          { x, y }, tile_element->asPath()->getSlopeDirection(),
-                                         tile_element->asPath()->isSloped())
+                                         tile_element->asPath()->isSloped(), tile_element->asPath()->getSlopeRiseZ())
                         + tile_element->getBaseZ();
 
                     if (height < z - 1 || height > z + 8)
@@ -879,7 +886,9 @@ namespace OpenRCT2
         }
         else
         {
-            setNextFlags(saved_map->asPath()->getSlopeDirection(), saved_map->asPath()->isSloped(), false);
+            setNextFlags(
+                saved_map->asPath()->getSlopeDirection(), saved_map->asPath()->isSloped(), false,
+                saved_map->asPath()->getSlopeRiseQ());
         }
         setState(PeepState::one);
     }
@@ -1861,7 +1870,7 @@ namespace OpenRCT2
         assert(pathElement != nullptr);
 
         peep->nextLoc = { coords.toTileStart(), pathElement->getBaseZ() };
-        peep->setNextFlags(pathElement->getSlopeDirection(), pathElement->isSloped(), false);
+        peep->setNextFlags(pathElement->getSlopeDirection(), pathElement->isSloped(), false, pathElement->getSlopeRiseQ());
 
         int16_t z = peep->getZOnSlope(coords.x, coords.y);
 
@@ -2425,7 +2434,7 @@ namespace OpenRCT2
         }
 
         uint8_t slope = getNextDirection();
-        return nextLoc.z + MapHeightFromSlope({ tile_x, tile_y }, slope, getNextIsSloped());
+        return nextLoc.z + MapHeightFromSlope({ tile_x, tile_y }, slope, getNextIsSloped(), getNextRiseZ());
     }
 
     StringId GetRealNameStringIDFromPeepID(uint32_t id)

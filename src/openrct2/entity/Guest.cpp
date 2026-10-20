@@ -5033,7 +5033,8 @@ namespace OpenRCT2
         // Find the station track element
         for (auto* pathElement : TileElementsView<PathElement>(targetLoc))
         {
-            int16_t height = MapHeightFromSlope(targetLoc, pathElement->getSlopeDirection(), pathElement->isSloped());
+            int16_t height = MapHeightFromSlope(
+                targetLoc, pathElement->getSlopeDirection(), pathElement->isSloped(), pathElement->getSlopeRiseZ());
             height += pathElement->getBaseZ();
 
             int16_t z_diff = z - height;

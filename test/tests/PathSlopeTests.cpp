@@ -8,6 +8,7 @@
  *****************************************************************************/
 
 #include <gtest/gtest.h>
+#include <openrct2/world/Map.h>
 #include <openrct2/world/tile_element/PathElement.h>
 
 using namespace OpenRCT2;
@@ -42,4 +43,14 @@ TEST(PathSlope, RiseIsClamped)
     EXPECT_EQ(el.getSlopeRiseQ(), 4);
     el.setSlopeRiseQ(0);
     EXPECT_EQ(el.getSlopeRiseQ(), 1);
+}
+
+TEST(PathSlope, WalkingHeightScalesWithTheRise)
+{
+    // Slope direction 2 rises towards +x: the far edge of the tile is the full rise.
+    EXPECT_EQ(MapHeightFromSlope({ 0, 0 }, 2, true, 32), 0);
+    EXPECT_EQ(MapHeightFromSlope({ 31, 0 }, 2, true, 32), 31);
+    EXPECT_EQ(MapHeightFromSlope({ 31, 0 }, 2, true, 8), 7);
+    EXPECT_EQ(MapHeightFromSlope({ 16, 0 }, 2, true), 8);
+    EXPECT_EQ(MapHeightFromSlope({ 31, 0 }, 2, false, 32), 0);
 }

@@ -246,6 +246,8 @@ namespace OpenRCT2
         PEEP_NEXT_FLAG_IS_SLOPED = (1 << 2),
         PEEP_NEXT_FLAG_IS_SURFACE = (1 << 3),
         PEEP_NEXT_FLAG_UNUSED = (1 << 4),
+        // Rise of the sloped path being walked, in quarter steps (0 = legacy default of 2).
+        PEEP_NEXT_FLAG_RISE_MASK = 0b11100000,
     };
 
     enum class PeepAnimationGroup : uint8_t
@@ -430,7 +432,8 @@ namespace OpenRCT2
         [[nodiscard]] uint8_t getNextDirection() const;
         bool getNextIsSloped() const;
         bool getNextIsSurface() const;
-        void setNextFlags(uint8_t next_direction, bool is_sloped, bool is_surface);
+        void setNextFlags(uint8_t next_direction, bool is_sloped, bool is_surface, uint8_t riseQ = 0);
+        int32_t getNextRiseZ() const;
         bool canBePickedUp() const;
         void pickup();
         void pickupAbort(int32_t old_x);

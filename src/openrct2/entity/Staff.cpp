@@ -142,7 +142,7 @@ namespace OpenRCT2
             {
                 if (path->asPath()->getSlopeDirection() == adjac_dir)
                 {
-                    adjacPos.z += kPathHeightStep;
+                    adjacPos.z += path->asPath()->getSlopeRiseZ();
                 }
             }
 
