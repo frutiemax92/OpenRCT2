@@ -12,6 +12,7 @@
 #include "../world/Location.hpp"
 #include "../world/TerrainShape.h"
 #include "BallPhysics.h"
+#include "MapObstacles.h"
 
 #include <functional>
 
@@ -45,6 +46,10 @@ namespace OpenRCT2::Golf
         static constexpr int32_t kPathHeightTolerance = 16;
 
         SurfaceSample surfaceAt(Fixed x, Fixed y) const override;
+        bool obstacleAt(const FixedVec3& position, Fixed radius, ObstacleContact& contact) const override
+        {
+            return _obstacles != nullptr && _obstacles->query(position, radius, contact);
+        }
         FixedVec3 wind() const override
         {
             return _wind;
@@ -54,6 +59,11 @@ namespace OpenRCT2::Golf
         {
             _outOfBounds = std::move(fn);
         }
+        // The obstacles the ball can hit; none when unset (BAL-034).
+        void setObstacles(MapObstacles* obstacles)
+        {
+            _obstacles = obstacles;
+        }
         void setWind(const FixedVec3& wind)
         {
             _wind = wind;
@@ -61,6 +71,7 @@ namespace OpenRCT2::Golf
 
     private:
         BoundsFn _outOfBounds;
+        MapObstacles* _obstacles = nullptr;
         FixedVec3 _wind{};
     };
 } // namespace OpenRCT2::Golf
