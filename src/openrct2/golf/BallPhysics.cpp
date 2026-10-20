@@ -198,7 +198,7 @@ namespace OpenRCT2::Golf
                 ball.state = BallState::Rolling;
                 return;
             }
-            tangent = tangent * max(Fixed{}, kOne - s.roughness * p.impactLoss);
+            tangent = tangent * max(Fixed{}, kOne - p.impactBaseLoss - s.roughness * p.impactLoss);
             const Fixed tangentSpeed = length(tangent);
             if (tangentSpeed > Fixed::ratio(1, 1000))
             {

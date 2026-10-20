@@ -227,8 +227,8 @@ TEST(MapObstacles, ABallFlyingIntoATreeInTheMapIsDeflected)
     const Fixed baseZ = Fixed::fromInt(MapGetSurfaceElementAt(*tile)->getBaseZ());
     // Start a few tiles west, at the height of the tree, flying straight at it.
     placeBall(ball, world, Fixed::fromInt(tile->x - 64), Fixed::fromInt(tile->y + 16));
-    ball.position.z = baseZ + Fixed::fromInt(4);
-    ball.velocity = vec(3, 0, 0);
+    ball.position.z = baseZ + Fixed::fromInt(14);
+    ball.velocity = { Fixed::fromInt(6), Fixed{}, Fixed::ratio(3, 10) };
     ball.state = BallState::InFlight;
     int hits = 0;
     for (int t = 0; t < 400 && !isSettled(ball.state); t++)

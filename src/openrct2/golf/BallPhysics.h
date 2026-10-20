@@ -148,7 +148,8 @@ namespace OpenRCT2::Golf
         Fixed magnusSide = Fixed::ratio(1, 1000);       // sideways acceleration per unit of side spin and speed
         Fixed magnusLift = Fixed::ratio(8, 10000);      // lift per unit of back spin and speed
         Fixed spinDecay = Fixed::ratio(3, 1000);        // fraction of the spin lost per tick
-        Fixed impactLoss = Fixed::ratio(6, 10);         // tangential speed lost at an impact, times roughness
+        Fixed impactBaseLoss = Fixed::ratio(35, 100);   // tangential speed lost at any impact, before the surface
+        Fixed impactLoss = Fixed::ratio(5, 10);         // further tangential speed lost, times roughness
         Fixed backSpinBite = Fixed::ratio(35, 100);     // back spin slowing the ball on landing, times normal speed
         Fixed restVelocity = Fixed::ratio(5, 100);      // normal speed below which an impact turns into rolling
         Fixed rollResistance = Fixed::ratio(1, 20);     // rolling deceleration per unit of roughness, units / tick^2

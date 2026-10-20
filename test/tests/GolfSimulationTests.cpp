@@ -1,0 +1,480 @@
+/*****************************************************************************
+ * Copyright (c) 2014-2026 OpenRCT2 developers
+ *
+ * For a complete list of all authors, please refer to contributors.md
+ * Interested in contributing? Visit https://github.com/OpenRCT2/OpenRCT2
+ *
+ * OpenRCT2 is licensed under the GNU General Public License version 3.
+ *****************************************************************************/
+
+#include "GolfTestWorld.h"
+
+#include <algorithm>
+#include <cmath>
+#include <gtest/gtest.h>
+#include <map>
+#include <openrct2/golf/GolfSimulation.h>
+
+using namespace OpenRCT2;
+using namespace OpenRCT2::Golf;
+using namespace GolfTest;
+
+namespace
+{
+    // A flat course: greens around every cup, nothing else on the map.
+    struct Course3
+    {
+        FunctionWorld world;
+        CourseManager courses;
+        SeqRandom rng{ 5 };
+        uint32_t courseId = 0;
+        std::vector<HolePoint> cups;
+
+        Course3(std::vector<int> yards = { 150, 300, 380 })
+        {
+            courseId = courses.createCourse("Test links")->id;
+            auto* course = courses.findCourse(courseId);
+            course->open = true;
+            course->greenFee = 2500;
+            int y = 3200;
+            for (int len : yards)
+            {
+                auto* hole = courses.createHole(courseId);
+                hole->tees[0] = HolePoint{ 336, y };
+                hole->cup = HolePoint{ 336 + len * 32 / 5, y };
+                cups.push_back(*hole->cup);
+                y += 400;
+            }
+            world.puttable = [this](double x, double yy) {
+                for (const auto& cup : cups)
+                    if (std::hypot(x - cup.x, yy - cup.y) < 40)
+                        return true;
+                return false;
+            };
+            world.roughness = [this](double x, double yy) {
+                for (const auto& cup : cups)
+                    if (std::hypot(x - cup.x, yy - cup.y) < 40)
+                        return 0.05;
+                return 0.15;
+            };
+        }
+
+        GolfSimulation::Environment environment()
+        {
+            GolfSimulation::Environment env;
+            env.world = &world;
+            env.courses = &courses;
+            env.rng = &rng;
+            env.clubEntrance = vec(160, 3000, 0);
+            env.exit = vec(100, 2900, 0);
+            return env;
+        }
+    };
+
+    GolfSimulation::Spawn aGolfer(const Course3& c, uint32_t group = 0, std::string name = "")
+    {
+        GolfSimulation::Spawn s;
+        s.name = name;
+        s.groupId = group;
+        s.skills = { 60, 60, 60, 60 };
+        s.courseId = c.courseId;
+        s.position = vec(100, 2900, 0);
+        return s;
+    }
+
+    struct Tally
+    {
+        std::map<SimEvent::Type, int> count;
+        std::vector<SimEvent> all;
+        void collect(GolfSimulation& sim)
+        {
+            for (const auto& e : sim.takeEvents())
+            {
+                count[e.type]++;
+                all.push_back(e);
+            }
+        }
+    };
+
+    // Runs until every golfer has left or the tick budget ends; returns the ticks used.
+    uint32_t runUntilEmpty(GolfSimulation& sim, Tally& tally, uint32_t maxTicks = 600000, uint32_t start = 1000)
+    {
+        uint32_t t = start;
+        for (; t < start + maxTicks && !sim.golfers().empty(); t++)
+        {
+            sim.tick(t);
+            if (t % 50 == 0)
+                tally.collect(sim);
+        }
+        tally.collect(sim);
+        return t - start;
+    }
+} // namespace
+
+TEST(GolfSimulation, ASoloGolferPlaysTheWholeCourseAndLeaves)
+{
+    Course3 c;
+    GolfSimulation sim(c.environment());
+    auto& g = sim.spawn(aGolfer(c));
+    EXPECT_EQ(g.state, GolferState::arriving);
+    const uint32_t id = g.id;
+    Tally tally;
+    runUntilEmpty(sim, tally);
+    ASSERT_TRUE(sim.golfers().empty()) << "the golfer is still playing";
+
+    auto left = sim.takeLeft();
+    ASSERT_EQ(left.size(), 1u);
+    const auto& done = left[0];
+    EXPECT_EQ(done.id, id);
+    EXPECT_FALSE(done.rageQuit);
+    EXPECT_EQ(done.scorecard.size(), 3u);
+    for (size_t i = 0; i < 3; i++)
+    {
+        EXPECT_NE(done.scorecard[i], 127) << "hole " << i;
+        EXPECT_GT(done.parCard[i], 0);
+    }
+    EXPECT_EQ(done.parCard[0], 3);
+    EXPECT_EQ(done.parCard[1], 4);
+    EXPECT_EQ(done.parCard[2], 4);
+    EXPECT_GE(done.strokesTotal, 3 + 3 + 3);
+    EXPECT_LE(done.strokesTotal, 3 * (4 + 4 + 4)) << "a hole is capped at par + 4";
+    EXPECT_EQ(tally.count[SimEvent::Type::teedOff], 3);
+    EXPECT_EQ(tally.count[SimEvent::Type::holeFinished], 3);
+    EXPECT_EQ(tally.count[SimEvent::Type::roundFinished], 1);
+    EXPECT_EQ(tally.count[SimEvent::Type::paidFee], 1);
+    EXPECT_GE(tally.count[SimEvent::Type::shotHit], 9);
+    EXPECT_EQ(sim.income(), 2500);
+    EXPECT_EQ(done.money, 10000 - 2500);
+}
+
+TEST(GolfSimulation, SkillsGrowWithEveryHolePlayed)
+{
+    Course3 c;
+    GolfSimulation sim(c.environment());
+    sim.spawn(aGolfer(c));
+    Tally tally;
+    runUntilEmpty(sim, tally);
+    const auto left = sim.takeLeft();
+    ASSERT_EQ(left.size(), 1u);
+    EXPECT_GT(left[0].skills.longPlay, left[0].initialSkills.longPlay);
+    EXPECT_GT(left[0].skills.accuracy, left[0].initialSkills.accuracy);
+    EXPECT_GT(left[0].skills.foolproof, left[0].initialSkills.foolproof);
+    EXPECT_GT(left[0].skills.physique, left[0].initialSkills.physique);
+}
+
+TEST(GolfSimulation, AGroupOfFourPlaysTogetherWithoutTeeingOffAtOnce)
+{
+    Course3 c;
+    GolfSimulation sim(c.environment());
+    for (int i = 0; i < 4; i++)
+        sim.spawn(aGolfer(c, 77));
+    Tally tally;
+    runUntilEmpty(sim, tally);
+    ASSERT_TRUE(sim.golfers().empty());
+    EXPECT_EQ(sim.takeLeft().size(), 4u);
+    EXPECT_EQ(tally.count[SimEvent::Type::paidFee], 4);
+    EXPECT_EQ(tally.count[SimEvent::Type::holeFinished], 12);
+    EXPECT_EQ(sim.income(), 4 * 2500);
+}
+
+TEST(GolfSimulation, MembersOfAGroupNeverSwingAtTheSameTime)
+{
+    Course3 c;
+    GolfSimulation sim(c.environment());
+    for (int i = 0; i < 3; i++)
+        sim.spawn(aGolfer(c, 5));
+    bool overlap = false;
+    for (uint32_t t = 1000; t < 1000 + 400000 && !sim.golfers().empty(); t++)
+    {
+        sim.tick(t);
+        int busy = 0;
+        for (const auto& g : sim.golfers())
+            if (g.state == GolferState::swinging || g.state == GolferState::putting || g.state == GolferState::watchingBall)
+                busy++;
+        overlap |= busy > 1;
+    }
+    EXPECT_FALSE(overlap);
+}
+
+TEST(GolfSimulation, TwoGroupsDoNotTeeOffAtTheSameTime)
+{
+    Course3 c;
+    GolfSimulation sim(c.environment());
+    sim.spawn(aGolfer(c, 1));
+    sim.spawn(aGolfer(c, 2));
+    std::map<uint32_t, std::vector<uint32_t>> teeMinutes; // golfer id -> minutes of tee offs
+    Tally tally;
+    for (uint32_t t = 1000; t < 1000 + 700000 && !sim.golfers().empty(); t++)
+    {
+        sim.tick(t);
+        for (const auto& e : sim.takeEvents())
+        {
+            if (e.type == SimEvent::Type::teedOff)
+                teeMinutes[e.golferId].push_back(gameMinuteAt(t));
+        }
+    }
+    ASSERT_EQ(teeMinutes.size(), 2u);
+    ASSERT_GE(teeMinutes[1].size(), 3u);
+    for (size_t h = 0; h < 3; h++)
+    {
+        const auto a = teeMinutes[1][h], b = teeMinutes[2][h];
+        EXPECT_NE(a, b) << "hole " << h;
+        EXPECT_GE(std::max(a, b) - std::min(a, b), 4u) << "hole " << h; // at least the shortest slot apart
+    }
+}
+
+TEST(GolfSimulation, WaitingAtTheTeeCostsHappiness)
+{
+    Course3 c;
+    // A very long manual slot so the second group waits.
+    c.courses.findCourse(c.courseId)->holes[0].schedule.manual = true;
+    c.courses.findCourse(c.courseId)->holes[0].schedule.manualSlotMinutes = 25;
+    GolfSimulation sim(c.environment());
+    sim.spawn(aGolfer(c, 1));
+    auto& second = sim.spawn(aGolfer(c, 2));
+    const uint32_t secondId = second.id;
+    int lowest = 255;
+    for (uint32_t t = 1000; t < 1000 + 120000; t++)
+    {
+        sim.tick(t);
+        if (auto* g = sim.find(secondId); g != nullptr && g->state == GolferState::waitingForTeeTime)
+            lowest = std::min<int>(lowest, g->needs.happinessByte());
+    }
+    EXPECT_LT(lowest, 128 - 10);
+}
+
+TEST(GolfSimulation, AHungryGolferEatsAtTheClubBetweenHoles)
+{
+    Course3 c;
+    auto env = c.environment();
+    Service club;
+    club.id = 1;
+    club.position = vec(400, 3100, 0);
+    club.food = true;
+    club.drink = true;
+    club.toilet = true;
+    club.minutes = 2;
+    club.price = 300;
+    env.services.push_back(club);
+    GolfSimulation sim(env);
+    auto& g = sim.spawn(aGolfer(c));
+    g.needs.hunger = 70 * 16; // below the threshold from the start
+    Tally tally;
+    runUntilEmpty(sim, tally);
+    const auto left = sim.takeLeft();
+    ASSERT_EQ(left.size(), 1u);
+    EXPECT_EQ(tally.count[SimEvent::Type::usedFacility], 1);
+    EXPECT_EQ(left[0].money, 10000 - 2500 - 300);
+    EXPECT_EQ(sim.income(), 2500 + 300);
+    EXPECT_GT(left[0].needs.hungerByte(), 150); // fed
+    EXPECT_EQ(tally.count[SimEvent::Type::holeFinished], 3);
+}
+
+TEST(GolfSimulation, ACriticalNeedInTheMiddleOfAHoleSendsTheGolferAway)
+{
+    Course3 c;
+    auto env = c.environment();
+    Service restroom;
+    restroom.id = 2;
+    restroom.position = vec(700, 3300, 0);
+    restroom.toilet = true;
+    restroom.minutes = 1;
+    env.services.push_back(restroom);
+    GolfSimulation sim(env);
+    auto& g = sim.spawn(aGolfer(c));
+    g.needs.bladder = 240 * 16;
+    Tally tally;
+    runUntilEmpty(sim, tally);
+    EXPECT_GE(tally.count[SimEvent::Type::usedFacility], 1);
+    const auto left = sim.takeLeft();
+    ASSERT_EQ(left.size(), 1u);
+    EXPECT_EQ(tally.count[SimEvent::Type::holeFinished], 3); // and still finished the round
+}
+
+TEST(GolfSimulation, WithoutABuildingTheNeedJustWaits)
+{
+    Course3 c;
+    GolfSimulation sim(c.environment());
+    auto& g = sim.spawn(aGolfer(c));
+    g.needs.hunger = 10 * 16;
+    Tally tally;
+    runUntilEmpty(sim, tally);
+    EXPECT_EQ(tally.count[SimEvent::Type::usedFacility], 0);
+    EXPECT_EQ(tally.count[SimEvent::Type::holeFinished], 3);
+}
+
+TEST(GolfSimulation, AnUnhappyGolferWithACourseProblemRageQuits)
+{
+    Course3 c;
+    GolfSimulation sim(c.environment());
+    auto& g = sim.spawn(aGolfer(c));
+    g.needs.happiness = 20 * 16;
+    g.rageCauses = kRageLongWait;
+    Tally tally;
+    runUntilEmpty(sim, tally);
+    const auto left = sim.takeLeft();
+    ASSERT_EQ(left.size(), 1u);
+    EXPECT_TRUE(left[0].rageQuit);
+    EXPECT_EQ(tally.count[SimEvent::Type::rageQuit], 1);
+    EXPECT_LT(tally.count[SimEvent::Type::holeFinished], 3);
+    const auto& event = *std::find_if(tally.all.begin(), tally.all.end(), [](const SimEvent& e) { return e.type == SimEvent::Type::rageQuit; });
+    EXPECT_GE(event.insult, 0);
+    EXPECT_LT(event.insult, kInsultCount);
+    EXPECT_GE(event.value, 1);
+}
+
+TEST(GolfSimulation, UnhappinessWithoutACourseProblemDoesNotMakeAGolferLeave)
+{
+    Course3 c;
+    GolfSimulation sim(c.environment());
+    auto& g = sim.spawn(aGolfer(c));
+    g.needs.happiness = 5 * 16;
+    g.rageCauses = 0;
+    Tally tally;
+    runUntilEmpty(sim, tally);
+    EXPECT_EQ(tally.count[SimEvent::Type::rageQuit], 0);
+    EXPECT_EQ(tally.count[SimEvent::Type::holeFinished], 3);
+}
+
+TEST(GolfSimulation, ARageQuitInsultsGolfersWithinThreeTiles)
+{
+    Course3 c;
+    GolfSimulation sim(c.environment());
+    const uint32_t angryId = sim.spawn(aGolfer(c)).id;
+    const uint32_t nearId = sim.spawn(aGolfer(c)).id;
+    const uint32_t farId = sim.spawn(aGolfer(c)).id;
+    // (Spawning can move the golfers in memory, so they are looked up by id.)
+    sim.find(nearId)->position = vec(110, 2900, 0);
+    sim.find(farId)->position = vec(100 + 10 * 32, 2900, 0);
+    sim.find(angryId)->needs.happiness = 10 * 16;
+    sim.find(angryId)->rageCauses = kRageTooHard;
+    EXPECT_EQ(sim.find(nearId)->needs.happinessByte(), 128);
+    sim.tick(200); // a game minute boundary: the angry golfer storms off
+    // The exit is right where the golfers stand, so the angry one is gone at once.
+    const auto left = sim.takeLeft();
+    ASSERT_EQ(left.size(), 1u);
+    EXPECT_EQ(left[0].id, angryId);
+    EXPECT_TRUE(left[0].rageQuit);
+    EXPECT_EQ(sim.find(nearId)->needs.happinessByte(), 128 - kInsultHappinessLoss);
+    EXPECT_EQ(sim.find(farId)->needs.happinessByte(), 128);
+}
+
+TEST(GolfSimulation, AClosedCourseSendsGolfersHome)
+{
+    Course3 c;
+    c.courses.findCourse(c.courseId)->open = false;
+    GolfSimulation sim(c.environment());
+    sim.spawn(aGolfer(c));
+    Tally tally;
+    runUntilEmpty(sim, tally);
+    EXPECT_EQ(tally.count[SimEvent::Type::teedOff], 0);
+    EXPECT_EQ(tally.count[SimEvent::Type::paidFee], 0);
+    EXPECT_EQ(sim.takeLeft().size(), 1u);
+    EXPECT_EQ(sim.income(), 0);
+}
+
+TEST(GolfSimulation, AGolferWhoCannotAffordTheFeeLeavesUnhappy)
+{
+    Course3 c;
+    GolfSimulation sim(c.environment());
+    auto spawn = aGolfer(c);
+    spawn.money = 1000;
+    sim.spawn(spawn);
+    Tally tally;
+    runUntilEmpty(sim, tally);
+    const auto left = sim.takeLeft();
+    ASSERT_EQ(left.size(), 1u);
+    EXPECT_EQ(tally.count[SimEvent::Type::paidFee], 0);
+    EXPECT_LT(left[0].needs.happinessByte(), 128);
+    EXPECT_EQ(sim.income(), 0);
+    EXPECT_FALSE(left[0].thoughts.empty());
+    EXPECT_EQ(left[0].thoughts.back().type, ThoughtType::pricesTooHigh);
+}
+
+TEST(GolfSimulation, VipsPlayForFree)
+{
+    Course3 c;
+    GolfSimulation sim(c.environment());
+    auto spawn = aGolfer(c);
+    spawn.vip = true;
+    spawn.money = 0;
+    sim.spawn(spawn);
+    Tally tally;
+    runUntilEmpty(sim, tally);
+    EXPECT_EQ(tally.count[SimEvent::Type::holeFinished], 3);
+    EXPECT_EQ(sim.income(), 0);
+}
+
+TEST(GolfSimulation, HolesLearnHowLongGroupsTakeToPlayThem)
+{
+    Course3 c;
+    GolfSimulation sim(c.environment());
+    for (uint32_t g = 1; g <= 3; g++)
+        sim.spawn(aGolfer(c, g));
+    Tally tally;
+    runUntilEmpty(sim, tally);
+    const auto* course = c.courses.findCourse(c.courseId);
+    for (const auto& hole : course->holes)
+    {
+        EXPECT_EQ(hole.schedule.samples, 3);
+        EXPECT_GT(hole.schedule.measuredPlayTenths, 0);
+    }
+}
+
+TEST(GolfSimulation, ATooHardHoleLowersHappinessAndCanCauseARageQuit)
+{
+    Course3 c({ 150, 300 });
+    // Water everywhere beside the first fairway makes it hard.
+    c.world.hazard = [](double, double y) { return std::fabs(y - 3200) > 60 && std::fabs(y - 3200) < 250; };
+    GolfSimulation sim(c.environment());
+    auto spawn = aGolfer(c);
+    spawn.skills = { 5, 5, 5, 5 };
+    auto& g = sim.spawn(spawn);
+    g.needs.happiness = 60 * 16;
+    Tally tally;
+    runUntilEmpty(sim, tally);
+    EXPECT_GE(tally.count[SimEvent::Type::tooHard], 1);
+    const auto left = sim.takeLeft();
+    ASSERT_EQ(left.size(), 1u);
+    bool thoughtHard = false;
+    for (const auto& t : left[0].thoughts)
+        thoughtHard |= t.type == ThoughtType::holeTooHard;
+    EXPECT_TRUE(thoughtHard);
+}
+
+TEST(GolfSimulation, TheWholeRoundIsDeterministic)
+{
+    auto run = [] {
+        Course3 c;
+        GolfSimulation sim(c.environment());
+        for (int i = 0; i < 3; i++)
+            sim.spawn(aGolfer(c, 9));
+        Tally tally;
+        runUntilEmpty(sim, tally);
+        uint64_t hash = 1469598103934665603ull;
+        for (auto& g : sim.takeLeft())
+        {
+            for (auto s : g.scorecard)
+                hash = (hash ^ static_cast<uint8_t>(s)) * 1099511628211ull;
+            hash = (hash ^ static_cast<uint64_t>(g.strokesTotal)) * 1099511628211ull;
+            hash = (hash ^ static_cast<uint64_t>(g.needs.happiness)) * 1099511628211ull;
+        }
+        return hash;
+    };
+    EXPECT_EQ(run(), run());
+}
+
+TEST(GolfSimulation, GolfersGetHungryOverTheRoundAndTheClockRunsInGameMinutes)
+{
+    Course3 c;
+    GolfSimulation sim(c.environment());
+    const uint32_t id = sim.spawn(aGolfer(c)).id;
+    const int start = sim.find(id)->needs.hungerByte();
+    for (uint32_t t = 1000; t < 1000 + 8 * kTicksPerGameMinute; t++)
+        sim.tick(t);
+    const auto* after = sim.find(id);
+    ASSERT_NE(after, nullptr);
+    // About a point a minute at average physique; eight minutes pass between the first and the last tick.
+    EXPECT_LE(after->needs.hungerByte(), start - 6);
+    EXPECT_GE(after->needs.hungerByte(), start - 10);
+}
