@@ -6,6 +6,7 @@ Generates the objects the map and the scenario editor need by default, so that n
   golf.terrain_surface.<name>   one per golf surface of generate.py (grass, tee, fairway, green, ...)
   golf.terrain_edge.rock_cliff  terrain edge
   golf.climate.temperate        climate
+  golf.stream.creek             water stream
 
 Terrain surfaces use the existing terrain_surface format: an icon, then 3 entries (normal, grid, underground) of 19
 images, one per surface slope, drawn as flat-shaded isometric tiles from the tile geometry, then the 64x64 tileable
@@ -322,6 +323,48 @@ def terrain_edge(name, label, colour, description, layout, palette):
     return object_files(data, images)
 
 
+STREAM_FRAMES = 4
+STREAM_TEXTURE_SIZE = 64
+
+
+def stream_icon(colour):
+    image = Image(32, 32, (0, 0, 0), 0)
+    for y in range(8, 24):
+        for x in range(2, 30):
+            image.set(x, y, shade(colour, 1.1 if (x // 4 + y // 4) % 2 else 0.9))
+    return image
+
+
+def stream_frame(colour, frame):
+    # Diagonal ripples drifting one band per frame so the strip loops; the texture tiles in both directions.
+    size = STREAM_TEXTURE_SIZE
+    period = size // STREAM_FRAMES
+    image = Image(size, size, colour)
+    for y in range(size):
+        for x in range(size):
+            band = ((x + y) - frame * (period // STREAM_FRAMES * 4)) % period
+            image.set(x, y, shade(colour, 1.2 if band < period // 4 else 1.0))
+    return image
+
+
+def stream(name, description, colour, palette):
+    images = {"images/icon.png": quantise(stream_icon(colour), palette).png()}
+    table = [{"path": "images/icon.png", "x": 0, "y": 0}]
+    for frame in range(STREAM_FRAMES):
+        path = "images/frame_%d.png" % frame
+        images[path] = quantise(stream_frame(colour, frame), palette).png()
+        table.append({"path": path, "x": 0, "y": 0, "format": "raw"})
+    properties = {
+        "buildCost": 150,
+        "removeCost": 30,
+        "width": 12,
+        "image": {"frames": STREAM_FRAMES, "frameDurationTicks": 8},
+        "isHazard": True,
+    }
+    data = manifest("golf.stream." + name, "stream", description, properties, table)
+    return object_files(data, images)
+
+
 # A mild climate with frequent sun: golfers play from spring to autumn. Temperatures in °C. The weather weights of each
 # month add up to WEATHER_DIST_SIZE.
 CLIMATE_MONTHS = [
@@ -372,6 +415,7 @@ def build(layout=None, palette=None):
         out["terrain_edge/golf.terrain_edge.%s.parkobj" % name] = pack(
             terrain_edge(name, label, colour, description, layout, palette))
     out["climate/golf.climate.temperate.parkobj"] = pack(climate())
+    out["stream/golf.stream.creek.parkobj"] = pack(stream("creek", "Creek", (0x3A, 0x7B, 0xC8), palette))
     return out
 
 

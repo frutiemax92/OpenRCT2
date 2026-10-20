@@ -352,6 +352,8 @@ namespace OpenRCT2::Ui::Windows
                 return STR_OBJECT_SELECTION_PEEP_ANIMATIONS;
             case ObjectType::climate:
                 return STR_OBJECT_SELECTION_CLIMATE;
+            case ObjectType::stream:
+                return STR_OBJECT_SELECTION_STREAMS;
             // Intransient objects, should never pop up here
             case ObjectType::scenarioMeta:
                 return STR_OBJECT_SELECTION_SCENARIO_TEXTS;

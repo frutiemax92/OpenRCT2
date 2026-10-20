@@ -43,12 +43,13 @@ namespace OpenRCT2
         peepNames,
         peepAnimations,
         climate,
+        stream,
 
         count,
         none = 255
     };
 
-    static constexpr size_t kNumTransientObjectTypes = 19;
+    static constexpr size_t kNumTransientObjectTypes = 20;
     static constexpr size_t kNumIntransientObjectTypes = 2;
 
     bool ObjectTypeIsTransient(ObjectType type);

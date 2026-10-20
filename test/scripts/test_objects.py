@@ -144,6 +144,7 @@ class ObjectTests(unittest.TestCase):
         expected = {"terrain_surface/golf.terrain_surface.%s.parkobj" % s[0] for s in objects.SURFACES}
         expected |= {"terrain_edge/golf.terrain_edge.%s.parkobj" % e[0] for e in objects.EDGES}
         expected.add("climate/golf.climate.temperate.parkobj")
+        expected.add("stream/golf.stream.creek.parkobj")
         self.assertEqual(expected, set(FILES))
 
     def test_manifests_are_our_own(self):
@@ -218,6 +219,15 @@ class ObjectTests(unittest.TestCase):
         for month in data["weather"].values():
             # The engine rescales the weights with integer division: they must add up to kWeatherDistSize.
             self.assertEqual(objects.WEATHER_DIST_SIZE, sum(month["distribution"].values()))
+
+    def test_stream_has_one_square_image_per_frame(self):
+        _, data = open_object("stream/golf.stream.creek.parkobj")
+        self.assertEqual("stream", data["objectType"])
+        frames = data["properties"]["image"]["frames"]
+        # The icon, then the frames; the frames are raw so the engine reads them as palette indices.
+        self.assertEqual(1 + frames, len(data["images"]))
+        self.assertTrue(all(i.get("format") == "raw" for i in data["images"][1:]))
+        self.assertTrue(data["properties"]["isHazard"])
 
     def test_weather_size_matches_the_engine(self):
         with open(os.path.join(ROOT, "src", "openrct2", "world", "Weather.h"), "r", encoding="utf-8") as f:

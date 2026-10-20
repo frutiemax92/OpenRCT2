@@ -94,6 +94,7 @@ namespace OpenRCT2
             "PathAdditions", "SceneryGroup",   "ParkEntrance", "Water",           "ScenarioMeta",     "TerrainSurface",
             "TerrainEdge",   "Station",        "Music",        "FootpathSurface", "FootpathRailings", "Audio",
             "PeepNames",     "PeepAnimations", "Climate",
+            "Stream",
         };
         static_assert(kTypeToName.size() == static_cast<size_t>(ObjectType::count));
 
@@ -123,6 +124,7 @@ namespace OpenRCT2
                  ObjectType::peepNames,
                  ObjectType::peepAnimations,
                  ObjectType::climate,
+                 ObjectType::stream,
              })
         {
             auto& list = loadResult.RequiredObjects.GetList(objType);

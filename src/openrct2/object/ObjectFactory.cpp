@@ -46,6 +46,7 @@
 #include "SmallSceneryObject.h"
 #include "StationObject.h"
 #include "TerrainEdgeObject.h"
+#include "StreamObject.h"
 #include "TerrainSurfaceObject.h"
 #include "WallObject.h"
 #include "WaterObject.h"
@@ -415,6 +416,9 @@ namespace OpenRCT2::ObjectFactory
             case ObjectType::climate:
                 result = std::make_unique<ClimateObject>();
                 break;
+            case ObjectType::stream:
+                result = std::make_unique<StreamObject>();
+                break;
             default:
                 throw std::runtime_error("Invalid object type");
         }
@@ -443,6 +447,7 @@ namespace OpenRCT2::ObjectFactory
         { "peep_names", ObjectType::peepNames },
         { "peep_animations", ObjectType::peepAnimations },
         { "climate", ObjectType::climate },
+        { "stream", ObjectType::stream },
     };
 
     std::unique_ptr<Object> CreateObjectFromZipFile(std::string_view path, bool loadImages)

@@ -29,6 +29,7 @@
 #include <openrct2/object/Object.h>
 #include <openrct2/object/ObjectManager.h>
 #include <openrct2/object/ObjectRepository.h>
+#include <openrct2/object/StreamObject.h>
 #include <openrct2/object/TerrainEdgeObject.h>
 #include <openrct2/object/TerrainSurfaceObject.h>
 #include <openrct2/drawing/TerrainSpriteGenerator.h>
@@ -182,6 +183,33 @@ TEST_F(BaseObjects, ClimateLoads)
     auto* climate = Load("golf.climate.temperate");
     ASSERT_NE(nullptr, climate);
     EXPECT_EQ(ObjectType::climate, climate->GetObjectType());
+}
+
+TEST_F(BaseObjects, StreamLoadsItsProperties)
+{
+    auto* stream = static_cast<StreamObject*>(Load("golf.stream.creek"));
+    ASSERT_NE(nullptr, stream);
+    EXPECT_EQ(ObjectType::stream, stream->GetObjectType());
+    EXPECT_EQ(12, stream->Width);
+    EXPECT_GT(stream->BuildCost, 0);
+    EXPECT_GT(stream->RemoveCost, 0);
+    EXPECT_TRUE(stream->IsHazard);
+    EXPECT_EQ(4, stream->FrameCount);
+    EXPECT_EQ(8, stream->FrameDurationTicks);
+    // Icon followed by one image per frame.
+    EXPECT_EQ(5u, stream->GetImageTable().GetCount());
+}
+
+TEST_F(BaseObjects, StreamFramesAreSquareTextures)
+{
+    auto* stream = static_cast<StreamObject*>(Load("golf.stream.creek"));
+    ASSERT_NE(nullptr, stream);
+    ASSERT_EQ(4u, stream->Frames.size());
+    for (const auto& frame : stream->Frames)
+        EXPECT_EQ(64, frame.size);
+    // Frame lookups wrap around.
+    EXPECT_EQ(stream->getFrame(0), stream->getFrame(4));
+    EXPECT_NE(stream->getFrame(0), stream->getFrame(1));
 }
 
 TEST_F(BaseObjects, TerrainIsDrawn)
