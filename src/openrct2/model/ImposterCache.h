@@ -69,6 +69,7 @@ namespace OpenRCT2::Model
         float unitsPerMetre = 10.0f;
         float fps = kDefaultAnimationFps;
         QuantiseSettings quantise;
+        const TextureSet* textures = nullptr;
     };
 
     // Rasterises the pose a key stands for (the bucket centres, not the original continuous values), so the cached

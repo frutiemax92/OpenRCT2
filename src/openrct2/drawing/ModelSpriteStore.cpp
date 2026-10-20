@@ -50,7 +50,8 @@ namespace OpenRCT2::Drawing
     {
         std::lock_guard lock(_mutex);
         const auto id = _nextId++;
-        _models[id] = Entry{ std::move(model), unitsPerMetre };
+        auto textures = Model::TextureSet::decode(*model);
+        _models[id] = Entry{ std::move(model), unitsPerMetre, std::move(textures) };
         return id;
     }
 
@@ -116,6 +117,7 @@ namespace OpenRCT2::Drawing
         settings.unitsPerMetre = model->second.unitsPerMetre;
         settings.quantise.palette = _palette;
         settings.quantise.outlineIndex = std::nullopt;
+        settings.textures = &model->second.textures;
         auto image = _cache.getOrCreate(key, [&] { return Model::renderImposter(*model->second.model, key, settings); });
         if (image == nullptr || image->pixels.empty())
             return kImageIndexUndefined;

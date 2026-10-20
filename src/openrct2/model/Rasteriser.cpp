@@ -9,6 +9,8 @@
 
 #include "Rasteriser.h"
 
+#include "../core/Imaging.h"
+
 #include <algorithm>
 #include <cmath>
 #include <limits>
@@ -108,6 +110,7 @@ namespace OpenRCT2::Model
             float x, y, depth;
             Vec3 normal; // map space
             std::array<float, 4> colour;
+            std::array<float, 2> uv;
         };
     } // namespace
 
@@ -138,10 +141,12 @@ namespace OpenRCT2::Model
         {
             ScreenVertex v[3];
             Vec3 faceNormal;
+            const Texture* texture = nullptr;
         };
         std::vector<Triangle> triangles;
 
-        auto finish = [&](const Vec3& modelPos, const Vec3& modelNormal, const std::array<float, 4>& colour) {
+        auto finish = [&](const Vec3& modelPos, const Vec3& modelNormal, const std::array<float, 4>& colour,
+                          const std::array<float, 2>& uv) {
             auto mapPos = mapRotate(modelToMap(modelPos), settings.orientation);
             for (auto& c : mapPos)
                 c *= settings.unitsPerMetre;
@@ -152,6 +157,7 @@ namespace OpenRCT2::Model
             v.depth = (mapPos[0] + mapPos[1] + mapPos[2]) * settings.pixelsPerUnit;
             v.normal = normalised(mapRotate(modelToMap(modelNormal), settings.orientation));
             v.colour = colour;
+            v.uv = uv;
             return v;
         };
 
@@ -168,12 +174,19 @@ namespace OpenRCT2::Model
             {
                 const auto& prim = model.primitives[primIndex];
                 std::array<float, 4> colour{ 0.8f, 0.8f, 0.8f, 1.0f };
+                const Texture* texture = nullptr;
                 if (prim.material >= 0)
                 {
-                    colour = model.materials[prim.material].baseColour;
+                    const auto& material = model.materials[prim.material];
+                    colour = material.baseColour;
                     if (static_cast<size_t>(prim.material) < settings.materialColours.size()
                         && settings.materialColours[prim.material].has_value())
-                        colour = *settings.materialColours[prim.material];
+                        colour = *settings.materialColours[prim.material]; // a remap colour replaces the texture
+                    else if (
+                        settings.textures != nullptr && material.textureImage >= 0
+                        && static_cast<size_t>(material.textureImage) < settings.textures->textures.size()
+                        && !settings.textures->textures[material.textureImage].rgba.empty())
+                        texture = &settings.textures->textures[material.textureImage];
                 }
 
                 const auto posed = posePrimitive(prim, world[nodeIndex], skin);
@@ -185,12 +198,13 @@ namespace OpenRCT2::Model
                     for (size_t k = 0; k < 3; k++)
                     {
                         const auto& pv = posed[prim.indices[t + k]];
-                        tri.v[k] = finish(pv.first, pv.second, colour);
+                        tri.v[k] = finish(pv.first, pv.second, colour, prim.vertices[prim.indices[t + k]].uv);
                         auto p = mapRotate(modelToMap(pv.first), settings.orientation);
                         for (auto& c : p)
                             c *= settings.unitsPerMetre;
                         mp[k] = p;
                     }
+                    tri.texture = texture;
                     tri.faceNormal = normalised(cross(sub(mp[1], mp[0]), sub(mp[2], mp[0])));
                     triangles.push_back(tri);
                 }
@@ -253,6 +267,7 @@ namespace OpenRCT2::Model
                     const size_t index = static_cast<size_t>(py) * image.width + px;
                     if (depth <= image.depth[index])
                         continue;
+                    const float previousDepth = image.depth[index];
                     image.depth[index] = depth;
 
                     Vec3 n{ 0, 0, 0 };
@@ -270,6 +285,19 @@ namespace OpenRCT2::Model
                     std::array<float, 4> col{};
                     for (size_t c = 0; c < 4; c++)
                         col[c] = tri.v[0].colour[c];
+                    if (tri.texture != nullptr)
+                    {
+                        const float u = w0 * tri.v[0].uv[0] + w1 * tri.v[1].uv[0] + w2 * tri.v[2].uv[0];
+                        const float v = w0 * tri.v[0].uv[1] + w1 * tri.v[1].uv[1] + w2 * tri.v[2].uv[1];
+                        const auto texel = tri.texture->sample(u, v);
+                        for (size_t c = 0; c < 4; c++)
+                            col[c] *= texel[c];
+                        if (col[3] < 0.5f)
+                        {
+                            image.depth[index] = previousDepth; // cut-out texel: keep what is behind
+                            continue;
+                        }
+                    }
                     auto to8 = [](float v) { return static_cast<uint8_t>(std::clamp(v, 0.0f, 1.0f) * 255.0f + 0.5f); };
                     image.rgba[index] = { to8(col[0] * lit), to8(col[1] * lit), to8(col[2] * lit), 255 };
                 }
@@ -335,6 +363,48 @@ namespace OpenRCT2::Model
                 }
         }
         return out;
+    }
+
+    std::array<float, 4> Texture::sample(float u, float v) const
+    {
+        if (rgba.empty())
+            return { 1, 1, 1, 1 };
+        auto wrap = [](float t, int32_t size) {
+            t -= std::floor(t);
+            return std::min(size - 1, static_cast<int32_t>(t * static_cast<float>(size)));
+        };
+        const auto& p = rgba[static_cast<size_t>(wrap(v, height)) * width + wrap(u, width)];
+        return { p[0] / 255.0f, p[1] / 255.0f, p[2] / 255.0f, p[3] / 255.0f };
+    }
+
+    TextureSet TextureSet::decode(const GlbModel& model)
+    {
+        TextureSet set;
+        set.textures.resize(model.images.size());
+        for (size_t i = 0; i < model.images.size(); i++)
+        {
+            try
+            {
+                const auto decoded = Imaging::ReadFromBuffer(model.images[i].bytes, ImageFormat::png32);
+                if (decoded.Width == 0 || decoded.Height == 0 || decoded.Depth != 32)
+                    continue;
+                auto& texture = set.textures[i];
+                texture.width = static_cast<int32_t>(decoded.Width);
+                texture.height = static_cast<int32_t>(decoded.Height);
+                texture.rgba.resize(static_cast<size_t>(texture.width) * texture.height);
+                for (int32_t y = 0; y < texture.height; y++)
+                    for (int32_t x = 0; x < texture.width; x++)
+                    {
+                        const auto* px = &decoded.Pixels[static_cast<size_t>(y) * decoded.Stride + static_cast<size_t>(x) * 4];
+                        texture.rgba[static_cast<size_t>(y) * texture.width + x] = { px[0], px[1], px[2], px[3] };
+                    }
+            }
+            catch (const std::exception&)
+            {
+                set.textures[i] = {};
+            }
+        }
+        return set;
     }
 
     ModelBounds computeBounds(const GlbModel& model, const RenderSettings& settings)

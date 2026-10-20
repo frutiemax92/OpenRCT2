@@ -248,3 +248,121 @@ TEST(Rasteriser, BoundsOfAnEmptyModelAreInvalid)
 {
     EXPECT_FALSE(computeBounds(GlbModel{}, plain()).valid);
 }
+
+namespace
+{
+    // 2x2 RGBA PNG: red, green / blue, fully transparent white.
+    const std::vector<uint8_t> kTestPng = {
+        0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00, 0x00, 0x0d, 0x49, 0x48, 0x44, 0x52, 0x00, 0x00,
+        0x00, 0x02, 0x00, 0x00, 0x00, 0x02, 0x08, 0x06, 0x00, 0x00, 0x00, 0x72, 0xb6, 0x0d, 0x24, 0x00, 0x00, 0x00,
+        0x13, 0x49, 0x44, 0x41, 0x54, 0x78, 0x9c, 0x63, 0xf8, 0xcf, 0xc0, 0xf0, 0x1f, 0x0c, 0x81, 0x34, 0x08, 0x30,
+        0x00, 0x00, 0x48, 0xc9, 0x08, 0xf8, 0x71, 0xc5, 0x31, 0xe0, 0x00, 0x00, 0x00, 0x00, 0x49, 0x45, 0x4e, 0x44,
+        0xae, 0x42, 0x60, 0x82
+    };
+
+    GlbModel texturedSquare()
+    {
+        auto model = squareModel(0, 1, { 1, 1, 1, 1 });
+        model.materials[0].textureImage = 0;
+        Image png;
+        png.mimeType = "image/png";
+        png.bytes = kTestPng;
+        model.images.push_back(png);
+        // uv follows the horizontal position, so the 4 texels land in the 4 quarters of the square.
+        for (auto& v : model.primitives[0].vertices)
+            v.uv = { v.position[0], v.position[2] };
+        return model;
+    }
+
+    size_t countColour(const RenderedImage& image, bool (*match)(const std::array<uint8_t, 4>&))
+    {
+        return static_cast<size_t>(std::count_if(image.rgba.begin(), image.rgba.end(), [&](const auto& p) {
+            return p[3] != 0 && match(p);
+        }));
+    }
+} // namespace
+
+TEST(Rasteriser, DecodesTheTexturesOfAModel)
+{
+    const auto set = TextureSet::decode(texturedSquare());
+    ASSERT_EQ(set.textures.size(), 1u);
+    const auto& texture = set.textures[0];
+    EXPECT_EQ(texture.width, 2);
+    EXPECT_EQ(texture.height, 2);
+    EXPECT_EQ(texture.sample(0.1f, 0.1f), (std::array<float, 4>{ 1, 0, 0, 1 }));
+    EXPECT_EQ(texture.sample(0.9f, 0.1f), (std::array<float, 4>{ 0, 1, 0, 1 }));
+    EXPECT_EQ(texture.sample(0.1f, 0.9f), (std::array<float, 4>{ 0, 0, 1, 1 }));
+    EXPECT_FLOAT_EQ(texture.sample(0.9f, 0.9f)[3], 0);
+    // Repeat wrapping, also for negative coordinates.
+    EXPECT_EQ(texture.sample(1.1f, 1.1f), texture.sample(0.1f, 0.1f));
+    EXPECT_EQ(texture.sample(-0.9f, 0.1f), texture.sample(0.1f, 0.1f));
+}
+
+TEST(Rasteriser, UndecodableImagesLeaveAnEmptyTexture)
+{
+    auto model = texturedSquare();
+    model.images[0].bytes = { 1, 2, 3 };
+    const auto set = TextureSet::decode(model);
+    ASSERT_EQ(set.textures.size(), 1u);
+    EXPECT_TRUE(set.textures[0].rgba.empty());
+    EXPECT_EQ(set.textures[0].sample(0.5f, 0.5f), (std::array<float, 4>{ 1, 1, 1, 1 })); // neutral
+}
+
+TEST(Rasteriser, SamplesTexturesWhenGivenAndCutsOutTransparentTexels)
+{
+    const auto model = texturedSquare();
+    const auto set = TextureSet::decode(model);
+
+    auto settings = plain();
+    settings.ambient = 1.0f; // no shading, so texel colours come through unchanged
+    const auto flatColour = render(model, settings);
+
+    settings.textures = &set;
+    const auto textured = render(model, settings);
+    ASSERT_FALSE(textured.empty());
+    const auto red = countColour(textured, [](const auto& p) { return p[0] > 200 && p[1] < 50 && p[2] < 50; });
+    const auto green = countColour(textured, [](const auto& p) { return p[1] > 200 && p[0] < 50 && p[2] < 50; });
+    const auto blue = countColour(textured, [](const auto& p) { return p[2] > 200 && p[0] < 50 && p[1] < 50; });
+    EXPECT_GT(red, 40u);
+    EXPECT_GT(green, 40u);
+    EXPECT_GT(blue, 40u);
+    // The transparent quarter is cut out, leaving about three quarters of the plain silhouette.
+    EXPECT_LT(textured.coveredPixels(), flatColour.coveredPixels() * 85 / 100);
+    EXPECT_GT(textured.coveredPixels(), flatColour.coveredPixels() * 60 / 100);
+}
+
+TEST(Rasteriser, CutOutTexelsKeepWhatIsBehind)
+{
+    // A textured square raised in front of a plain blue one: its hole shows the blue square behind.
+    auto textured = texturedSquare();
+    auto both = squareModel(-1, 1, { 0, 0, 1, 1 }, true, textured);
+    for (auto& v : both.primitives[0].vertices)
+        v.position[1] += 2;
+    auto settings = plain();
+    settings.ambient = 1.0f;
+    const auto set = TextureSet::decode(both);
+    settings.textures = &set;
+    auto isBlue = [](const auto& p) { return p[2] > 200 && p[0] < 50 && p[1] < 50; };
+    const auto withBack = countColour(render(both, settings), isBlue);
+
+    for (auto& v : textured.primitives[0].vertices)
+        v.position[1] += 2;
+    const auto aloneSet = TextureSet::decode(textured);
+    settings.textures = &aloneSet;
+    const auto alone = countColour(render(textured, settings), isBlue);
+    EXPECT_GT(withBack, alone + 20);
+}
+
+TEST(Rasteriser, RemapColoursReplaceTheTexture)
+{
+    const auto model = texturedSquare();
+    const auto set = TextureSet::decode(model);
+    auto settings = plain();
+    settings.ambient = 1.0f;
+    settings.textures = &set;
+    settings.materialColours = { std::array<float, 4>{ 0, 1, 0, 1 } };
+    const auto image = render(model, settings);
+    const auto notGreen = countColour(image, [](const auto& p) { return p[0] > 50 || p[2] > 50; });
+    EXPECT_EQ(notGreen, 0u);
+    EXPECT_GT(image.coveredPixels(), 100u); // and no cut-out hole either
+}

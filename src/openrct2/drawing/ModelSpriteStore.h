@@ -50,6 +50,7 @@ namespace OpenRCT2::Drawing
         {
             std::shared_ptr<const Model::GlbModel> model;
             float unitsPerMetre;
+            Model::TextureSet textures;
         };
 
         mutable std::mutex _mutex;

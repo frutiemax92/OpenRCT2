@@ -35,6 +35,24 @@ namespace OpenRCT2::Model
         float roll = 0;  // radians about map x
     };
 
+    // A decoded model texture (R3D-003: at most 128 x 128), RGBA8.
+    struct Texture
+    {
+        int32_t width = 0;
+        int32_t height = 0;
+        std::vector<std::array<uint8_t, 4>> rgba;
+
+        // Nearest neighbour sample with repeat wrapping.
+        std::array<float, 4> sample(float u, float v) const;
+    };
+
+    // The decoded textures of a model, indexed like GlbModel::images; images that fail to decode are left empty.
+    struct TextureSet
+    {
+        std::vector<Texture> textures;
+        static TextureSet decode(const GlbModel& model);
+    };
+
     struct RenderSettings
     {
         Orientation orientation;
@@ -44,6 +62,7 @@ namespace OpenRCT2::Model
         float ambient = 0.45f;
         // Per-material base colour override (R3D-007 remap slots); entries beyond the material count are ignored.
         std::vector<std::optional<std::array<float, 4>>> materialColours;
+        const TextureSet* textures = nullptr; // when null, materials are drawn with their base colour only
         int32_t clipIndex = -1; // animation clip, -1 for the bind pose
         float time = 0;
     };

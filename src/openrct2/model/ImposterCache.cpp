@@ -98,6 +98,7 @@ namespace OpenRCT2::Model
         render_settings.orientation.roll = bucketToTilt(key.rollBucket);
         render_settings.unitsPerMetre = settings.unitsPerMetre;
         render_settings.pixelsPerUnit = 1.0f / static_cast<float>(1 << key.zoom);
+        render_settings.textures = settings.textures;
         render_settings.clipIndex = key.clip;
         if (key.clip >= 0 && key.clip < static_cast<int32_t>(model.clips.size()))
             render_settings.time = static_cast<float>(key.frame) / settings.fps;
