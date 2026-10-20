@@ -73,6 +73,36 @@ namespace OpenRCT2::Model
             return { x1, y1, z };
         }
 
+        // Vertex positions and normals of a primitive in model space, skinned when the node has a skin.
+        std::vector<std::pair<Vec3, Vec3>> posePrimitive(const Primitive& prim, const Mat4& nodeWorld, const std::vector<Mat4>& skin)
+        {
+            std::vector<std::pair<Vec3, Vec3>> posed(prim.vertices.size());
+            for (size_t i = 0; i < prim.vertices.size(); i++)
+            {
+                const auto& vtx = prim.vertices[i];
+                if (!skin.empty())
+                {
+                    Vec3 p{ 0, 0, 0 }, n{ 0, 0, 0 };
+                    for (size_t c = 0; c < 4; c++)
+                    {
+                        if (vtx.weights[c] <= 0 || vtx.joints[c] >= skin.size())
+                            continue;
+                        const auto sp = transformPoint(skin[vtx.joints[c]], vtx.position);
+                        const auto sn = transformDirection(skin[vtx.joints[c]], vtx.normal);
+                        for (size_t k = 0; k < 3; k++)
+                        {
+                            p[k] += sp[k] * vtx.weights[c];
+                            n[k] += sn[k] * vtx.weights[c];
+                        }
+                    }
+                    posed[i] = { p, n };
+                }
+                else
+                    posed[i] = { transformPoint(nodeWorld, vtx.position), transformDirection(nodeWorld, vtx.normal) };
+            }
+            return posed;
+        }
+
         struct ScreenVertex
         {
             float x, y, depth;
@@ -146,31 +176,7 @@ namespace OpenRCT2::Model
                         colour = *settings.materialColours[prim.material];
                 }
 
-                std::vector<std::pair<Vec3, Vec3>> posed(prim.vertices.size());
-                for (size_t i = 0; i < prim.vertices.size(); i++)
-                {
-                    const auto& vtx = prim.vertices[i];
-                    if (!skin.empty())
-                    {
-                        Vec3 p{ 0, 0, 0 }, n{ 0, 0, 0 };
-                        for (size_t c = 0; c < 4; c++)
-                        {
-                            if (vtx.weights[c] <= 0 || vtx.joints[c] >= skin.size())
-                                continue;
-                            const auto sp = transformPoint(skin[vtx.joints[c]], vtx.position);
-                            const auto sn = transformDirection(skin[vtx.joints[c]], vtx.normal);
-                            for (size_t k = 0; k < 3; k++)
-                            {
-                                p[k] += sp[k] * vtx.weights[c];
-                                n[k] += sn[k] * vtx.weights[c];
-                            }
-                        }
-                        posed[i] = { p, n };
-                    }
-                    else
-                        posed[i] = { transformPoint(world[nodeIndex], vtx.position),
-                                     transformDirection(world[nodeIndex], vtx.normal) };
-                }
+                const auto posed = posePrimitive(prim, world[nodeIndex], skin);
 
                 for (size_t t = 0; t + 2 < prim.indices.size(); t += 3)
                 {
@@ -329,5 +335,39 @@ namespace OpenRCT2::Model
                 }
         }
         return out;
+    }
+
+    ModelBounds computeBounds(const GlbModel& model, const RenderSettings& settings)
+    {
+        const Clip* clip = nullptr;
+        if (settings.clipIndex >= 0 && static_cast<size_t>(settings.clipIndex) < model.clips.size())
+            clip = &model.clips[settings.clipIndex];
+        const auto world = model.worldTransforms(clip, settings.time);
+
+        ModelBounds bounds;
+        for (size_t nodeIndex = 0; nodeIndex < model.nodes.size(); nodeIndex++)
+        {
+            const auto& node = model.nodes[nodeIndex];
+            if (node.mesh < 0)
+                continue;
+            std::vector<Mat4> skin;
+            if (node.skin >= 0)
+                skin = model.skinMatrices(node.skin, world);
+            for (auto primIndex : model.meshPrimitives[node.mesh])
+            {
+                for (const auto& [position, normal] : posePrimitive(model.primitives[primIndex], world[nodeIndex], skin))
+                {
+                    auto p = mapRotate(modelToMap(position), settings.orientation);
+                    for (size_t k = 0; k < 3; k++)
+                    {
+                        p[k] *= settings.unitsPerMetre;
+                        bounds.min[k] = std::min(bounds.min[k], p[k]);
+                        bounds.max[k] = std::max(bounds.max[k], p[k]);
+                    }
+                    bounds.valid = true;
+                }
+            }
+        }
+        return bounds;
     }
 } // namespace OpenRCT2::Model

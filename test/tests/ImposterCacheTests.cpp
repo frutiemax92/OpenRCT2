@@ -254,3 +254,21 @@ TEST(ImposterCache, RendersTheBucketCentreAndRemapsMaterials)
     const auto small = renderImposter(model, zoomed, settings);
     EXPECT_NEAR(small.width, redImage.width / 2, 3);
 }
+
+TEST(ImposterCache, EvictCallbackSeesEveryDroppedKey)
+{
+    ImposterCache cache(15, false);
+    std::vector<uint8_t> dropped;
+    cache.setEvictCallback([&](const ImposterKey& key) { dropped.push_back(key.yawBucket); });
+    cache.insert(keyWithYaw(1), imageOfSize(10));
+    cache.insert(keyWithYaw(2), imageOfSize(10));
+    // Without trim on insert nothing is dropped until trim is called, so images in use stay valid during a frame.
+    EXPECT_TRUE(dropped.empty());
+    EXPECT_EQ(cache.count(), 2u);
+    cache.trim();
+    EXPECT_EQ(dropped, (std::vector<uint8_t>{ 1 }));
+    cache.insert(keyWithYaw(2), imageOfSize(5)); // replacing reports the old image
+    EXPECT_EQ(dropped.size(), 2u);
+    cache.clear();
+    EXPECT_EQ(dropped.size(), 3u);
+}

@@ -123,9 +123,15 @@ namespace OpenRCT2::Model
         return quantise(render(model, render_settings), settings.quantise);
     }
 
-    ImposterCache::ImposterCache(size_t budgetBytes)
+    ImposterCache::ImposterCache(size_t budgetBytes, bool trimOnInsert)
         : _budget(budgetBytes)
+        , _trimOnInsert(trimOnInsert)
     {
+    }
+
+    void ImposterCache::setEvictCallback(EvictCallback callback)
+    {
+        _onEvict = std::move(callback);
     }
 
     ImposterCache::Image ImposterCache::find(const ImposterKey& key)
@@ -146,6 +152,8 @@ namespace OpenRCT2::Model
         auto existing = _entries.find(key);
         if (existing != _entries.end())
         {
+            if (_onEvict)
+                _onEvict(key);
             _bytes -= existing->second.image->pixels.size();
             _lru.erase(existing->second.order);
             _entries.erase(existing);
@@ -154,7 +162,8 @@ namespace OpenRCT2::Model
         _bytes += shared->pixels.size();
         _lru.push_front(key);
         _entries[key] = Entry{ shared, _lru.begin() };
-        trim();
+        if (_trimOnInsert)
+            trim();
         return shared;
     }
 
@@ -171,6 +180,8 @@ namespace OpenRCT2::Model
         while (_bytes > _budget && _lru.size() > 1)
         {
             auto it = _entries.find(_lru.back());
+            if (_onEvict)
+                _onEvict(it->first);
             _bytes -= it->second.image->pixels.size();
             _entries.erase(it);
             _lru.pop_back();
@@ -179,6 +190,9 @@ namespace OpenRCT2::Model
 
     void ImposterCache::clear()
     {
+        if (_onEvict)
+            for (const auto& key : _lru)
+                _onEvict(key);
         _entries.clear();
         _lru.clear();
         _bytes = 0;

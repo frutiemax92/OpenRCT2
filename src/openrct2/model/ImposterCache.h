@@ -78,7 +78,11 @@ namespace OpenRCT2::Model
     class ImposterCache
     {
     public:
-        explicit ImposterCache(size_t budgetBytes = kDefaultImposterBudgetBytes);
+        explicit ImposterCache(size_t budgetBytes = kDefaultImposterBudgetBytes, bool trimOnInsert = true);
+
+        // Called just before an image is dropped (eviction or clear).
+        using EvictCallback = std::function<void(const ImposterKey&)>;
+        void setEvictCallback(EvictCallback callback);
 
         using Image = std::shared_ptr<const PaletteImage>;
         using Factory = std::function<PaletteImage()>;
@@ -118,6 +122,8 @@ namespace OpenRCT2::Model
         };
 
         size_t _budget;
+        bool _trimOnInsert;
+        EvictCallback _onEvict;
         size_t _bytes = 0;
         uint64_t _hits = 0;
         uint64_t _misses = 0;

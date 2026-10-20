@@ -217,3 +217,34 @@ TEST(Rasteriser, PosesFollowTheAnimationClip)
     // Moving along +x shifts the picture right of the origin by the projected distance (2 m = 32 units).
     EXPECT_EQ(a.originX - b.originX, 32);
 }
+
+TEST(Rasteriser, BoundsFollowTheModelAndItsYaw)
+{
+    // A 2 x 1 metre slab at height 0.5 metres, 16 units per metre.
+    GlbModel model = squareModel(0.5f, 1, { 1, 1, 1, 1 });
+    auto& prim = model.primitives[0];
+    prim.vertices[2].position[0] = 2;
+    prim.vertices[3].position[0] = 2;
+
+    const auto bounds = computeBounds(model, plain());
+    ASSERT_TRUE(bounds.valid);
+    EXPECT_FLOAT_EQ(bounds.min[0], 0);
+    EXPECT_FLOAT_EQ(bounds.max[0], 32);
+    // glTF -Z is map +y, so the slab spans y from -16 to 0.
+    EXPECT_FLOAT_EQ(bounds.min[1], -16);
+    EXPECT_FLOAT_EQ(bounds.max[1], 0);
+    EXPECT_FLOAT_EQ(bounds.min[2], 8);
+    EXPECT_FLOAT_EQ(bounds.max[2], 8);
+
+    auto turned = plain();
+    turned.orientation.yaw = 3.14159265f / 2;
+    const auto rotated = computeBounds(model, turned);
+    EXPECT_NEAR(rotated.max[1], 32, 1e-3f);
+    EXPECT_NEAR(rotated.min[0], 0, 1e-3f);
+    EXPECT_NEAR(rotated.max[0], 16, 1e-3f);
+}
+
+TEST(Rasteriser, BoundsOfAnEmptyModelAreInvalid)
+{
+    EXPECT_FALSE(computeBounds(GlbModel{}, plain()).valid);
+}

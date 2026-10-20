@@ -45,6 +45,7 @@
 #include "drawing/Drawing.h"
 #include "drawing/Font.h"
 #include "drawing/IDrawingEngine.h"
+#include "drawing/ModelSpriteStore.h"
 #include "drawing/TerrainSpriteStore.h"
 #include "drawing/Image.h"
 #include "drawing/LightFX.h"
@@ -1314,6 +1315,7 @@ namespace OpenRCT2
             PROFILED_FUNCTION();
 
             Drawing::TerrainSpriteStore::Instance().BeginFrame();
+            Drawing::ModelSpriteStore::Instance().BeginFrame();
             _drawingEngine->BeginDraw();
             _painter->Paint(*_drawingEngine);
             _drawingEngine->EndDraw();

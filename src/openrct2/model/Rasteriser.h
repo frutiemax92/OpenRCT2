@@ -13,6 +13,7 @@
 
 #include <array>
 #include <cstdint>
+#include <limits>
 #include <optional>
 #include <span>
 #include <vector>
@@ -64,6 +65,17 @@ namespace OpenRCT2::Model
     };
 
     RenderedImage render(const GlbModel& model, const RenderSettings& settings);
+
+    // Axis aligned bounding box of the posed model in map units relative to the model origin (R3D-004). The paint
+    // session uses it as the bounding box of the entity sprite so sorting stays correct.
+    struct ModelBounds
+    {
+        Vec3 min{ std::numeric_limits<float>::max(), std::numeric_limits<float>::max(), std::numeric_limits<float>::max() };
+        Vec3 max{ std::numeric_limits<float>::lowest(), std::numeric_limits<float>::lowest(),
+                  std::numeric_limits<float>::lowest() };
+        bool valid = false;
+    };
+    ModelBounds computeBounds(const GlbModel& model, const RenderSettings& settings);
 
     // Projects a map-space point to image-relative screen coordinates (relative to the model origin).
     std::array<float, 2> project(const Vec3& mapPos, float pixelsPerUnit);
