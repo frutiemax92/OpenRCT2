@@ -119,7 +119,7 @@ namespace OpenRCT2::GameActions
         }
 
         const bool isGhost = GetFlags().has(CommandFlag::ghost);
-        element->clearanceHeight = baseZ;
+        element->setClearanceZ(baseZ);
         element->setObjectIndex(_streamType);
         element->setFlowDirection(_flowDirection);
         element->setEdges(Stream::AutoConnectEdges(Stream::GetNeighbourMask(_loc)));

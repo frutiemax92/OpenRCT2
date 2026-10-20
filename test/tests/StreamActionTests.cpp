@@ -112,7 +112,7 @@ TEST(StreamActionTests, NeighbourHelpersAndRemove)
     auto insert = [](const CoordsXY& tile) {
         const auto baseZ = MapGetSurfaceElementAt(tile)->getBaseZ();
         auto* el = TileElementInsert<StreamElement>({ tile.x, tile.y, baseZ }, 0b1111);
-        el->clearanceHeight = baseZ;
+        el->setClearanceZ(baseZ);
         el->setEdges(Stream::AutoConnectEdges(Stream::GetNeighbourMask(tile)));
         Stream::UpdateNeighbours(tile, true);
         return el;
