@@ -53,6 +53,7 @@ set(test_files
    "${CMAKE_CURRENT_SOURCE_DIR}/BallPhysicsTests.cpp"
    "${CMAKE_CURRENT_SOURCE_DIR}/MapBallWorldTests.cpp"
    "${CMAKE_CURRENT_SOURCE_DIR}/GolfBallEntityTests.cpp"
+   "${CMAKE_CURRENT_SOURCE_DIR}/ShotDebugTests.cpp"
    "${CMAKE_CURRENT_SOURCE_DIR}/MapObstaclesTests.cpp"
    "${CMAKE_CURRENT_SOURCE_DIR}/ObstacleGridTests.cpp"
    "${CMAKE_CURRENT_SOURCE_DIR}/ShotTests.cpp"

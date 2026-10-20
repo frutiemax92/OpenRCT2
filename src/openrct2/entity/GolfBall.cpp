@@ -13,6 +13,7 @@
 #include "../core/DataSerialiser.h"
 #include "../golf/MapBallWorld.h"
 #include "../golf/MapObstacles.h"
+#include "../golf/ShotDebug.h"
 #include "../scenario/Scenario.h"
 #include "EntityRegistry.h"
 
@@ -102,8 +103,9 @@ namespace OpenRCT2
         world.setObstacles(&Golf::GetMapObstacles());
         ScenarioBallRandom rng;
         const auto before = getLocation();
-        Golf::stepBall(ball, world, rng);
+        const auto events = Golf::stepBall(ball, world, rng);
         restingTicks = 0;
+        Golf::GetShotDebug().observe(*this, events);
 
         const auto location = toCoords(ball.position);
         const bool flying = ball.state == Golf::BallState::InFlight || ball.state == Golf::BallState::Bouncing;
