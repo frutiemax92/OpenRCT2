@@ -282,6 +282,7 @@ namespace OpenRCT2::TileInspector
                     stream->setFlowDirection(DirectionNext(stream->getFlowDirection()));
                     break;
                 }
+                case TileElementType::building:
                 case TileElementType::surface:
                 case TileElementType::largeScenery:
                     break;

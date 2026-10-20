@@ -288,6 +288,9 @@ static void PaintTileElementBase(PaintSession& session, const CoordsXY& origCoor
             case TileElementType::stream:
                 // Streams are drawn by the procedural terrain renderer together with the surface (STR-005).
                 break;
+            case TileElementType::building:
+                // Painting of buildings comes with the building renderer.
+                break;
         }
         session.MapPosition = mapPosition;
     } while (!(tile_element++)->isLastForTile());

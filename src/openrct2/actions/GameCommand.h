@@ -102,6 +102,8 @@ namespace OpenRCT2
         setRideVisibility,
         placeStream,
         removeStream,
+        placeBuilding,
+        removeBuilding,
         count,
     };
 }

@@ -24,5 +24,6 @@ namespace OpenRCT2
         largeScenery = 6,
         banner = 7,
         stream = 8,
+        building = 9,
     };
 }
