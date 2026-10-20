@@ -13,6 +13,7 @@
 #include "../object/StreamObject.h"
 #include "../object/TerrainSurfaceObject.h"
 #include "../world/Map.h"
+#include "../world/MapOwnership.h"
 #include "../world/TileElementsView.h"
 #include "../world/tile_element/PathElement.h"
 #include "../world/tile_element/StreamElement.h"
@@ -134,6 +135,82 @@ namespace OpenRCT2::Golf
         return { cos(radians) * speed, sin(radians) * speed, Fixed{} };
     }
 
+    bool isTileOwned(const TileCoordsXY& tile)
+    {
+        auto* surface = MapGetSurfaceElementAt(tile);
+        return surface != nullptr && surface->hasOwnership(OwnershipFlag::landOwned);
+    }
+
+    bool isOutOfCourseBounds(const CoordsXY& position)
+    {
+        const auto& golf = getGameState().golf;
+        if (golf.courses().empty())
+            return false;
+        const TileCoordsXY tile{ position.x >> 5, position.y >> 5 };
+        if (golf.boundary().defined())
+            return !golf.boundary().isInPlay(tile);
+        return !isTileOwned(tile);
+    }
+
+    bool MapBallWorld::obstacleAt(const FixedVec3& position, Fixed radius, ObstacleContact& contact) const
+    {
+        bool found = _obstacles != nullptr && _obstacles->query(position, radius, contact);
+        if (!_useCourses)
+            return found;
+        // The flag pin is a thin pole standing on the cup (HOL-003).
+        for (const auto& course : getGameState().golf.courses())
+        {
+            for (const auto& hole : course.holes)
+            {
+                if (!hole.cup.has_value())
+                    continue;
+                if (abs(position.x - Fixed::fromInt(hole.cup->x)) > Fixed::fromInt(4)
+                    || abs(position.y - Fixed::fromInt(hole.cup->y)) > Fixed::fromInt(4))
+                    continue;
+                Obstacle pin;
+                pin.id = 0xFFFFFF00u + (hole.id & 0xFF);
+                pin.shape = ObstacleShape::cylinder;
+                const auto ground = surfaceAt(Fixed::fromInt(hole.cup->x), Fixed::fromInt(hole.cup->y));
+                pin.centre = { Fixed::fromInt(hole.cup->x), Fixed::fromInt(hole.cup->y), ground.height };
+                pin.halfX = Fixed::fromInt(kPinRadius);
+                pin.halfY = pin.halfX;
+                pin.height = Fixed::fromInt(kPinHeight);
+                pin.restitution = Fixed::ratio(3, 10);
+                pin.friction = Fixed::ratio(5, 10);
+                ObstacleContact pinContact;
+                if (ObstacleGrid::contactWith(pin, position, radius, pinContact) && (!found || pinContact.depth > contact.depth))
+                {
+                    contact = pinContact;
+                    found = true;
+                }
+            }
+        }
+        return found;
+    }
+
+    bool MapBallWorld::cupNear(Fixed x, Fixed y, CupInfo& cup) const
+    {
+        if (!_useCourses)
+            return false;
+        for (const auto& course : getGameState().golf.courses())
+        {
+            for (const auto& hole : course.holes)
+            {
+                if (!hole.cup.has_value())
+                    continue;
+                const Fixed dx = x - Fixed::fromInt(hole.cup->x);
+                const Fixed dy = y - Fixed::fromInt(hole.cup->y);
+                if (abs(dx) > Fixed::fromInt(8) || abs(dy) > Fixed::fromInt(8))
+                    continue;
+                const auto ground = surfaceAt(Fixed::fromInt(hole.cup->x), Fixed::fromInt(hole.cup->y));
+                cup.position = { Fixed::fromInt(hole.cup->x), Fixed::fromInt(hole.cup->y), ground.height };
+                cup.radius = Fixed::fromInt(3);
+                return true;
+            }
+        }
+        return false;
+    }
+
     void MapBallWorld::useGameWind()
     {
         _wind = windVelocity(getGameState().wind);
@@ -143,7 +220,10 @@ namespace OpenRCT2::Golf
     {
         SurfaceSample s;
         const CoordsXY tile{ static_cast<int32_t>(x.floor()) & ~(kTile - 1), static_cast<int32_t>(y.floor()) & ~(kTile - 1) };
-        if (x < Fixed{} || y < Fixed{} || !MapIsLocationValid(tile))
+        // The outermost ring of tiles is the invisible border of the map: beyond the playable area (BAL-051).
+        const auto& mapSize = getGameState().mapSize;
+        if (x < Fixed::fromInt(kTile) || y < Fixed::fromInt(kTile) || tile.x >= (mapSize.x - 1) * kTile
+            || tile.y >= (mapSize.y - 1) * kTile || !MapIsLocationValid(tile))
         {
             s.outOfBounds = true;
             return s;

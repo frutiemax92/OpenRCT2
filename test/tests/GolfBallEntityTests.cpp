@@ -61,6 +61,7 @@ namespace
         Drawing::LoadPalette();
         EntityTweener::get().reset();
         gGameSpeed = 1;
+        gameState.mapSize = { 60, 60 }; // the test park is only 15 tiles wide
         return context;
     }
 

@@ -138,6 +138,7 @@ namespace OpenRCT2::Network
                 GameCommand::removeBuilding,
                 GameCommand::editCourse,
                 GameCommand::editHole,
+                GameCommand::editCourseBoundary,
                 GameCommand::setBrakesSpeed,
                 GameCommand::removeWall,
                 GameCommand::placeWall,

@@ -36,6 +36,15 @@ namespace OpenRCT2::Golf
     // The wind as the velocity of the air in world units per tick (BAL-031).
     FixedVec3 windVelocity(const Weather::WindState& wind);
 
+    // True when the tile is owned land, the default extent of the course (HOL-007).
+    bool isTileOwned(const TileCoordsXY& tile);
+    // Whether a world position is beyond the boundary of the courses; false when the park has no course.
+    bool isOutOfCourseBounds(const CoordsXY& position);
+
+    // Radius of the flag pin at the cup in world units, and its height above the green (HOL-003).
+    constexpr int32_t kPinRadius = 1;
+    constexpr int32_t kPinHeight = 24;
+
     class MapBallWorld final : public IBallWorld
     {
     public:
@@ -50,10 +59,8 @@ namespace OpenRCT2::Golf
         static constexpr int32_t kPathHeightTolerance = 16;
 
         SurfaceSample surfaceAt(Fixed x, Fixed y) const override;
-        bool obstacleAt(const FixedVec3& position, Fixed radius, ObstacleContact& contact) const override
-        {
-            return _obstacles != nullptr && _obstacles->query(position, radius, contact);
-        }
+        bool obstacleAt(const FixedVec3& position, Fixed radius, ObstacleContact& contact) const override;
+        bool cupNear(Fixed x, Fixed y, CupInfo& cup) const override;
         FixedVec3 wind() const override
         {
             return _wind;
@@ -74,10 +81,17 @@ namespace OpenRCT2::Golf
         }
         // Uses the wind of the game state, which follows the weather.
         void useGameWind();
+        // Uses the course boundary of the game state for out of bounds, and the cups of its holes.
+        void useCourses()
+        {
+            _useCourses = true;
+            _outOfBounds = isOutOfCourseBounds;
+        }
 
     private:
         BoundsFn _outOfBounds;
         MapObstacles* _obstacles = nullptr;
+        bool _useCourses = false;
         FixedVec3 _wind{};
     };
 } // namespace OpenRCT2::Golf

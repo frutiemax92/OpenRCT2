@@ -78,6 +78,7 @@
 #include "scenery/SmallSceneryPlaceAction.h"
 #include "scenery/BuildingPlaceAction.h"
 #include "scenery/BuildingRemoveAction.h"
+#include "golf/CourseBoundaryAction.h"
 #include "golf/CourseEditAction.h"
 #include "golf/HoleEditAction.h"
 #include "scenery/StreamPlaceAction.h"
@@ -189,6 +190,7 @@ namespace OpenRCT2::GameActions
         REGISTER_ACTION(WallRemoveAction);
         REGISTER_ACTION(WallSetColourAction);
         REGISTER_ACTION(SmallSceneryPlaceAction);
+        REGISTER_ACTION(CourseBoundaryAction);
         REGISTER_ACTION(CourseEditAction);
         REGISTER_ACTION(HoleEditAction);
         REGISTER_ACTION(StreamPlaceAction);

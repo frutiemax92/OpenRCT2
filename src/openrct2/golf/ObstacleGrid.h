@@ -65,6 +65,9 @@ namespace OpenRCT2::Golf
             return _obstacles.size();
         }
 
+        // Contact of a sphere with a single obstacle, without a grid (for obstacles that are computed on the fly).
+        static bool contactWith(const Obstacle& o, const FixedVec3& p, Fixed radius, ObstacleContact& out);
+
         // Deepest overlap of a ball (a sphere) with any obstacle.
         bool query(const FixedVec3& position, Fixed radius, ObstacleContact& contact) const;
         // Number of obstacles examined by the last query, to show that queries stay local.
@@ -77,7 +80,6 @@ namespace OpenRCT2::Golf
         static int64_t cellKey(int32_t cellX, int32_t cellY);
         void insertIntoCells(const Obstacle& obstacle);
         void removeFromCells(const Obstacle& obstacle);
-        static bool contactWith(const Obstacle& o, const FixedVec3& p, Fixed radius, ObstacleContact& out);
 
         std::unordered_map<uint32_t, Obstacle> _obstacles;
         std::unordered_map<int64_t, std::vector<uint32_t>> _cells;

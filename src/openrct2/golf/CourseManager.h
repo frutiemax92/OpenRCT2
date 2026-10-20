@@ -29,6 +29,20 @@ namespace OpenRCT2::Golf
         // Marks a rectangle of tiles (inclusive, in tile coordinates) in or out of play. The first call defines the
         // boundary, starting from `initiallyInPlay` for every tile outside the rectangle.
         void setRegion(const TileCoordsXY& min, const TileCoordsXY& max, bool inPlay, const TileCoordsXY& mapSize, bool initiallyInPlay);
+        // Defines the boundary from a rule for each tile, e.g. "owned land": used the first time the player edits it, so
+        // the edit starts from what the default was.
+        template<typename TPredicate>
+        void defineFrom(const TileCoordsXY& mapSize, TPredicate inPlay)
+        {
+            if (mapSize.x <= 0 || mapSize.y <= 0)
+                return;
+            _size = mapSize;
+            _bits.assign(static_cast<size_t>(mapSize.x) * static_cast<size_t>(mapSize.y), 0);
+            for (int32_t y = 0; y < mapSize.y; y++)
+                for (int32_t x = 0; x < mapSize.x; x++)
+                    _bits[static_cast<size_t>(y) * static_cast<size_t>(mapSize.x) + static_cast<size_t>(x)] = inPlay(TileCoordsXY{ x, y }) ? 1 : 0;
+            _defined = true;
+        }
         bool isInPlay(const TileCoordsXY& tile) const;
         // Back to the default (all owned land).
         void clear();
