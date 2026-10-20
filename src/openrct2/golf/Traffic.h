@@ -10,6 +10,7 @@
 #pragma once
 
 #include "../core/FixedVec.hpp"
+#include "../model/TerrainAlignment.h"
 #include "ObstacleGrid.h"
 #include "StreetNetwork.h"
 
@@ -86,6 +87,7 @@ namespace OpenRCT2::Golf
     // Constants of the lane-following model (STE-020).
     constexpr int32_t kCarLength = 12;           // units
     constexpr int32_t kMinGap = 14;              // bumper to bumper, units
+    Model::ContactPoints carContactPoints();
     constexpr int32_t kLaneOffset = 6;           // units to the right of the centre line
     constexpr int32_t kParkingTicks = 50;
     constexpr int32_t kDepartingTicks = 50;

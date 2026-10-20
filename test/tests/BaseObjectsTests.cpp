@@ -33,6 +33,7 @@
 #include <openrct2/object/PathAdditionEntry.h>
 #include <openrct2/object/PathAdditionObject.h>
 #include <openrct2/object/StreamObject.h>
+#include <openrct2/object/VehicleModelObject.h>
 #include <openrct2/object/TerrainEdgeObject.h>
 #include <openrct2/object/TerrainSurfaceObject.h>
 #include <openrct2/actions/scenery/LargeSceneryPlaceAction.h>
@@ -335,6 +336,44 @@ TEST_F(BaseObjects, BuildingCollisionDefaultsToTheFootprintBox)
     EXPECT_EQ(building->Height, building->Collision.height);
     EXPECT_EQ(3 * 32, building->Collision.footprintX);
     EXPECT_EQ(2 * 32, building->Collision.footprintY);
+}
+
+TEST_F(BaseObjects, GolfCartVehicleModelLoadsItsProperties)
+{
+    auto* obj = static_cast<VehicleModelObject*>(Load("golf.vehicle_model.golf_cart"));
+    ASSERT_NE(nullptr, obj);
+    EXPECT_EQ(ObjectType::vehicleModel, obj->GetObjectType());
+    EXPECT_EQ(VehicleModelKind::golfCart, obj->Kind);
+    EXPECT_EQ(2, obj->Seats); // CRT-001
+    EXPECT_NEAR(2.20, obj->MaxSpeed.toDouble(), 0.01); // CRT-001
+    EXPECT_NEAR(0.08, obj->Acceleration.toDouble(), 0.01);
+    EXPECT_FLOAT_EQ(10.0f, obj->ContactPoints.halfLength); // CRT-001
+    EXPECT_FLOAT_EQ(6.0f, obj->ContactPoints.halfWidth);
+    EXPECT_EQ("golf.cart.engine", obj->EngineSound);
+    EXPECT_EQ("golf.cart.horn", obj->HornSound);
+    EXPECT_EQ(CollisionShape::box, obj->Collision.shape);
+    EXPECT_EQ(20, obj->Collision.footprintX);
+    EXPECT_EQ(12, obj->Collision.footprintY);
+    EXPECT_EQ(14, obj->Collision.height);
+}
+
+TEST_F(BaseObjects, CarVehicleModelLoadsItsProperties)
+{
+    auto* obj = static_cast<VehicleModelObject*>(Load("golf.vehicle_model.car"));
+    ASSERT_NE(nullptr, obj);
+    EXPECT_EQ(ObjectType::vehicleModel, obj->GetObjectType());
+    EXPECT_EQ(VehicleModelKind::car, obj->Kind);
+    EXPECT_EQ(4, obj->Seats); // STE-023
+    EXPECT_NEAR(2.00, obj->MaxSpeed.toDouble(), 0.01); // STE-023
+    EXPECT_NEAR(0.06, obj->Acceleration.toDouble(), 0.01); // STE-023
+    EXPECT_FLOAT_EQ(12.0f, obj->ContactPoints.halfLength); // STE-023
+    EXPECT_FLOAT_EQ(6.0f, obj->ContactPoints.halfWidth);
+    EXPECT_EQ("golf.car.engine", obj->EngineSound); // STE-023
+    EXPECT_EQ("golf.car.horn", obj->HornSound); // STE-023
+    EXPECT_EQ(CollisionShape::box, obj->Collision.shape); // STE-024
+    EXPECT_EQ(24, obj->Collision.footprintX);
+    EXPECT_EQ(12, obj->Collision.footprintY);
+    EXPECT_EQ(16, obj->Collision.height);
 }
 
 TEST_F(BaseObjects, TerrainIsDrawn)

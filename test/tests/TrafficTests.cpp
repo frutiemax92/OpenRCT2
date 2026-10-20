@@ -387,3 +387,10 @@ TEST(Traffic, DepartingCarsPullOutAndDriveToTheNearestEntrance)
     EXPECT_TRUE(despawned);
     EXPECT_EQ(l.sim.carCount(), 0u);
 }
+
+TEST(Traffic, CarContactPointsMatchModelConstants)
+{
+    const auto cp = carContactPoints();
+    EXPECT_FLOAT_EQ(12.0f, cp.halfLength);
+    EXPECT_FLOAT_EQ(6.0f, cp.halfWidth);
+}

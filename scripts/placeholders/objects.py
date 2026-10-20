@@ -560,6 +560,37 @@ def wall(name, description, height, price, collision, colour, palette):
     return object_files(data, images)
 
 
+def vehicle_icon(colour):
+    image = Image(32, 32, (0, 0, 0), 0)
+    image.fill_rect(6, 12, 20, 10, shade(colour, 1.0))
+    image.fill_rect(10, 8, 12, 6, shade(colour, 1.3))
+    return image
+
+
+def vehicle_model(name, description, kind, seats, max_speed, accel,
+                  contact_half_len, contact_half_width, engine_sound, horn_sound,
+                  collision, colour, palette):
+    images = {"images/icon.png": quantise(vehicle_icon(colour), palette).png()}
+    table = [{"path": "images/icon.png", "x": 0, "y": 0}]
+    properties = {
+        "kind": kind,
+        "seats": seats,
+        "maxSpeed": max_speed,
+        "acceleration": accel,
+        "contactPoints": {
+            "halfLength": contact_half_len,
+            "halfWidth": contact_half_width,
+        },
+        "sounds": {
+            "engine": engine_sound,
+            "horn": horn_sound,
+        },
+        "collision": collision,
+    }
+    data = manifest("golf.vehicle_model." + name, "vehicle_model", description, properties, table)
+    return object_files(data, images)
+
+
 def climate():
     weather = {}
     for month, base, bias, sunny, partly, cloudy, rain, heavy, thunder in CLIMATE_MONTHS:
@@ -637,6 +668,16 @@ def build(layout=None, palette=None):
         wall("low_wall", "Mini-putt border wall", 1, 20,
              {"shape": "box", "height": 8, "restitution": 0.85, "friction": 0.15},
              (0xA0, 0x50, 0x30), palette))
+    out["vehicle_model/golf.vehicle_model.golf_cart.parkobj"] = pack(
+        vehicle_model("golf_cart", "Golf cart", "golf_cart", 2, 2.20, 0.08,
+                      10.0, 6.0, "golf.cart.engine", "golf.cart.horn",
+                      {"shape": "box", "footprintX": 20, "footprintY": 12, "height": 14, "restitution": 0.35, "friction": 0.40},
+                      (0xF0, 0xF0, 0xF0), palette))
+    out["vehicle_model/golf.vehicle_model.car.parkobj"] = pack(
+        vehicle_model("car", "Visitor car", "car", 4, 2.00, 0.06,
+                      12.0, 6.0, "golf.car.engine", "golf.car.horn",
+                      {"shape": "box", "footprintX": 24, "footprintY": 12, "height": 16, "restitution": 0.35, "friction": 0.40},
+                      (0x30, 0x50, 0xA0), palette))
     return out
 
 

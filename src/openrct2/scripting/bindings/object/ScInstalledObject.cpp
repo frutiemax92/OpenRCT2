@@ -39,6 +39,7 @@ namespace OpenRCT2::Scripting
         { "climate", ObjectType::climate },
         { "stream", ObjectType::stream },
         { "building", ObjectType::building },
+        { "vehicle_model", ObjectType::vehicleModel },
     };
 
     std::string_view objectTypeToString(ObjectType type)

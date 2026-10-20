@@ -8,6 +8,7 @@
  *****************************************************************************/
 
 #include "Traffic.h"
+#include "../object/VehicleModelObject.h"
 
 #include <algorithm>
 
@@ -96,6 +97,16 @@ namespace OpenRCT2::Golf
         return { cx + Fixed::fromInt(-step.y) * across, cy + Fixed::fromInt(step.x) * across, Fixed{} };
     }
 
+    Model::ContactPoints carContactPoints()
+    {
+        auto* carObj = VehicleModelObject::FindFirstByKind(VehicleModelKind::car);
+        if (carObj != nullptr)
+        {
+            return carObj->ContactPoints;
+        }
+        return { 12.0f, 6.0f };
+    }
+
     ParkingLot& TrafficSimulation::addLot(const TileCoordsXY& streetTile, const TileCoordsXY& pathTile)
     {
         ParkingLot lot;
@@ -145,7 +156,13 @@ namespace OpenRCT2::Golf
 
     uint32_t TrafficSimulation::spawn(const std::vector<uint32_t>& golferIds, uint32_t groupId)
     {
-        if (golferIds.empty() || golferIds.size() > 4)
+        int32_t maxSeats = 4;
+        auto* carObj = VehicleModelObject::FindFirstByKind(VehicleModelKind::car);
+        if (carObj != nullptr)
+        {
+            maxSeats = carObj->Seats;
+        }
+        if (golferIds.empty() || static_cast<int32_t>(golferIds.size()) > maxSeats)
             return 0;
         const auto entrances = _network->roadEntrances();
         if (entrances.empty())
@@ -204,6 +221,13 @@ namespace OpenRCT2::Golf
 
     Obstacle TrafficSimulation::obstacleOf(const Car& car) const
     {
+        auto* carObj = VehicleModelObject::FindFirstByKind(VehicleModelKind::car);
+        if (carObj != nullptr && carObj->Collision.shape != CollisionShape::none)
+        {
+            auto o = makeObstacle(0x40000000u + car.id, carObj->Collision, car.position, car.heading);
+            o.id = 0x40000000u + car.id;
+            return o;
+        }
         Obstacle o;
         o.id = 0x40000000u + car.id;
         o.shape = ObstacleShape::box;
@@ -358,8 +382,15 @@ namespace OpenRCT2::Golf
             target = min(target, Fixed::ratio(5, 10));
 
         // Accelerate and brake smoothly.
+        Fixed accel = Fixed::ratio(6, 100);
+        auto* carObj = VehicleModelObject::FindFirstByKind(VehicleModelKind::car);
+        if (carObj != nullptr)
+        {
+            accel = carObj->Acceleration;
+            target = min(target, carObj->MaxSpeed);
+        }
         if (car.speed < target)
-            car.speed = min(target, car.speed + Fixed::ratio(6, 100));
+            car.speed = min(target, car.speed + accel);
         else
             car.speed = max(target, car.speed - Fixed::ratio(25, 100));
 

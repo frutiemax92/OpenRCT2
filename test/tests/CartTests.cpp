@@ -269,10 +269,15 @@ TEST(CartFleet, CartsAreObstaclesForBallsAndTiltOnSlopes)
     EXPECT_TRUE(grid.query(cart.position + vec(0, 0, 6), Fixed::ratio(1, 2), c));
 
     // A cart driving across a slope tilts visibly (acceptance criterion of section 11): the wheel contacts give a pitch.
-    Model::ContactPoints wheels;
-    wheels.halfLength = static_cast<float>(kCartHalfLength);
-    wheels.halfWidth = static_cast<float>(kCartHalfWidth);
+    Model::ContactPoints wheels = cartContactPoints();
     const auto slope = [](float x, float) { return x * 0.3f; };
     const auto a = Model::computeAlignment(slope, 100, 100, 0, wheels);
     EXPECT_LT(a.pitch, -0.2f);
+}
+
+TEST(CartFleet, CartContactPointsMatchModelConstants)
+{
+    const auto cp = cartContactPoints();
+    EXPECT_FLOAT_EQ(static_cast<float>(kCartHalfLength), cp.halfLength);
+    EXPECT_FLOAT_EQ(static_cast<float>(kCartHalfWidth), cp.halfWidth);
 }

@@ -38,6 +38,7 @@ namespace OpenRCT2
     constexpr uint16_t kMaxClimateObjects = 1;
     constexpr uint16_t kMaxStreamObjects = 255;
     constexpr uint16_t kMaxBuildingObjects = 255;
+    constexpr uint16_t kMaxVehicleModelObjects = 255;
 
     constexpr uint8_t kDatNameLength = 8;
 } // namespace OpenRCT2

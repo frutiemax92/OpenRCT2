@@ -8,6 +8,7 @@
  *****************************************************************************/
 
 #include "Carts.h"
+#include "../object/VehicleModelObject.h"
 
 #include <algorithm>
 
@@ -27,6 +28,16 @@ namespace OpenRCT2::Golf
         // A tired, unfit golfer on a long course wants a cart most: up to 50 for low physique, 32 for no energy and 30 for
         // a 6000 yard course.
         return (100 - p) / 2 + (255 - energy) / 8 + std::clamp(courseYards, 0, 12000) / 200;
+    }
+
+    Model::ContactPoints cartContactPoints()
+    {
+        auto* cartObj = VehicleModelObject::FindFirstByKind(VehicleModelKind::golfCart);
+        if (cartObj != nullptr)
+        {
+            return cartObj->ContactPoints;
+        }
+        return { static_cast<float>(kCartHalfLength), static_cast<float>(kCartHalfWidth) };
     }
 
     bool wantsCart(uint8_t energy, int32_t physique, int32_t courseYards, int64_t money, int64_t cartFee, int32_t jitter)
@@ -107,6 +118,12 @@ namespace OpenRCT2::Golf
         CartRental rental;
         rental.feeEach = cartFee;
         size_t next = 0;
+        int32_t seats = kCartSeats;
+        auto* cartObj = VehicleModelObject::FindFirstByKind(VehicleModelKind::golfCart);
+        if (cartObj != nullptr)
+        {
+            seats = cartObj->Seats;
+        }
         while (next < riders.size())
         {
             // The nearest parked cart to the group.
@@ -125,7 +142,7 @@ namespace OpenRCT2::Golf
             }
             // Golfers who cannot pay walk; so do those left over when the carts run out.
             std::vector<uint32_t> seated;
-            while (next < riders.size() && static_cast<int32_t>(seated.size()) < kCartSeats)
+            while (next < riders.size() && static_cast<int32_t>(seated.size()) < seats)
             {
                 const auto& r = riders[next++];
                 if (best != nullptr && r.money >= cartFee)
@@ -179,12 +196,19 @@ namespace OpenRCT2::Golf
 
     bool CartFleet::drive(Cart& cart, const FixedVec3& destination)
     {
-        const Fixed top = Fixed::ratio(kCartTopSpeedHundredths, 100);
+        Fixed top = Fixed::ratio(kCartTopSpeedHundredths, 100);
+        Fixed accel = Fixed::ratio(8, 100);
+        auto* cartObj = VehicleModelObject::FindFirstByKind(VehicleModelKind::golfCart);
+        if (cartObj != nullptr)
+        {
+            top = cartObj->MaxSpeed;
+            accel = cartObj->Acceleration;
+        }
         const FixedVec3 delta{ destination.x - cart.position.x, destination.y - cart.position.y, Fixed{} };
         const Fixed distance = length(delta);
         // Brake for the last stretch.
         const Fixed wanted = min(top, max(Fixed::ratio(30, 100), distance / 12));
-        cart.speed = cart.speed < wanted ? min(wanted, cart.speed + Fixed::ratio(8, 100)) : wanted;
+        cart.speed = cart.speed < wanted ? min(wanted, cart.speed + accel) : wanted;
         if (distance <= cart.speed || distance <= Fixed::fromInt(1))
         {
             cart.position.x = destination.x;
@@ -231,6 +255,13 @@ namespace OpenRCT2::Golf
 
     Obstacle CartFleet::obstacleOf(const Cart& cart)
     {
+        auto* cartObj = VehicleModelObject::FindFirstByKind(VehicleModelKind::golfCart);
+        if (cartObj != nullptr && cartObj->Collision.shape != CollisionShape::none)
+        {
+            auto o = makeObstacle(0x50000000u + cart.id, cartObj->Collision, cart.position, 0);
+            o.id = 0x50000000u + cart.id;
+            return o;
+        }
         Obstacle o;
         o.id = 0x50000000u + cart.id;
         o.shape = ObstacleShape::box;

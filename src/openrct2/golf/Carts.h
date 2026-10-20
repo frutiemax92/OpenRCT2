@@ -10,6 +10,7 @@
 #pragma once
 
 #include "../core/FixedVec.hpp"
+#include "../model/TerrainAlignment.h"
 #include "BallPhysics.h"
 #include "ObstacleGrid.h"
 #include "Shot.h"
@@ -30,6 +31,7 @@ namespace OpenRCT2::Golf
     // Wheel contact points for the terrain tilt (R3D-006, CRT-006), in world units from the centre.
     constexpr int32_t kCartHalfLength = 10;
     constexpr int32_t kCartHalfWidth = 6;
+    Model::ContactPoints cartContactPoints();
 
     // CRT-002: a cart parking space, a tile or a spot at the side of a path.
     struct CartSpace
