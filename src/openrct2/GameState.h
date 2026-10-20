@@ -14,6 +14,7 @@
 #include "Limits.h"
 #include "core/Random.hpp"
 #include "entity/EntityRegistry.h"
+#include "golf/CourseManager.h"
 #include "interface/ZoomLevel.h"
 #include "ride/Ride.h"
 #include "ride/RideRatings.h"
@@ -45,6 +46,7 @@ namespace OpenRCT2
         Weather::State weatherNext;
         uint16_t weatherUpdateTimer;
         Weather::WindState wind;
+        Golf::CourseManager golf;
 
         uint32_t nextGuestNumber;
 

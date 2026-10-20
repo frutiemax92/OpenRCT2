@@ -19,10 +19,10 @@ namespace OpenRCT2
     struct ObjectRepositoryItem;
 
     // Current version that is saved.
-    constexpr uint32_t kParkFileCurrentVersion = 66;
+    constexpr uint32_t kParkFileCurrentVersion = 67;
 
     // The minimum version that is forwards compatible with the current version.
-    constexpr uint32_t kParkFileMinVersion = 66;
+    constexpr uint32_t kParkFileMinVersion = 67;
 
     // The minimum version that is backwards compatible with the current version.
     // If this is increased beyond 0, uncomment the checks in ParkFile.cpp and Context.cpp!
@@ -70,6 +70,8 @@ namespace OpenRCT2
     constexpr uint16_t kGolfBallEntityVersion = 65;
     // The climate chunk carries the wind (BAL-031).
     constexpr uint16_t kWindVersion = 66;
+    // The golf chunk: courses, holes and the course boundary (section 16).
+    constexpr uint16_t kGolfCoursesVersion = 67;
 
     class ParkFileExporter
     {

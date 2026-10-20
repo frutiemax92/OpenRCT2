@@ -101,6 +101,7 @@ namespace OpenRCT2
         restrictedObjects       = 0x37,
         pluginStorage           = 0x38,
         preview                 = 0x39,
+        golf                    = 0x3A,
         packedObjects           = 0x80
         // clang-format on
     };
@@ -182,6 +183,7 @@ namespace OpenRCT2
             ReadWriteCheatsChunk(gameState, os);
             ReadWriteRestrictedObjectsChunk(gameState, os);
             ReadWritePluginStorageChunk(gameState, os);
+            ReadWriteGolfChunk(gameState, os);
 
             auto targetVersion = os.getHeader().targetVersion;
 
@@ -224,6 +226,7 @@ namespace OpenRCT2
             ReadWriteCheatsChunk(gameState, os);
             ReadWriteRestrictedObjectsChunk(gameState, os);
             ReadWritePluginStorageChunk(gameState, os);
+            ReadWriteGolfChunk(gameState, os);
             ReadWritePreviewChunk(gameState, os);
             ReadWritePackedObjectsChunk(os);
         }
@@ -846,6 +849,86 @@ namespace OpenRCT2
                 scriptEngine.SetParkStorageFromJSON(gameState.pluginStorage, gameState.scenarioFileName);
 #endif
             }
+        }
+
+        static void ReadWriteHolePoint(OrcaStream::ChunkStream& cs, std::optional<Golf::HolePoint>& point)
+        {
+            bool present = point.has_value();
+            cs.readWrite(present);
+            if (present)
+            {
+                Golf::HolePoint p = point.value_or(Golf::HolePoint{});
+                cs.readWrite(p);
+                point = p;
+            }
+            else
+            {
+                point.reset();
+            }
+        }
+
+        void ReadWriteGolfChunk(GameState_t& gameState, OrcaStream& os)
+        {
+            auto& golf = gameState.golf;
+            if (os.getMode() == OrcaStream::Mode::reading)
+                golf.clear();
+            else if (golf.courses().empty() && !golf.boundary().defined())
+                return; // nothing to save: old readers and small files stay as they were
+
+            os.readWriteChunk(ParkFileChunkType::golf, [&golf](OrcaStream::ChunkStream& cs) {
+                uint32_t nextCourse = golf.nextCourseId();
+                uint32_t nextHole = golf.nextHoleId();
+                cs.readWrite(nextCourse);
+                cs.readWrite(nextHole);
+                if (cs.getMode() == OrcaStream::Mode::reading)
+                    golf.restoreIds(nextCourse, nextHole);
+
+                uint32_t courseCount = static_cast<uint32_t>(golf.courses().size());
+                cs.readWrite(courseCount);
+                if (cs.getMode() == OrcaStream::Mode::reading)
+                    golf.courses().resize(std::min<uint32_t>(courseCount, Golf::CourseManager::kMaxCourses));
+                for (uint32_t i = 0; i < golf.courses().size(); i++)
+                {
+                    auto& course = golf.courses()[i];
+                    cs.readWrite(course.id);
+                    cs.readWrite(course.name);
+                    cs.readWrite(course.greenFee);
+                    cs.readWrite(course.open);
+                    uint32_t holeCount = static_cast<uint32_t>(course.holes.size());
+                    cs.readWrite(holeCount);
+                    if (cs.getMode() == OrcaStream::Mode::reading)
+                        course.holes.resize(std::min<uint32_t>(holeCount, Golf::kMaxHolesPerCourse));
+                    for (auto& hole : course.holes)
+                    {
+                        cs.readWrite(hole.id);
+                        for (auto& tee : hole.tees)
+                            ReadWriteHolePoint(cs, tee);
+                        ReadWriteHolePoint(cs, hole.cup);
+                        for (auto& aim : hole.aimPoints)
+                            ReadWriteHolePoint(cs, aim);
+                        cs.readWrite(hole.parOverride);
+                    }
+                }
+
+                auto& boundary = golf.boundary();
+                bool defined = boundary.defined();
+                cs.readWrite(defined);
+                if (defined)
+                {
+                    TileCoordsXY size = boundary.size();
+                    cs.readWrite(size.x);
+                    cs.readWrite(size.y);
+                    auto bits = boundary.bits();
+                    uint32_t count = static_cast<uint32_t>(bits.size());
+                    cs.readWrite(count);
+                    if (cs.getMode() == OrcaStream::Mode::reading)
+                        bits.resize(count);
+                    if (count > 0)
+                        cs.readWrite(bits.data(), bits.size());
+                    if (cs.getMode() == OrcaStream::Mode::reading)
+                        boundary.restore(size, std::move(bits));
+                }
+            });
         }
 
         void ReadWritePackedObjectsChunk(OrcaStream& os)
