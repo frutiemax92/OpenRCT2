@@ -18,6 +18,7 @@
 #include "../../object/TerrainSurfaceObject.h"
 #include "../../world/Map.h"
 #include "../../world/tile_element/SurfaceElement.h"
+#include "../../golf/HoleScheduleData.h"
 #include "CourseEditAction.h"
 
 namespace OpenRCT2::GameActions
@@ -124,6 +125,10 @@ namespace OpenRCT2::GameActions
                 if (_index < 0 || _index > kMaxPar)
                     return Result(Status::invalidParameters, STR_HOLE_CANT_CHANGE, kStringIdNone);
                 break;
+            case HoleEditType::setSlot:
+                if (_index != 0 && (_index < Golf::kMinSlotMinutes || _index > Golf::kMaxSlotMinutes))
+                    return Result(Status::invalidParameters, STR_HOLE_CANT_CHANGE, kStringIdNone);
+                break;
             default:
                 break;
         }
@@ -192,6 +197,11 @@ namespace OpenRCT2::GameActions
                 break;
             case HoleEditType::setPar:
                 hole->parOverride = _index;
+                break;
+            case HoleEditType::setSlot:
+                hole->schedule.manual = _index != 0;
+                if (_index != 0)
+                    hole->schedule.manualSlotMinutes = _index;
                 break;
         }
 

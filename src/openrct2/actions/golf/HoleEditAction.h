@@ -24,6 +24,7 @@ namespace OpenRCT2::GameActions
         placeAim,    // index = aim point 0 or 1 (HOL-005)
         removeAim,   // index = aim point
         setPar,      // index = par (0 for automatic)
+        setSlot,     // index = minutes between groups, 0 for Auto (HOL-020)
     };
 
     // Builds a hole of a course (HOL-001). When holeId is 0 a new hole is appended to the course first; the result

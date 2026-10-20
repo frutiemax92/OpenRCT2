@@ -167,6 +167,17 @@ TEST(CourseActions, PlacingATeeStartsANewHoleAndBuildsItUp)
     EXPECT_EQ(run(aim).error, Status::ok);
     HoleEditAction par(course.courseId, holeId, HoleEditType::setPar, 5);
     EXPECT_EQ(run(par).error, Status::ok);
+    HoleEditAction slot(course.courseId, holeId, HoleEditType::setSlot, 12);
+    EXPECT_EQ(run(slot).error, Status::ok);
+    EXPECT_TRUE(getGameState().golf.findCourse(course.courseId)->findHole(holeId)->schedule.manual);
+    EXPECT_EQ(getGameState().golf.findCourse(course.courseId)->findHole(holeId)->schedule.manualSlotMinutes, 12);
+    HoleEditAction tooShort(course.courseId, holeId, HoleEditType::setSlot, 2);
+    EXPECT_EQ(run(tooShort).error, Status::invalidParameters);
+    HoleEditAction tooLong(course.courseId, holeId, HoleEditType::setSlot, 31);
+    EXPECT_EQ(run(tooLong).error, Status::invalidParameters);
+    HoleEditAction autoSlot(course.courseId, holeId, HoleEditType::setSlot, 0);
+    EXPECT_EQ(run(autoSlot).error, Status::ok);
+    EXPECT_FALSE(getGameState().golf.findCourse(course.courseId)->findHole(holeId)->schedule.manual);
     hole = getGameState().golf.findCourse(course.courseId)->findHole(holeId);
     EXPECT_TRUE(hole->tees[1].has_value());
     EXPECT_EQ(hole->aimPoints[0], (Golf::HolePoint{ 600, 700 }));

@@ -10,6 +10,7 @@
 #pragma once
 
 #include "../world/Location.hpp"
+#include "HoleScheduleData.h"
 
 #include <array>
 #include <cstdint>
@@ -57,6 +58,7 @@ namespace OpenRCT2::Golf
         std::optional<HolePoint> cup;
         std::array<std::optional<HolePoint>, kMaxAimPoints> aimPoints; // used in order: aim point 0 first
         int32_t parOverride = 0; // 0 for the computed par (men's tee)
+        HoleSchedule schedule;   // the time slot and what groups really take (HOL-020)
 
         bool hasTee(TeeCategory category) const
         {

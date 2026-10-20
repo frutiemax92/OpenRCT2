@@ -875,7 +875,9 @@ namespace OpenRCT2
             else if (golf.courses().empty() && !golf.boundary().defined())
                 return; // nothing to save: old readers and small files stay as they were
 
-            os.readWriteChunk(ParkFileChunkType::golf, [&golf](OrcaStream::ChunkStream& cs) {
+            os.readWriteChunk(ParkFileChunkType::golf, [&golf, &os](OrcaStream::ChunkStream& cs) {
+                const bool hasSchedule = os.getMode() == OrcaStream::Mode::writing
+                    || os.getHeader().targetVersion >= kGolfScheduleVersion;
                 uint32_t nextCourse = golf.nextCourseId();
                 uint32_t nextHole = golf.nextHoleId();
                 cs.readWrite(nextCourse);
@@ -907,6 +909,14 @@ namespace OpenRCT2
                         for (auto& aim : hole.aimPoints)
                             ReadWriteHolePoint(cs, aim);
                         cs.readWrite(hole.parOverride);
+                        if (hasSchedule)
+                        {
+                            cs.readWrite(hole.schedule.manual);
+                            cs.readWrite(hole.schedule.manualSlotMinutes);
+                            cs.readWrite(hole.schedule.measuredPlayTenths);
+                            cs.readWrite(hole.schedule.measuredWaitTenths);
+                            cs.readWrite(hole.schedule.samples);
+                        }
                     }
                 }
 

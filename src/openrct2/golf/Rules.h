@@ -10,6 +10,7 @@
 #pragma once
 
 #include "BallPhysics.h"
+#include "GameClock.h"
 #include "Shot.h"
 
 namespace OpenRCT2::Golf
@@ -35,7 +36,7 @@ namespace OpenRCT2::Golf
     };
 
     constexpr int32_t kHazardMarginDropBack = 2; // units the drop point is moved away from the hazard edge
-    constexpr int32_t kSearchTicks = 40 * 60;     // a golfer searches for a ball for at most one game minute
+    constexpr int32_t kSearchTicks = kTicksPerGameMinute; // a golfer searches for a ball for at most one game minute
     constexpr int32_t kLostBallRoughness = 70;    // percent: rougher ground can hide the ball
     constexpr int32_t kMaxLostBallChancePercent = 60;
     constexpr int32_t kMaxStrokesOverPar = 4;

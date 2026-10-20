@@ -189,7 +189,7 @@ TEST(GolfRules, SearchingFindsTheBallMostOfTheTimeInDeepRoughButNotAlways)
     // On a fairway the ball is always found.
     for (int i = 0; i < 100; i++)
         EXPECT_TRUE(searchFindsBall(roughSurface(15), rng));
-    EXPECT_EQ(kSearchTicks, 2400); // one game minute at 40 ticks per second
+    EXPECT_EQ(kSearchTicks, kTicksPerGameMinute); // one game minute
 }
 
 TEST(GolfRules, ALostBallCostsAStrokeAndIsPlayedAgainFromTheLastShot)

@@ -172,6 +172,11 @@ TEST(CourseManager, CoursesAndTheBoundarySurviveASaveAndLoadOfThePark)
         hole->cup = HolePoint{ 3200, 640 };
         hole->aimPoints[0] = HolePoint{ 1600, 900 };
         hole->parOverride = 5;
+        hole->schedule.manual = true;
+        hole->schedule.manualSlotMinutes = 14;
+        hole->schedule.measuredPlayTenths = 123;
+        hole->schedule.measuredWaitTenths = 45;
+        hole->schedule.samples = 6;
         golf.createHole(courseId); // an empty second hole
         golf.createCourse("Second");
         golf.boundary().setRegion({ 3, 3 }, { 9, 12 }, true, gameState.mapSize, false);
@@ -206,6 +211,11 @@ TEST(CourseManager, CoursesAndTheBoundarySurviveASaveAndLoadOfThePark)
         EXPECT_EQ(hole.aimPoints[0], (HolePoint{ 1600, 900 }));
         EXPECT_FALSE(hole.aimPoints[1].has_value());
         EXPECT_EQ(hole.parOverride, 5);
+        EXPECT_TRUE(hole.schedule.manual);
+        EXPECT_EQ(hole.schedule.manualSlotMinutes, 14);
+        EXPECT_EQ(hole.schedule.measuredPlayTenths, 123);
+        EXPECT_EQ(hole.schedule.measuredWaitTenths, 45);
+        EXPECT_EQ(hole.schedule.samples, 6);
         EXPECT_FALSE(course.holes[1].isComplete());
         EXPECT_EQ(golf.courses()[1].name, "Second");
         // New ids carry on after the loaded ones.
