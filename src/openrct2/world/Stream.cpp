@@ -8,6 +8,10 @@
  *****************************************************************************/
 #include "Stream.h"
 
+#include "Map.h"
+#include "TileElementsView.h"
+#include "tile_element/StreamElement.h"
+
 #include <algorithm>
 #include <bit>
 
@@ -92,5 +96,39 @@ namespace OpenRCT2::Stream
     bool IsEndPiece(uint8_t edges)
     {
         return std::popcount(static_cast<unsigned>(edges & kAllEdges)) == 1;
+    }
+
+    StreamElement* FindAt(const CoordsXY& tile)
+    {
+        for (auto* element : TileElementsView<StreamElement>(tile))
+            return element;
+        return nullptr;
+    }
+
+    uint8_t GetNeighbourMask(const CoordsXY& tile)
+    {
+        uint8_t mask = 0;
+        for (Direction edge = 0; edge < 4; edge++)
+        {
+            const auto neighbour = CoordsXY{ tile.x + CoordsDirectionDelta[edge].x, tile.y + CoordsDirectionDelta[edge].y };
+            if (MapIsLocationValid(neighbour) && FindAt(neighbour) != nullptr)
+                mask |= EdgeBit(edge);
+        }
+        return mask;
+    }
+
+    void UpdateNeighbours(const CoordsXY& tile, bool hasStream)
+    {
+        for (Direction edge = 0; edge < 4; edge++)
+        {
+            const auto neighbour = CoordsXY{ tile.x + CoordsDirectionDelta[edge].x, tile.y + CoordsDirectionDelta[edge].y };
+            if (!MapIsLocationValid(neighbour))
+                continue;
+            if (auto* element = FindAt(neighbour); element != nullptr)
+            {
+                element->setEdges(UpdateEdge(element->getEdges(), OppositeEdge(edge), hasStream));
+                MapInvalidateTileFull(neighbour);
+            }
+        }
     }
 } // namespace OpenRCT2::Stream

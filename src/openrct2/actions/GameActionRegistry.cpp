@@ -76,6 +76,8 @@
 #include "scenery/SignSetNameAction.h"
 #include "scenery/SignSetStyleAction.h"
 #include "scenery/SmallSceneryPlaceAction.h"
+#include "scenery/StreamPlaceAction.h"
+#include "scenery/StreamRemoveAction.h"
 #include "scenery/SmallSceneryRemoveAction.h"
 #include "scenery/SmallScenerySetColourAction.h"
 #include "scenery/WallPlaceAction.h"
@@ -183,6 +185,8 @@ namespace OpenRCT2::GameActions
         REGISTER_ACTION(WallRemoveAction);
         REGISTER_ACTION(WallSetColourAction);
         REGISTER_ACTION(SmallSceneryPlaceAction);
+        REGISTER_ACTION(StreamPlaceAction);
+        REGISTER_ACTION(StreamRemoveAction);
         REGISTER_ACTION(SmallSceneryRemoveAction);
         REGISTER_ACTION(SmallScenerySetColourAction);
         REGISTER_ACTION(LargeSceneryPlaceAction);

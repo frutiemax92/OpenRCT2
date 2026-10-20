@@ -15,6 +15,11 @@
 #include <optional>
 
 // Connection and flow rules of water streams (STR-002, STR-003). Edges are Directions: 0 = -x, 1 = +y, 2 = +x, 3 = -y.
+namespace OpenRCT2
+{
+    struct StreamElement;
+}
+
 namespace OpenRCT2::Stream
 {
     constexpr uint8_t kAllEdges = 0b1111;
@@ -49,4 +54,11 @@ namespace OpenRCT2::Stream
 
     // True for an end piece (a source or a mouth): exactly one connection.
     bool IsEndPiece(uint8_t edges);
+
+    // Map helpers. FindAt returns the stream of a tile (a tile holds at most one), or nullptr.
+    StreamElement* FindAt(const CoordsXY& tile);
+    // Bit d set when the tile beyond edge d of `tile` contains a stream.
+    uint8_t GetNeighbourMask(const CoordsXY& tile);
+    // Tells the stream neighbours of `tile` that a stream appeared (or disappeared) next to them.
+    void UpdateNeighbours(const CoordsXY& tile, bool hasStream);
 } // namespace OpenRCT2::Stream

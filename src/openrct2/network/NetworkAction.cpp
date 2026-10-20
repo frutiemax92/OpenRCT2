@@ -132,6 +132,8 @@ namespace OpenRCT2::Network
             {
                 GameCommand::removeScenery,
                 GameCommand::placeScenery,
+                GameCommand::placeStream,
+                GameCommand::removeStream,
                 GameCommand::setBrakesSpeed,
                 GameCommand::removeWall,
                 GameCommand::placeWall,
