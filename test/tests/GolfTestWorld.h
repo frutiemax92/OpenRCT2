@@ -132,6 +132,7 @@ namespace GolfTest
         std::function<bool(double, double)> hazard = [](double, double) { return false; };
         std::function<bool(double, double)> blocked = [](double, double) { return false; };
         std::function<bool(double, double)> puttable = [](double, double) { return false; };
+        std::function<bool(double, double)> water = [](double, double) { return false; };
         std::function<double(double, double)> roughness = [](double, double) { return 0.15; };
 
         SurfaceSample surfaceAt(Fixed x, Fixed y) const override
@@ -146,6 +147,7 @@ namespace GolfTest
                                              Fixed::fromRaw(static_cast<int64_t>(-gy * 65536.0)), Fixed::fromInt(1) });
             s.hazard = hazard(px, py);
             s.puttable = puttable(px, py);
+            s.water = water(px, py);
             s.roughness = Fixed::fromRaw(static_cast<int64_t>(roughness(px, py) * 65536.0));
             if (s.hazard)
             {

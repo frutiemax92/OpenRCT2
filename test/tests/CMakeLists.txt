@@ -72,6 +72,7 @@ set(test_files
    "${CMAKE_CURRENT_SOURCE_DIR}/StreetNetworkTests.cpp"
    "${CMAKE_CURRENT_SOURCE_DIR}/TrafficTests.cpp"
    "${CMAKE_CURRENT_SOURCE_DIR}/CartTests.cpp"
+   "${CMAKE_CURRENT_SOURCE_DIR}/AnimalTests.cpp"
    "${CMAKE_CURRENT_SOURCE_DIR}/SpatialAudioTests.cpp"
    "${CMAKE_CURRENT_SOURCE_DIR}/PlayAITests.cpp"
    "${CMAKE_CURRENT_SOURCE_DIR}/CourseManagerTests.cpp"
