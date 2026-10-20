@@ -235,6 +235,58 @@ TEST_F(BaseObjects, BuildingLoadsItsProperties)
     EXPECT_EQ(building->getViewImageId(0), building->getViewImageId(4));
 }
 
+TEST_F(BaseObjects, AllBuildingKindsLoadWithTheirProperties)
+{
+    struct BuildingExpectation
+    {
+        const char* id;
+        BuildingKind kind;
+        int32_t footprintX;
+        int32_t footprintY;
+        BuildingServices services;
+    };
+
+    BuildingServices clubServices{};
+    clubServices.set(BuildingService::food);
+    clubServices.set(BuildingService::drink);
+    clubServices.set(BuildingService::toilet);
+    clubServices.set(BuildingService::proShop);
+
+    BuildingServices foodTruckServices{};
+    foodTruckServices.set(BuildingService::food);
+    foodTruckServices.set(BuildingService::drink);
+
+    BuildingServices cottageServices{};
+    cottageServices.set(BuildingService::rest);
+
+    BuildingServices kioskServices{};
+    kioskServices.set(BuildingService::proShop);
+
+    BuildingServices restroomServices{};
+    restroomServices.set(BuildingService::toilet);
+
+    const BuildingExpectation expectations[] = {
+        { "golf.building.club_house", BuildingKind::golfClub, 3, 2, clubServices },
+        { "golf.building.food_truck", BuildingKind::foodTruck, 1, 1, foodTruckServices },
+        { "golf.building.cottage", BuildingKind::cottage, 2, 2, cottageServices },
+        { "golf.building.driving_range_kiosk", BuildingKind::drivingRangeKiosk, 1, 1, kioskServices },
+        { "golf.building.cart_rental", BuildingKind::cartRental, 2, 1, BuildingServices{} },
+        { "golf.building.restroom", BuildingKind::restroom, 1, 1, restroomServices },
+    };
+
+    for (const auto& exp : expectations)
+    {
+        auto* obj = Load(exp.id);
+        ASSERT_NE(nullptr, obj) << "Failed to load " << exp.id;
+        auto* bld = static_cast<BuildingObject*>(obj);
+        EXPECT_EQ(bld->Kind, exp.kind) << exp.id;
+        EXPECT_EQ(bld->FootprintX, exp.footprintX) << exp.id;
+        EXPECT_EQ(bld->FootprintY, exp.footprintY) << exp.id;
+        EXPECT_EQ(bld->Services, exp.services) << exp.id;
+        EXPECT_TRUE(bld->HasEntrance) << exp.id;
+    }
+}
+
 TEST_F(BaseObjects, BuildingCollisionDefaultsToTheFootprintBox)
 {
     auto* building = static_cast<BuildingObject*>(Load("golf.building.club_house"));

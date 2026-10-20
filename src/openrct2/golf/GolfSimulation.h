@@ -36,6 +36,7 @@ namespace OpenRCT2::Golf
         bool drink = false;
         bool toilet = false;
         bool rest = false;
+        bool proShop = false;
         int32_t minutes = 2;   // game minutes a visit takes
         int64_t price = 0;
     };

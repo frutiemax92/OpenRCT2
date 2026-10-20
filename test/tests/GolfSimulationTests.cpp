@@ -271,6 +271,33 @@ TEST(GolfSimulation, AHungryGolferEatsAtTheClubBetweenHoles)
     EXPECT_EQ(tally.count[SimEvent::Type::holeFinished], 3);
 }
 
+TEST(GolfSimulation, ProShopUpgradesGolferEquipment)
+{
+    Course3 c;
+    auto env = c.environment();
+    Service club;
+    club.id = 1;
+    club.position = vec(400, 3100, 0);
+    club.food = true;
+    club.proShop = true;
+    club.price = 300;
+    env.services.push_back(club);
+    GolfSimulation sim(env);
+    auto spawn = aGolfer(c);
+    spawn.equipmentLevel = 1;
+    spawn.money = 10000;
+    auto& g = sim.spawn(spawn);
+    g.needs.hunger = 70 * 16;
+    Tally tally;
+    runUntilEmpty(sim, tally);
+    const auto left = sim.takeLeft();
+    ASSERT_EQ(left.size(), 1u);
+    EXPECT_EQ(left[0].equipmentLevel, 2);
+    EXPECT_EQ(tally.count[SimEvent::Type::usedFacility], 1);
+    EXPECT_EQ(left[0].money, 10000 - 2500 - 300 - 2000);
+    EXPECT_EQ(sim.income(), 2500 + 300 + 2000);
+}
+
 TEST(GolfSimulation, ACriticalNeedInTheMiddleOfAHoleSendsTheGolferAway)
 {
     Course3 c;

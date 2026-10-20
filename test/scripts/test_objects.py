@@ -146,6 +146,11 @@ class ObjectTests(unittest.TestCase):
         expected.add("climate/golf.climate.temperate.parkobj")
         expected.add("stream/golf.stream.creek.parkobj")
         expected.add("building/golf.building.club_house.parkobj")
+        expected.add("building/golf.building.food_truck.parkobj")
+        expected.add("building/golf.building.cottage.parkobj")
+        expected.add("building/golf.building.driving_range_kiosk.parkobj")
+        expected.add("building/golf.building.cart_rental.parkobj")
+        expected.add("building/golf.building.restroom.parkobj")
         self.assertEqual(expected, set(FILES))
 
     def test_manifests_are_our_own(self):
@@ -240,6 +245,26 @@ class ObjectTests(unittest.TestCase):
         self.assertTrue({"food", "drink", "toilet", "pro_shop"} <= set(properties["services"]))
         tile = properties["entrance"]["tile"]
         self.assertTrue(0 <= tile[0] < 3 and 0 <= tile[1] < 2)
+
+    def test_all_building_kinds_and_services(self):
+        expected = {
+            "club_house": ("golf_club", [3, 2], {"food", "drink", "toilet", "pro_shop"}),
+            "food_truck": ("food_truck", [1, 1], {"food", "drink"}),
+            "cottage": ("cottage", [2, 2], {"rest"}),
+            "driving_range_kiosk": ("driving_range_kiosk", [1, 1], {"pro_shop"}),
+            "cart_rental": ("cart_rental", [2, 1], set()),
+            "restroom": ("restroom", [1, 1], {"toilet"}),
+        }
+        for name, (kind, footprint, services) in expected.items():
+            _, data = open_object("building/golf.building.%s.parkobj" % name)
+            self.assertEqual("building", data["objectType"])
+            self.assertEqual(1 + 4, len(data["images"]))
+            props = data["properties"]
+            self.assertEqual(kind, props["kind"])
+            self.assertEqual(footprint, props["footprint"])
+            self.assertEqual(services, set(props["services"]))
+            tile = props["entrance"]["tile"]
+            self.assertTrue(0 <= tile[0] < footprint[0] and 0 <= tile[1] < footprint[1])
 
     def test_weather_size_matches_the_engine(self):
         with open(os.path.join(ROOT, "src", "openrct2", "world", "Weather.h"), "r", encoding="utf-8") as f:

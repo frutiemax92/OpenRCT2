@@ -742,7 +742,7 @@ namespace OpenRCT2::Golf
                     g.facilityTicksLeft--;
                     break;
                 }
-                // GLF-012: the need is met; the building takes its price.
+                // GLF-012, GLF-050: the need is met; the building takes its price.
                 if (service->food)
                     g.needs.hunger = 255 * 16;
                 if (service->drink)
@@ -751,6 +751,16 @@ namespace OpenRCT2::Golf
                     g.needs.bladder = 0;
                 if (service->rest)
                     g.needs.energy = std::min(255 * 16, g.needs.energy + kRestEnergyPerMinute * 16 * service->minutes);
+                if (service->proShop && g.equipmentLevel < 3)
+                {
+                    constexpr int64_t kEquipmentUpgradePrice = 2000;
+                    if (g.money >= kEquipmentUpgradePrice + service->price)
+                    {
+                        g.equipmentLevel++;
+                        g.money -= kEquipmentUpgradePrice;
+                        _income += kEquipmentUpgradePrice;
+                    }
+                }
                 g.money -= std::min<int64_t>(g.money, service->price);
                 _income += service->price;
                 emit(SimEvent::Type::usedFacility, g, static_cast<int32_t>(service->price));

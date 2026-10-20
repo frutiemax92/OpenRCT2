@@ -405,7 +405,8 @@ def building_icon(colour):
     return image
 
 
-def building(name, description, kind, footprint, colour, services, palette):
+def building(name, description, kind, footprint, colour, services, palette,
+             build_cost=25000, remove_cost=5000, upkeep=300, capacity=20):
     images = {"images/icon.png": quantise(building_icon(colour), palette).png()}
     table = [{"path": "images/icon.png", "x": 0, "y": 0}]
     for rotation in range(4):
@@ -418,11 +419,11 @@ def building(name, description, kind, footprint, colour, services, palette):
         "footprint": list(footprint),
         "height": BUILDING_HEIGHT,
         "entrance": {"tile": [footprint[0] // 2, 0], "edge": 3},
-        "buildCost": 25000,
-        "removeCost": 5000,
-        "upkeepPerMonth": 300,
+        "buildCost": build_cost,
+        "removeCost": remove_cost,
+        "upkeepPerMonth": upkeep,
         "services": services,
-        "capacity": 20,
+        "capacity": capacity,
     }
     data = manifest("golf.building." + name, "building", description, properties, table)
     return object_files(data, images)
@@ -481,7 +482,28 @@ def build(layout=None, palette=None):
     out["stream/golf.stream.creek.parkobj"] = pack(stream("creek", "Creek", (0x3A, 0x7B, 0xC8), palette))
     out["building/golf.building.club_house.parkobj"] = pack(
         building("club_house", "Golf club", "golf_club", (3, 2), (0xB0, 0x7A, 0x4A),
-                 ["food", "drink", "toilet", "pro_shop"], palette))
+                 ["food", "drink", "toilet", "pro_shop"], palette,
+                 build_cost=25000, remove_cost=5000, upkeep=300, capacity=20))
+    out["building/golf.building.food_truck.parkobj"] = pack(
+        building("food_truck", "Food truck", "food_truck", (1, 1), (0xD0, 0x40, 0x30),
+                 ["food", "drink"], palette,
+                 build_cost=5000, remove_cost=1000, upkeep=80, capacity=5))
+    out["building/golf.building.cottage.parkobj"] = pack(
+        building("cottage", "Golf cottage", "cottage", (2, 2), (0xC0, 0x90, 0x60),
+                 ["rest"], palette,
+                 build_cost=40000, remove_cost=8000, upkeep=150, capacity=4))
+    out["building/golf.building.driving_range_kiosk.parkobj"] = pack(
+        building("driving_range_kiosk", "Driving range kiosk", "driving_range_kiosk", (1, 1), (0x40, 0x80, 0x50),
+                 ["pro_shop"], palette,
+                 build_cost=8000, remove_cost=1500, upkeep=100, capacity=10))
+    out["building/golf.building.cart_rental.parkobj"] = pack(
+        building("cart_rental", "Cart rental", "cart_rental", (2, 1), (0x60, 0x70, 0x90),
+                 [], palette,
+                 build_cost=15000, remove_cost=3000, upkeep=200, capacity=12))
+    out["building/golf.building.restroom.parkobj"] = pack(
+        building("restroom", "Restroom", "restroom", (1, 1), (0x80, 0x80, 0x80),
+                 ["toilet"], palette,
+                 build_cost=6000, remove_cost=1200, upkeep=60, capacity=8))
     return out
 
 

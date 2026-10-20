@@ -57,6 +57,8 @@ namespace OpenRCT2
                 result.set(BuildingService::toilet);
             else if (name == "pro_shop")
                 result.set(BuildingService::proShop);
+            else if (name == "rest")
+                result.set(BuildingService::rest);
         }
         return result;
     }

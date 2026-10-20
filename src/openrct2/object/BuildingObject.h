@@ -39,6 +39,7 @@ namespace OpenRCT2
         drink,
         toilet,
         proShop,
+        rest,
     };
     using BuildingServices = FlagHolder<uint8_t, BuildingService>;
 
