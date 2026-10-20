@@ -70,15 +70,21 @@ namespace OpenRCT2
         return dot(v, v);
     }
 
+    // Length computed from the raw integers, so tiny vectors keep their precision.
     inline Fixed length(const FixedVec3& v)
     {
-        // Scale down first when the square would overflow.
-        if (abs(v.x) > Fixed::fromInt(4000) || abs(v.y) > Fixed::fromInt(4000) || abs(v.z) > Fixed::fromInt(4000))
+        constexpr int64_t kLimit = int64_t{ 1 } << 30; // 3 squares of this stay below 2^64
+        int64_t rx = v.x.raw(), ry = v.y.raw(), rz = v.z.raw();
+        int32_t shift = 0;
+        while ((rx >= kLimit || rx <= -kLimit || ry >= kLimit || ry <= -kLimit || rz >= kLimit || rz <= -kLimit) && shift < 20)
         {
-            const FixedVec3 small{ v.x / 64, v.y / 64, v.z / 64 };
-            return sqrt(dot(small, small)) * 64;
+            rx /= 2;
+            ry /= 2;
+            rz /= 2;
+            shift++;
         }
-        return sqrt(dot(v, v));
+        const auto sum = static_cast<uint64_t>(rx * rx) + static_cast<uint64_t>(ry * ry) + static_cast<uint64_t>(rz * rz);
+        return Fixed::fromRaw(static_cast<int64_t>(integerSqrt(sum)) << shift);
     }
 
     // Unit vector, or the zero vector for a zero input.

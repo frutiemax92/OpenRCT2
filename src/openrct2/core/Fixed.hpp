@@ -139,6 +139,8 @@ namespace OpenRCT2
         return a + (b - a) * t;
     }
 
+    // Exact integer square root, rounded down.
+    uint64_t integerSqrt(uint64_t n);
     // Square root of a non-negative value (negative gives zero), exact to the last bit of the integer square root.
     Fixed sqrt(Fixed v);
     // Sine and cosine of an angle in radians, accurate to about 1e-4.

@@ -58,3 +58,14 @@ TEST(FixedVec, LengthOfHugeVectorsDoesNotOverflow)
 {
     EXPECT_NEAR(length(v(30000, 40000, 0)).toDouble(), 50000.0, 2.0);
 }
+
+TEST(FixedVec, LengthKeepsPrecisionForTinyVectors)
+{
+    const FixedVec3 tiny{ Fixed::fromRaw(69), Fixed::fromRaw(0), Fixed::fromRaw(0) };
+    EXPECT_EQ(length(tiny).raw(), 69);
+    const FixedVec3 diag{ Fixed::fromRaw(30), Fixed::fromRaw(40), Fixed::fromRaw(0) };
+    EXPECT_EQ(length(diag).raw(), 50);
+    const auto unit = normalised(FixedVec3{ Fixed::fromRaw(300), Fixed::fromRaw(400), Fixed::fromRaw(0) });
+    EXPECT_NEAR(unit.x.toDouble(), 0.6, 1e-4);
+    EXPECT_NEAR(unit.y.toDouble(), 0.8, 1e-4);
+}

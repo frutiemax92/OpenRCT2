@@ -50,6 +50,7 @@ set(test_files
    "${CMAKE_CURRENT_SOURCE_DIR}/StreamActionTests.cpp"
    "${CMAKE_CURRENT_SOURCE_DIR}/TerrainAlignmentTests.cpp"
    "${CMAKE_CURRENT_SOURCE_DIR}/BuildingActionTests.cpp"
+   "${CMAKE_CURRENT_SOURCE_DIR}/BallPhysicsTests.cpp"
    "${CMAKE_CURRENT_SOURCE_DIR}/StreamTests.cpp"
   "${CMAKE_CURRENT_SOURCE_DIR}/StringTest.cpp"
    "${CMAKE_CURRENT_SOURCE_DIR}/TerrainShapeTests.cpp"

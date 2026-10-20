@@ -11,28 +11,28 @@
 
 namespace OpenRCT2
 {
+    uint64_t integerSqrt(uint64_t n)
+    {
+        uint64_t result = 0;
+        uint64_t bit = uint64_t{ 1 } << 62;
+        while (bit > n)
+            bit >>= 2;
+        while (bit != 0)
+        {
+            if (n >= result + bit)
+            {
+                n -= result + bit;
+                result = (result >> 1) + bit;
+            }
+            else
+                result >>= 1;
+            bit >>= 2;
+        }
+        return result;
+    }
+
     namespace
     {
-        uint64_t isqrt(uint64_t n)
-        {
-            uint64_t result = 0;
-            uint64_t bit = uint64_t{ 1 } << 62;
-            while (bit > n)
-                bit >>= 2;
-            while (bit != 0)
-            {
-                if (n >= result + bit)
-                {
-                    n -= result + bit;
-                    result = (result >> 1) + bit;
-                }
-                else
-                    result >>= 1;
-                bit >>= 2;
-            }
-            return result;
-        }
-
         // Taylor series on [-pi/2, pi/2].
         Fixed sinHalfTurn(Fixed x)
         {
@@ -49,7 +49,7 @@ namespace OpenRCT2
     {
         if (v <= Fixed{})
             return Fixed{};
-        return Fixed::fromRaw(static_cast<int64_t>(isqrt(static_cast<uint64_t>(v.raw()) << Fixed::kFractionBits)));
+        return Fixed::fromRaw(static_cast<int64_t>(integerSqrt(static_cast<uint64_t>(v.raw()) << Fixed::kFractionBits)));
     }
 
     Fixed sin(Fixed radians)
