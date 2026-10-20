@@ -367,6 +367,7 @@ namespace OpenRCT2
 
             info.FilePath = data->filePath;
             info.Name = data->name;
+            info.NetworkId = data->networkId;
             info.Version = data->version;
             info.TimeRecorded = data->timeRecorded;
             if (_mode == ReplayMode::recording)

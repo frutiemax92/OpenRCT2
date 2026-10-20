@@ -31,6 +31,7 @@ namespace OpenRCT2
         uint32_t NumChecksums;
         std::string Name;
         std::string FilePath;
+        std::string NetworkId;
     };
 
     struct IReplayManager

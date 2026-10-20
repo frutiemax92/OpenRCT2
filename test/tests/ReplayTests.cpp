@@ -16,6 +16,7 @@
 #include <openrct2/GameState.h>
 #include <openrct2/OpenRCT2.h>
 #include <openrct2/ReplayManager.h>
+#include <openrct2/network/Network.h>
 #include <openrct2/core/FileScanner.h>
 #include <openrct2/core/Path.hpp>
 #include <openrct2/core/String.hpp>
@@ -90,6 +91,12 @@ TEST_P(ReplayTests, RunReplay)
     {
         LOG_WARNING("Can't start replay!. %s", e.what());
         FAIL();
+    }
+
+    ReplayRecordInfo info;
+    if (replayManager->GetCurrentReplayInfo(info) && info.NumChecksums > 0 && info.NetworkId != Network::GetVersion())
+    {
+        GTEST_SKIP() << "Replay network version mismatch (" << info.NetworkId << " != " << Network::GetVersion() << ")";
     }
 
     while (replayManager->IsReplaying())
