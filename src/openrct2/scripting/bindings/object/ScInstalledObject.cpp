@@ -38,6 +38,7 @@ namespace OpenRCT2::Scripting
         { "peep_animations", ObjectType::peepAnimations },
         { "climate", ObjectType::climate },
         { "stream", ObjectType::stream },
+        { "building", ObjectType::building },
     };
 
     std::string_view objectTypeToString(ObjectType type)

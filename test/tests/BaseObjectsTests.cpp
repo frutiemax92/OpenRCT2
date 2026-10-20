@@ -29,6 +29,7 @@
 #include <openrct2/object/Object.h>
 #include <openrct2/object/ObjectManager.h>
 #include <openrct2/object/ObjectRepository.h>
+#include <openrct2/object/BuildingObject.h>
 #include <openrct2/object/StreamObject.h>
 #include <openrct2/object/TerrainEdgeObject.h>
 #include <openrct2/object/TerrainSurfaceObject.h>
@@ -210,6 +211,38 @@ TEST_F(BaseObjects, StreamFramesAreSquareTextures)
     // Frame lookups wrap around.
     EXPECT_EQ(stream->getFrame(0), stream->getFrame(4));
     EXPECT_NE(stream->getFrame(0), stream->getFrame(1));
+}
+
+TEST_F(BaseObjects, BuildingLoadsItsProperties)
+{
+    auto* building = static_cast<BuildingObject*>(Load("golf.building.club_house"));
+    ASSERT_NE(nullptr, building);
+    EXPECT_EQ(ObjectType::building, building->GetObjectType());
+    EXPECT_EQ(BuildingKind::golfClub, building->Kind);
+    EXPECT_EQ(3, building->FootprintX);
+    EXPECT_EQ(2, building->FootprintY);
+    EXPECT_EQ(2, building->getFootprintX(1));
+    EXPECT_EQ(3, building->getFootprintY(1));
+    EXPECT_TRUE(building->HasEntrance);
+    EXPECT_EQ(3, building->EntranceEdge);
+    EXPECT_GT(building->BuildCost, 0);
+    EXPECT_TRUE(building->Services.has(BuildingService::food));
+    EXPECT_TRUE(building->Services.has(BuildingService::drink));
+    EXPECT_TRUE(building->Services.has(BuildingService::toilet));
+    EXPECT_TRUE(building->Services.has(BuildingService::proShop));
+    // Icon followed by one view per camera rotation.
+    EXPECT_EQ(5u, building->GetImageTable().GetCount());
+    EXPECT_EQ(building->getViewImageId(0), building->getViewImageId(4));
+}
+
+TEST_F(BaseObjects, BuildingCollisionDefaultsToTheFootprintBox)
+{
+    auto* building = static_cast<BuildingObject*>(Load("golf.building.club_house"));
+    ASSERT_NE(nullptr, building);
+    EXPECT_EQ(CollisionShape::box, building->Collision.shape);
+    EXPECT_EQ(building->Height, building->Collision.height);
+    EXPECT_EQ(3 * 32, building->Collision.footprintX);
+    EXPECT_EQ(2 * 32, building->Collision.footprintY);
 }
 
 TEST_F(BaseObjects, TerrainIsDrawn)

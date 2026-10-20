@@ -26,6 +26,7 @@
 #include "../core/Zip.h"
 #include "../sawyer_coding/SawyerChunkReader.h"
 #include "AudioObject.h"
+#include "BuildingObject.h"
 #include "BannerObject.h"
 #include "ClimateObject.h"
 #include "EntranceObject.h"
@@ -419,6 +420,9 @@ namespace OpenRCT2::ObjectFactory
             case ObjectType::stream:
                 result = std::make_unique<StreamObject>();
                 break;
+            case ObjectType::building:
+                result = std::make_unique<BuildingObject>();
+                break;
             default:
                 throw std::runtime_error("Invalid object type");
         }
@@ -448,6 +452,7 @@ namespace OpenRCT2::ObjectFactory
         { "peep_animations", ObjectType::peepAnimations },
         { "climate", ObjectType::climate },
         { "stream", ObjectType::stream },
+        { "building", ObjectType::building },
     };
 
     std::unique_ptr<Object> CreateObjectFromZipFile(std::string_view path, bool loadImages)

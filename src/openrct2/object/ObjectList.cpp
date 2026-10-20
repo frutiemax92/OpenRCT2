@@ -37,6 +37,7 @@ namespace OpenRCT2
         kMaxMusicObjects,          kMaxFootpathSurfaceObjects, kMaxFootpathRailingsObjects,
         kMaxAudioObjects,          kMaxPeepNamesObjects,       kMaxPeepAnimationsObjects,
         kMaxClimateObjects,        kMaxStreamObjects,
+        kMaxBuildingObjects,
     };
     static_assert(std::size(kObjectEntryGroupCounts) == EnumValue(ObjectType::count));
 

@@ -145,6 +145,7 @@ class ObjectTests(unittest.TestCase):
         expected |= {"terrain_edge/golf.terrain_edge.%s.parkobj" % e[0] for e in objects.EDGES}
         expected.add("climate/golf.climate.temperate.parkobj")
         expected.add("stream/golf.stream.creek.parkobj")
+        expected.add("building/golf.building.club_house.parkobj")
         self.assertEqual(expected, set(FILES))
 
     def test_manifests_are_our_own(self):
@@ -228,6 +229,17 @@ class ObjectTests(unittest.TestCase):
         self.assertEqual(1 + frames, len(data["images"]))
         self.assertTrue(all(i.get("format") == "raw" for i in data["images"][1:]))
         self.assertTrue(data["properties"]["isHazard"])
+
+    def test_building_has_an_icon_and_one_view_per_rotation(self):
+        _, data = open_object("building/golf.building.club_house.parkobj")
+        self.assertEqual("building", data["objectType"])
+        self.assertEqual(1 + 4, len(data["images"]))
+        properties = data["properties"]
+        self.assertEqual("golf_club", properties["kind"])
+        self.assertEqual([3, 2], properties["footprint"])
+        self.assertTrue({"food", "drink", "toilet", "pro_shop"} <= set(properties["services"]))
+        tile = properties["entrance"]["tile"]
+        self.assertTrue(0 <= tile[0] < 3 and 0 <= tile[1] < 2)
 
     def test_weather_size_matches_the_engine(self):
         with open(os.path.join(ROOT, "src", "openrct2", "world", "Weather.h"), "r", encoding="utf-8") as f:

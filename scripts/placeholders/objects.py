@@ -7,6 +7,7 @@ Generates the objects the map and the scenario editor need by default, so that n
   golf.terrain_edge.rock_cliff  terrain edge
   golf.climate.temperate        climate
   golf.stream.creek             water stream
+  golf.building.club_house      3x2 golf club (4 views of a flat-shaded box)
 
 Terrain surfaces use the existing terrain_surface format: an icon, then 3 entries (normal, grid, underground) of 19
 images, one per surface slope, drawn as flat-shaded isometric tiles from the tile geometry, then the 64x64 tileable
@@ -365,6 +366,68 @@ def stream(name, description, colour, palette):
     return object_files(data, images)
 
 
+BUILDING_HEIGHT = 48
+
+
+def building_view(footprint, rotation, colour):
+    """An isometric box covering the footprint, seen from a camera rotation. Returns (image, x offset, y offset)."""
+    fx, fy = footprint if rotation % 2 == 0 else footprint[::-1]
+    # One tile is 64 pixels wide and 32 high on screen; the box rises BUILDING_HEIGHT pixels.
+    width = (fx + fy) * 32
+    height = (fx + fy) * 16 + BUILDING_HEIGHT
+    image = Image(width, height, (0, 0, 0), 0)
+    for y in range(height):
+        for x in range(width):
+            # Position relative to the top corner of the roof diamond, which sits at the top of the image.
+            u = (x - fy * 32) / 32.0
+            v = y / 16.0
+            # The roof diamond is the set of (a, b) tile coordinates in [0, fx] x [0, fy].
+            a = (v + u) / 2.0
+            b = (v - u) / 2.0
+            if 0 <= a < fx and 0 <= b < fy:
+                image.set(x, y, shade(colour, 1.15))
+                continue
+            # Walls: the roof diamond translated down by up to BUILDING_HEIGHT.
+            for drop in range(0, BUILDING_HEIGHT, 1):
+                v2 = (y - drop) / 16.0
+                a2 = (v2 + u) / 2.0
+                b2 = (v2 - u) / 2.0
+                if 0 <= a2 < fx and 0 <= b2 < fy:
+                    image.set(x, y, shade(colour, 0.9 if u < 0 else 0.7))
+                    break
+    return image, -fy * 32, -height + (fx + fy) * 8
+
+
+def building_icon(colour):
+    image = Image(32, 32, (0, 0, 0), 0)
+    image.fill_rect(6, 12, 20, 14, shade(colour, 0.9))
+    image.fill_rect(4, 8, 24, 5, shade(colour, 1.2))
+    return image
+
+
+def building(name, description, kind, footprint, colour, services, palette):
+    images = {"images/icon.png": quantise(building_icon(colour), palette).png()}
+    table = [{"path": "images/icon.png", "x": 0, "y": 0}]
+    for rotation in range(4):
+        view, x, y = building_view(footprint, rotation, colour)
+        path = "images/view_%d.png" % rotation
+        images[path] = quantise(view, palette).png()
+        table.append({"path": path, "x": x, "y": y})
+    properties = {
+        "kind": kind,
+        "footprint": list(footprint),
+        "height": BUILDING_HEIGHT,
+        "entrance": {"tile": [footprint[0] // 2, 0], "edge": 3},
+        "buildCost": 25000,
+        "removeCost": 5000,
+        "upkeepPerMonth": 300,
+        "services": services,
+        "capacity": 20,
+    }
+    data = manifest("golf.building." + name, "building", description, properties, table)
+    return object_files(data, images)
+
+
 # A mild climate with frequent sun: golfers play from spring to autumn. Temperatures in °C. The weather weights of each
 # month add up to WEATHER_DIST_SIZE.
 CLIMATE_MONTHS = [
@@ -416,6 +479,9 @@ def build(layout=None, palette=None):
             terrain_edge(name, label, colour, description, layout, palette))
     out["climate/golf.climate.temperate.parkobj"] = pack(climate())
     out["stream/golf.stream.creek.parkobj"] = pack(stream("creek", "Creek", (0x3A, 0x7B, 0xC8), palette))
+    out["building/golf.building.club_house.parkobj"] = pack(
+        building("club_house", "Golf club", "golf_club", (3, 2), (0xB0, 0x7A, 0x4A),
+                 ["food", "drink", "toilet", "pro_shop"], palette))
     return out
 
 
