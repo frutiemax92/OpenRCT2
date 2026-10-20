@@ -14,24 +14,66 @@
 #include "../../GameState.h"
 #include "../../OpenRCT2.h"
 #include "../../management/Finance.h"
+#include "../../object/ObjectEntryManager.h"
+#include "../../object/ObjectList.h"
 #include "../../object/ObjectManager.h"
+#include "../../object/SmallSceneryEntry.h"
 #include "../../object/TerrainEdgeObject.h"
 #include "../../object/TerrainSurfaceObject.h"
 #include "../../world/Footpath.h"
 #include "../../world/Map.h"
+#include "../../world/Scenery.h"
+#include "../../world/TileElementsView.h"
+#include "../../world/tile_element/SmallSceneryElement.h"
 #include "../../world/tile_element/SurfaceElement.h"
 
 namespace OpenRCT2::GameActions
 {
+    static bool isWoodsSurface(const TerrainSurfaceObject* surfaceObj)
+    {
+        if (surfaceObj == nullptr)
+            return false;
+        const auto& id = surfaceObj->GetIdentifier();
+        return id == "golf.terrain_surface.woods" || id.find("woods") != std::string_view::npos;
+    }
+
+    static std::vector<ObjectEntryIndex> getTreeObjects()
+    {
+        std::vector<ObjectEntryIndex> treeIds;
+        for (auto i = 0u; i < getObjectEntryGroupCount(ObjectType::smallScenery); i++)
+        {
+            auto* sceneryEntry = ObjectEntryManager::GetObjectEntry<SmallSceneryEntry>(i);
+            if (sceneryEntry != nullptr && sceneryEntry->flags.has(SmallSceneryFlag::isTree))
+            {
+                treeIds.push_back(static_cast<ObjectEntryIndex>(i));
+            }
+        }
+        return treeIds;
+    }
+
+    static bool tileHasObstacle(const CoordsXY& coords)
+    {
+        for (auto* element : TileElementsView<TileElement>(coords))
+        {
+            const auto type = element->getType();
+            if (type != TileElementType::surface && type != TileElementType::banner && !element->isGhost())
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+
     SurfaceSetStyleAction::SurfaceSetStyleAction(
         MapRange range, ObjectEntryIndex surfaceStyle, ObjectEntryIndex edgeStyle, Drawing::Colour surfaceColour1,
-        Drawing::Colour edgeColour1, uint8_t quadrantMask)
+        Drawing::Colour edgeColour1, uint8_t quadrantMask, bool spawnTrees)
         : _range(range)
         , _surfaceStyle(surfaceStyle)
         , _edgeStyle(edgeStyle)
         , _surfaceColour1(surfaceColour1)
         , _edgeColour1(edgeColour1)
         , _quadrantMask(quadrantMask & 0xF)
+        , _spawnTrees(spawnTrees)
     {
     }
 
@@ -53,6 +95,7 @@ namespace OpenRCT2::GameActions
         visitor.Visit("surfaceColour1", _surfaceColour1);
         visitor.Visit("edgeColour1", _edgeColour1);
         visitor.Visit("quadrantMask", _quadrantMask);
+        visitor.Visit("spawnTrees", _spawnTrees);
     }
 
     void SurfaceSetStyleAction::Serialise(DataSerialiser& stream)
@@ -60,7 +103,7 @@ namespace OpenRCT2::GameActions
         GameAction::Serialise(stream);
 
         stream << DS_TAG(_range) << DS_TAG(_surfaceStyle) << DS_TAG(_edgeStyle) << DS_TAG(_surfaceColour1)
-               << DS_TAG(_edgeColour1) << DS_TAG(_quadrantMask);
+               << DS_TAG(_edgeColour1) << DS_TAG(_quadrantMask) << DS_TAG(_spawnTrees);
     }
 
     bool SurfaceSetStyleAction::surfaceColour1NeedsRecolour(
@@ -174,7 +217,47 @@ namespace OpenRCT2::GameActions
                 }
             }
         }
-        res.cost = surfaceCost + edgeCost;
+
+        money64 treeCost = 0;
+        if (_spawnTrees && _surfaceStyle != kObjectEntryIndexNull)
+        {
+            const auto* surfaceObject = objManager.GetLoadedObject<TerrainSurfaceObject>(_surfaceStyle);
+            if (isWoodsSurface(surfaceObject))
+            {
+                const auto treeIds = getTreeObjects();
+                if (!treeIds.empty())
+                {
+                    for (CoordsXY coords = { validRange.getX1(), validRange.getY1() }; coords.x <= validRange.getX2();
+                         coords.x += kCoordsXYStep)
+                    {
+                        for (coords.y = validRange.getY1(); coords.y <= validRange.getY2(); coords.y += kCoordsXYStep)
+                        {
+                            if (!LocationValid(coords))
+                                continue;
+                            if (gLegacyScene != LegacyScene::scenarioEditor && !gameState.cheats.sandboxMode)
+                            {
+                                if (!MapIsLocationInPark(coords))
+                                    continue;
+                            }
+                            auto* surfaceElement = MapGetSurfaceElementAt(coords);
+                            if (surfaceElement == nullptr || surfaceElement->getWaterHeight() > 0)
+                                continue;
+                            if (!tileHasObstacle(coords))
+                            {
+                                const auto treeIndex = treeIds[(coords.x / 32 + coords.y / 32) % treeIds.size()];
+                                const auto* treeEntry = ObjectEntryManager::GetObjectEntry<SmallSceneryEntry>(treeIndex);
+                                if (treeEntry != nullptr)
+                                {
+                                    treeCost += treeEntry->price;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        res.cost = surfaceCost + edgeCost + treeCost;
 
         return res;
     }
@@ -193,6 +276,8 @@ namespace OpenRCT2::GameActions
         res.position.x = xMid;
         res.position.y = yMid;
         res.position.z = heightMid;
+
+        auto& objManager = GetContext()->GetObjectManager();
 
         money64 surfaceCost = 0;
         money64 edgeCost = 0;
@@ -218,7 +303,6 @@ namespace OpenRCT2::GameActions
 
                 if (_surfaceStyle != kObjectEntryIndexNull)
                 {
-                    auto& objManager = GetContext()->GetObjectManager();
                     const auto* surfaceObject = objManager.GetLoadedObject<TerrainSurfaceObject>(_surfaceStyle);
                     if (surfaceObject != nullptr)
                     {
@@ -251,7 +335,6 @@ namespace OpenRCT2::GameActions
 
                 if (_edgeStyle != kObjectEntryIndexNull)
                 {
-                    auto& objManager = GetContext()->GetObjectManager();
                     const auto* edgeObject = objManager.GetLoadedObject<TerrainEdgeObject>(_edgeStyle);
                     if (edgeObject != nullptr)
                     {
@@ -278,7 +361,73 @@ namespace OpenRCT2::GameActions
                 }
             }
         }
-        res.cost = surfaceCost + edgeCost;
+
+        money64 treeCost = 0;
+        if (_spawnTrees && _surfaceStyle != kObjectEntryIndexNull)
+        {
+            const auto* surfaceObject = objManager.GetLoadedObject<TerrainSurfaceObject>(_surfaceStyle);
+            if (isWoodsSurface(surfaceObject))
+            {
+                const auto treeIds = getTreeObjects();
+                if (!treeIds.empty())
+                {
+                    for (CoordsXY coords = { validRange.getX1(), validRange.getY1() }; coords.x <= validRange.getX2();
+                         coords.x += kCoordsXYStep)
+                    {
+                        for (coords.y = validRange.getY1(); coords.y <= validRange.getY2(); coords.y += kCoordsXYStep)
+                        {
+                            if (!LocationValid(coords))
+                                continue;
+                            if (gLegacyScene != LegacyScene::scenarioEditor && !gameState.cheats.sandboxMode)
+                            {
+                                if (!MapIsLocationInPark(coords))
+                                    continue;
+                            }
+                            auto* surfaceElement = MapGetSurfaceElementAt(coords);
+                            if (surfaceElement == nullptr || surfaceElement->getWaterHeight() > 0)
+                                continue;
+                            if (!tileHasObstacle(coords))
+                            {
+                                const auto treeIndex = treeIds[(coords.x / 32 + coords.y / 32) % treeIds.size()];
+                                const auto* treeEntry = ObjectEntryManager::GetObjectEntry<SmallSceneryEntry>(treeIndex);
+                                if (treeEntry != nullptr)
+                                {
+                                    uint8_t quadrantOccupied = 0b1111;
+                                    CoordsXY treePos = coords.toTileCentre();
+                                    if (_quadrantMask != 0xF)
+                                    {
+                                        for (uint8_t q = 0; q < 4; q++)
+                                        {
+                                            if (_quadrantMask & (1 << q))
+                                            {
+                                                quadrantOccupied = (1 << q);
+                                                treePos.x = coords.x + SceneryQuadrantOffsets[q].x;
+                                                treePos.y = coords.y + SceneryQuadrantOffsets[q].y;
+                                                break;
+                                            }
+                                        }
+                                    }
+                                    const int32_t surfaceZ = TileElementHeight(treePos);
+                                    auto* sceneryElement = TileElementInsert<SmallSceneryElement>({ coords, surfaceZ }, quadrantOccupied);
+                                    if (sceneryElement != nullptr)
+                                    {
+                                        sceneryElement->setClearanceZ(surfaceZ + treeEntry->height);
+                                        sceneryElement->setDirection((coords.x / 32 + coords.y / 32) & 3);
+                                        sceneryElement->setEntryIndex(treeIndex);
+                                        sceneryElement->setAge(0);
+                                        sceneryElement->setPrimaryColour(Drawing::Colour::yellow);
+                                        treeCost += treeEntry->price;
+                                        MapInvalidateTileFull(coords);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        res.cost = surfaceCost + edgeCost + treeCost;
 
         return res;
     }

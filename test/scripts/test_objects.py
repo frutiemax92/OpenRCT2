@@ -154,7 +154,26 @@ class ObjectTests(unittest.TestCase):
         expected.add("path_addition/golf.path_addition.bench.parkobj")
         expected.add("path_addition/golf.path_addition.bin.parkobj")
         expected.add("path_addition/golf.path_addition.lamp.parkobj")
+        expected.add("scenery_small/golf.scenery_small.bumper.parkobj")
+        expected.add("scenery_small/golf.scenery_small.ramp.parkobj")
+        expected.add("wall/golf.wall.low_wall.parkobj")
         self.assertEqual(expected, set(FILES))
+
+    def test_mini_putt_obstacle_properties(self):
+        _, bumper = open_object("scenery_small/golf.scenery_small.bumper.parkobj")
+        self.assertEqual("scenery_small", bumper["objectType"])
+        self.assertEqual("cylinder", bumper["properties"]["collision"]["shape"])
+        self.assertEqual(0.9, bumper["properties"]["collision"]["restitution"])
+
+        _, ramp = open_object("scenery_small/golf.scenery_small.ramp.parkobj")
+        self.assertEqual("scenery_small", ramp["objectType"])
+        self.assertEqual("box", ramp["properties"]["collision"]["shape"])
+        self.assertEqual(4, len(ramp["images"]))
+
+        _, wall_obj = open_object("wall/golf.wall.low_wall.parkobj")
+        self.assertEqual("wall", wall_obj["objectType"])
+        self.assertEqual("box", wall_obj["properties"]["collision"]["shape"])
+        self.assertEqual(6, len(wall_obj["images"]))
 
     def test_manifests_are_our_own(self):
         for path in FILES:

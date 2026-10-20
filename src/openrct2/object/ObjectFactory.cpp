@@ -432,8 +432,11 @@ namespace OpenRCT2::ObjectFactory
     static const EnumMap<ObjectType> kObjectTypeMap = {
         { "ride", ObjectType::ride },
         { "scenery_small", ObjectType::smallScenery },
+        { "small_scenery", ObjectType::smallScenery },
         { "scenery_large", ObjectType::largeScenery },
         { "scenery_wall", ObjectType::walls },
+        { "wall", ObjectType::walls },
+        { "walls", ObjectType::walls },
         { "footpath_banner", ObjectType::banners },
         { "footpath_legacy", ObjectType::paths },
         { "footpath_item", ObjectType::pathAdditions },

@@ -35,6 +35,16 @@
 #include <openrct2/object/StreamObject.h>
 #include <openrct2/object/TerrainEdgeObject.h>
 #include <openrct2/object/TerrainSurfaceObject.h>
+#include <openrct2/actions/scenery/LargeSceneryPlaceAction.h>
+#include <openrct2/actions/scenery/SmallSceneryPlaceAction.h>
+#include <openrct2/golf/MapBallWorld.h>
+#include <openrct2/object/LargeSceneryObject.h>
+#include <openrct2/object/SmallSceneryEntry.h>
+#include <openrct2/object/SmallSceneryObject.h>
+#include <openrct2/object/WallObject.h>
+#include <openrct2/world/TileElementsView.h>
+#include <openrct2/world/tile_element/SmallSceneryElement.h>
+#include <openrct2/world/tile_element/LargeSceneryElement.h>
 #include <openrct2/drawing/TerrainSpriteGenerator.h>
 #include <openrct2/drawing/TerrainSpriteStore.h>
 #include <openrct2/ui/UiContext.h>
@@ -747,3 +757,117 @@ TEST_F(LandTools, GridLinesAndSelectionsAreDrawnProceduralOverlays)
     EXPECT_GT(store.GetSpriteCount(), withGrid); // and the corner highlight
     gMapSelectFlags.clearAll();
 }
+
+TEST_F(BaseObjects, MiniPuttObstaclesLoadWithTheirProperties)
+{
+    auto* bumper = Load("golf.scenery_small.bumper");
+    ASSERT_NE(nullptr, bumper);
+    auto* smallBumper = dynamic_cast<SmallSceneryObject*>(bumper);
+    ASSERT_NE(nullptr, smallBumper);
+    EXPECT_EQ(CollisionShape::cylinder, smallBumper->Collision.shape);
+    EXPECT_EQ(6, smallBumper->Collision.radius);
+    EXPECT_FLOAT_EQ(0.9f, smallBumper->Collision.restitution);
+
+    auto* ramp = Load("golf.scenery_small.ramp");
+    ASSERT_NE(nullptr, ramp);
+    auto* smallRamp = dynamic_cast<SmallSceneryObject*>(ramp);
+    ASSERT_NE(nullptr, smallRamp);
+    EXPECT_EQ(CollisionShape::box, smallRamp->Collision.shape);
+    EXPECT_EQ(32, smallRamp->Collision.footprintX);
+    EXPECT_FLOAT_EQ(0.5f, smallRamp->Collision.restitution);
+
+    auto* wallObj = Load("golf.wall.low_wall");
+    ASSERT_NE(nullptr, wallObj);
+    auto* lowWall = dynamic_cast<WallObject*>(wallObj);
+    ASSERT_NE(nullptr, lowWall);
+    EXPECT_EQ(CollisionShape::box, lowWall->Collision.shape);
+    EXPECT_FLOAT_EQ(0.85f, lowWall->Collision.restitution);
+}
+
+TEST_F(LandTools, WoodsSurfaceSpawnsTreeObstacles)
+{
+    SetUpMap();
+    auto& objManager = GetContext()->GetObjectManager();
+    auto* woodsObj = Load("golf.terrain_surface.woods");
+    ASSERT_NE(nullptr, woodsObj);
+    auto* bumper = Load("golf.scenery_small.bumper");
+    ASSERT_NE(nullptr, bumper);
+
+    auto* smallScenery = dynamic_cast<SmallSceneryObject*>(bumper);
+    ASSERT_NE(nullptr, smallScenery);
+    auto* legacyEntry = reinterpret_cast<SmallSceneryEntry*>(smallScenery->GetLegacyData());
+    legacyEntry->flags.set(SmallSceneryFlag::isTree);
+
+    const auto woodsIdx = objManager.GetLoadedObjectEntryIndex("golf.terrain_surface.woods");
+    ASSERT_NE(kObjectEntryIndexNull, woodsIdx);
+
+    // Paint without spawnTrees: no tree placed
+    GameActions::SurfaceSetStyleAction paintNoTrees(
+        Tile(5, 5), woodsIdx, kObjectEntryIndexNull, Drawing::Colour::black, Drawing::Colour::black, 0xF, false);
+    ASSERT_EQ(GameActions::Status::ok, GameActions::ExecuteNested(&paintNoTrees, getGameState()).error);
+    int sceneryCount = 0;
+    for (auto* el : TileElementsView<TileElement>(TileCoordsXY{ 5, 5 }.toCoordsXY()))
+        if (el->getType() == TileElementType::smallScenery) sceneryCount++;
+    EXPECT_EQ(0, sceneryCount);
+
+    // Paint with spawnTrees: tree placed
+    GameActions::SurfaceSetStyleAction paintTrees(
+        Tile(6, 6), woodsIdx, kObjectEntryIndexNull, Drawing::Colour::black, Drawing::Colour::black, 0xF, true);
+    const auto queryRes = GameActions::Query(&paintTrees, getGameState());
+    EXPECT_EQ(GameActions::Status::ok, queryRes.error);
+    EXPECT_GT(queryRes.cost, 0); // includes tree cost
+
+    const auto execRes = GameActions::ExecuteNested(&paintTrees, getGameState());
+    ASSERT_EQ(GameActions::Status::ok, execRes.error);
+    sceneryCount = 0;
+    for (auto* el : TileElementsView<TileElement>(TileCoordsXY{ 6, 6 }.toCoordsXY()))
+        if (el->getType() == TileElementType::smallScenery) sceneryCount++;
+    EXPECT_EQ(1, sceneryCount);
+}
+
+TEST_F(LandTools, GrassGrowthIncreasesRoughness)
+{
+    SetUpMap();
+    auto* surface = MapGetSurfaceElementAt(TileCoordsXY{ 4, 4 });
+    ASSERT_NE(nullptr, surface);
+    Golf::MapBallWorld world;
+
+    const Fixed x = Fixed::fromInt(4 * 32 + 16);
+    const Fixed y = Fixed::fromInt(4 * 32 + 16);
+
+    surface->setGrassLength(GRASS_LENGTH_MOWED);
+    const auto baseSample = world.surfaceAt(x, y);
+
+    surface->setGrassLength(GRASS_LENGTH_CLEAR_0); // stage 1: +0.05
+    const auto mownSample = world.surfaceAt(x, y);
+    EXPECT_NEAR(mownSample.roughness.toDouble(), baseSample.roughness.toDouble() + 0.05, 0.01);
+
+    surface->setGrassLength(GRASS_LENGTH_CLUMPS_2); // stage 6: +0.30
+    const auto clumpsSample = world.surfaceAt(x, y);
+    EXPECT_NEAR(clumpsSample.roughness.toDouble(), baseSample.roughness.toDouble() + 0.30, 0.01);
+
+    // Mowing returns it to base
+    surface->setGrassLength(GRASS_LENGTH_MOWED);
+    const auto clearedSample = world.surfaceAt(x, y);
+    EXPECT_FLOAT_EQ(baseSample.roughness.toDouble(), clearedSample.roughness.toDouble());
+}
+
+TEST_F(LandTools, LargeSceneryPlacementSlopeConstraints)
+{
+    SetUpMap();
+    auto* surface = MapGetSurfaceElementAt(TileCoordsXY{ 8, 8 });
+    ASSERT_NE(nullptr, surface);
+
+    // 1 Q slope on tile (within 1 Q of flat): allowed
+    surface->setTerrainShape({ 1, 0, 0, 0 });
+    const auto corners1 = Terrain::GetCornerHeights(surface->getBaseZ(), surface->getTerrainShape());
+    const int32_t diff1 = corners1.north - corners1.east;
+    EXPECT_EQ(Terrain::kQuarterStepZ, diff1);
+
+    // 2 Q slope on tile (> 1 Q): exceeds 1 Q limit
+    surface->setTerrainShape({ 2, 0, 0, 0 });
+    const auto corners2 = Terrain::GetCornerHeights(surface->getBaseZ(), surface->getTerrainShape());
+    const int32_t diff2 = corners2.north - corners2.east;
+    EXPECT_EQ(Terrain::kQuarterStepZ * 2, diff2);
+}
+

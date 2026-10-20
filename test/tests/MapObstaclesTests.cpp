@@ -26,11 +26,13 @@
 #include <openrct2/golf/MapObstacles.h>
 #include <openrct2/object/ObjectManager.h>
 #include <openrct2/object/SmallSceneryObject.h>
+#include <openrct2/object/WallObject.h>
 #include <openrct2/world/Map.h>
 #include <openrct2/world/MapAnimation.h>
 #include <openrct2/world/TileElementsView.h>
 #include <openrct2/world/tile_element/SmallSceneryElement.h>
 #include <openrct2/world/tile_element/SurfaceElement.h>
+#include <openrct2/world/tile_element/WallElement.h>
 
 using namespace OpenRCT2;
 using namespace OpenRCT2::Golf;
@@ -236,4 +238,49 @@ TEST(MapObstacles, ABallFlyingIntoATreeInTheMapIsDeflected)
     EXPECT_GT(hits, 0);
     EXPECT_LT(ball.position.x, Fixed::fromInt(tile->x + 16));
     TileElementRemove(reinterpret_cast<TileElement*>(tree->element));
+}
+
+TEST(MapObstacles, BallBouncesOffMiniPuttWallBorder)
+{
+    auto context = startPark();
+    ASSERT_NE(context.get(), nullptr);
+    getGameState().cheats.sandboxMode = true;
+    const auto tile = findBareTile(1);
+    ASSERT_TRUE(tile.has_value());
+
+    auto* wallObj = context->GetObjectManager().LoadObject("golf.wall.low_wall");
+    ASSERT_NE(nullptr, wallObj);
+    const auto wallIndex = context->GetObjectManager().GetLoadedObjectEntryIndex("golf.wall.low_wall");
+    ASSERT_NE(kObjectEntryIndexNull, wallIndex);
+
+    const auto baseZ = MapGetSurfaceElementAt(*tile)->getBaseZ();
+    // Insert wall on west edge (direction 0, -x edge)
+    auto* wallElement = TileElementInsert<WallElement>({ tile->x, tile->y, baseZ }, 0);
+    ASSERT_NE(nullptr, wallElement);
+    wallElement->setEntryIndex(wallIndex);
+    wallElement->setDirection(0);
+    wallElement->setClearanceZ(baseZ + 8);
+
+    MapBallWorld world;
+    world.setObstacles(&GetMapObstacles());
+    SeqRandom rng;
+    Ball ball;
+
+    // Ball rolling west towards the wall from tile->x + 10
+    placeBall(ball, world, Fixed::fromInt(tile->x + 10), Fixed::fromInt(tile->y + 16));
+    ball.velocity = { Fixed::fromInt(-4), Fixed{}, Fixed{} }; // heading west towards the wall
+    ball.state = BallState::Rolling;
+
+    int hits = 0;
+    for (int t = 0; t < 100 && !isSettled(ball.state); t++)
+    {
+        const auto step = stepBall(ball, world, rng);
+        hits += step.obstacleHits;
+        if (hits > 0)
+            break;
+    }
+    EXPECT_GT(hits, 0);
+    EXPECT_GT(ball.velocity.x, Fixed{}); // bounced back towards positive x!
+
+    TileElementRemove(reinterpret_cast<TileElement*>(wallElement));
 }

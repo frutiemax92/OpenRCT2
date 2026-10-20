@@ -25,6 +25,7 @@
 #include "../../world/Map.h"
 #include "../../world/MapAnimation.h"
 #include "../../world/QuarterTile.h"
+#include "../../world/TerrainShape.h"
 #include "../../world/Wall.h"
 #include "../../world/tile_element/LargeSceneryElement.h"
 #include "../../world/tile_element/Slope.h"
@@ -116,6 +117,29 @@ namespace OpenRCT2::GameActions
         }
 
         res.position.z = maxHeight;
+
+        if (!gameState.cheats.disableClearanceChecks && !sceneryEntry->flags.has(LargeSceneryFlag::allowSlopes))
+        {
+            int32_t footprintMinZ = INT32_MAX;
+            int32_t footprintMaxZ = INT32_MIN;
+            for (auto& tile : sceneryEntry->tiles)
+            {
+                auto curTile = CoordsXY{ tile.offset }.rotate(_loc.direction);
+                curTile.x += _loc.x;
+                curTile.y += _loc.y;
+                auto* surfaceElement = MapGetSurfaceElementAt(curTile);
+                if (surfaceElement != nullptr)
+                {
+                    const auto corners = Terrain::GetCornerHeights(surfaceElement->getBaseZ(), surfaceElement->getTerrainShape());
+                    footprintMinZ = std::min({ footprintMinZ, corners.north, corners.east, corners.south, corners.west });
+                    footprintMaxZ = std::max({ footprintMaxZ, corners.north, corners.east, corners.south, corners.west });
+                }
+            }
+            if (footprintMaxZ != INT32_MIN && footprintMinZ != INT32_MAX && (footprintMaxZ - footprintMinZ > Terrain::kQuarterStepZ))
+            {
+                return Result(Status::disallowed, STR_CANT_POSITION_THIS_HERE, STR_LEVEL_LAND_REQUIRED);
+            }
+        }
 
         if (sceneryEntry->scrolling_mode != kScrollingModeNone)
         {
@@ -228,6 +252,29 @@ namespace OpenRCT2::GameActions
         }
 
         res.position.z = maxHeight;
+
+        if (!gameState.cheats.disableClearanceChecks && !sceneryEntry->flags.has(LargeSceneryFlag::allowSlopes))
+        {
+            int32_t footprintMinZ = INT32_MAX;
+            int32_t footprintMaxZ = INT32_MIN;
+            for (auto& tile : sceneryEntry->tiles)
+            {
+                auto curTile = CoordsXY{ tile.offset }.rotate(_loc.direction);
+                curTile.x += _loc.x;
+                curTile.y += _loc.y;
+                auto* surfaceElement = MapGetSurfaceElementAt(curTile);
+                if (surfaceElement != nullptr)
+                {
+                    const auto corners = Terrain::GetCornerHeights(surfaceElement->getBaseZ(), surfaceElement->getTerrainShape());
+                    footprintMinZ = std::min({ footprintMinZ, corners.north, corners.east, corners.south, corners.west });
+                    footprintMaxZ = std::max({ footprintMaxZ, corners.north, corners.east, corners.south, corners.west });
+                }
+            }
+            if (footprintMaxZ != INT32_MIN && footprintMinZ != INT32_MAX && (footprintMaxZ - footprintMinZ > Terrain::kQuarterStepZ))
+            {
+                return Result(Status::disallowed, STR_CANT_POSITION_THIS_HERE, STR_LEVEL_LAND_REQUIRED);
+            }
+        }
 
         // Allocate banner
         Banner* banner = nullptr;
@@ -359,21 +406,12 @@ namespace OpenRCT2::GameActions
             if (surfaceElement == nullptr)
                 continue;
 
-            int32_t baseZ = surfaceElement->getBaseZ();
-            int32_t slope = surfaceElement->getSlope();
+            const auto corners = Terrain::GetCornerHeights(surfaceElement->getBaseZ(), surfaceElement->getTerrainShape());
+            const int32_t highestCorner = std::max({ corners.north, corners.east, corners.south, corners.west });
 
-            if ((slope & kTileSlopeRaisedCornersMask) != kTileSlopeFlat)
+            if (highestCorner > maxHeight)
             {
-                baseZ += kLandHeightStep;
-                if (slope & kTileSlopeDiagonalFlag)
-                {
-                    baseZ += kLandHeightStep;
-                }
-            }
-
-            if (baseZ > maxHeight)
-            {
-                maxHeight = baseZ;
+                maxHeight = static_cast<int16_t>(highestCorner);
             }
         }
         return maxHeight;

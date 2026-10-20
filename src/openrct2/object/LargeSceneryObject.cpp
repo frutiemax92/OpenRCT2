@@ -219,6 +219,8 @@ namespace OpenRCT2
                     { "isAnimated", LargeSceneryFlag::isAnimated },
                     { "isPhotogenic", LargeSceneryFlag::isPhotogenic },
                     { "isTree", LargeSceneryFlag::isTree },
+                    { "allowSlopes", LargeSceneryFlag::allowSlopes },
+                    { "allowSloped", LargeSceneryFlag::allowSlopes },
                 });
 
             // Tiles

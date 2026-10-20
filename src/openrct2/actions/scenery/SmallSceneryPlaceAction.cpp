@@ -201,7 +201,7 @@ namespace OpenRCT2::GameActions
 
         if (!gameState.cheats.disableClearanceChecks && sceneryEntry->flags.has(SmallSceneryFlag::requiresFlatSurface)
             && !supportsRequired && surfaceElement != nullptr && surfaceElement->getWaterHeight() == 0
-            && (surfaceElement->getSlope() != kTileSlopeFlat))
+            && (!surfaceElement->isFlat()))
         {
             return Result(Status::disallowed, STR_CANT_POSITION_THIS_HERE, STR_LEVEL_LAND_REQUIRED);
         }

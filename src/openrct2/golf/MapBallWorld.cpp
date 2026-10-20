@@ -259,6 +259,16 @@ namespace OpenRCT2::Golf
             s.puttable = golf.isPuttable;
         }
 
+        // TER-044: longer grass increases roughness
+        if (surface->canGrassGrow())
+        {
+            const uint8_t grassLength = surface->getGrassLength() & 0x7;
+            if (grassLength > 0)
+            {
+                s.roughness = min(Fixed::fromInt(1), s.roughness + Fixed::ratio(grassLength * 5, 100));
+            }
+        }
+
         const int32_t waterZ = surface->getWaterHeight();
         if (waterZ > 0 && s.height < Fixed::fromInt(waterZ))
         {

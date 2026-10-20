@@ -28,6 +28,7 @@ namespace OpenRCT2::GameActions
         Drawing::Colour _surfaceColour1{};
         Drawing::Colour _edgeColour1{};
         uint8_t _quadrantMask{ 0xF }; // quadrants painted, bit per Terrain::Quadrant (TER-022)
+        bool _spawnTrees{ false };    // Woods surface spawns tree scenery when painted (TER-043)
 
         bool surfaceNeedsChange(const SurfaceElement& surfaceElement) const;
 
@@ -38,7 +39,10 @@ namespace OpenRCT2::GameActions
         SurfaceSetStyleAction() = default;
         SurfaceSetStyleAction(
             MapRange range, ObjectEntryIndex surfaceStyle, ObjectEntryIndex edgeStyle, Drawing::Colour surfaceColour1,
-            Drawing::Colour edgeColour1, uint8_t quadrantMask = 0xF);
+            Drawing::Colour edgeColour1, uint8_t quadrantMask = 0xF, bool spawnTrees = false);
+
+        bool getSpawnTrees() const { return _spawnTrees; }
+        void setSpawnTrees(bool spawnTrees) { _spawnTrees = spawnTrees; }
 
         void AcceptParameters(GameActionParameterVisitor&) final;
 

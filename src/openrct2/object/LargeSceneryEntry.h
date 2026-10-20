@@ -75,6 +75,7 @@ namespace OpenRCT2
         hasTertiaryColour,
         hidePrimaryRemapButton,
         hideSecondaryRemapButton,
+        allowSlopes,
     };
     using LargeSceneryFlags = FlagHolder<uint16_t, LargeSceneryFlag>;
 

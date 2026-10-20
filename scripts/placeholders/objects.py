@@ -296,6 +296,7 @@ def terrain_surface(name, label, colour, description, palette):
     }
     roughness, bounciness, distance, accuracy, puttable, hazard = SURFACE_GOLF[name]
     properties.update({
+        "canGrow": name in ("grass", "fairway", "green", "tee", "rough", "deep_rough"),
         "roughness": roughness,
         "bounciness": bounciness,
         "buildCost": 100,
@@ -491,6 +492,74 @@ CLIMATE_MONTHS = [
 WEATHER_DIST_SIZE = 23  # kWeatherDistSize: the weights of a month must add up to it (world/Weather.h)
 
 
+def draw_disc(image, cx, cy, r, colour):
+    for y in range(max(0, cy - r), min(image.height, cy + r + 1)):
+        for x in range(max(0, cx - r), min(image.width, cx + r + 1)):
+            if (x - cx) * (x - cx) + (y - cy) * (y - cy) <= r * r:
+                image.set(x, y, colour)
+
+
+def small_scenery_view(colour, is_cylinder=False):
+    image = Image(24, 24, (0, 0, 0), 0)
+    if is_cylinder:
+        draw_disc(image, 12, 12, 8, shade(colour, 1.0))
+        draw_disc(image, 12, 10, 6, shade(colour, 1.3))
+    else:
+        image.fill_rect(4, 6, 16, 12, shade(colour, 1.0))
+        image.fill_rect(6, 8, 12, 8, shade(colour, 1.3))
+    return image
+
+
+def small_scenery(name, description, shape_str, height, price, removal_price,
+                  collision, colour, palette, rotatable=False):
+    images = {}
+    table = []
+    num_views = 4 if rotatable else 1
+    is_cylinder = collision.get("shape") == "cylinder"
+    for r in range(num_views):
+        path = "images/view_%d.png" % r
+        images[path] = quantise(small_scenery_view(colour, is_cylinder), palette).png()
+        table.append({"path": path, "x": -12, "y": -12})
+
+    properties = {
+        "price": price,
+        "removalPrice": removal_price,
+        "height": height,
+        "cursor": "CURSOR_STATUE_DOWN",
+        "shape": shape_str,
+        "isRotatable": rotatable,
+        "collision": collision,
+    }
+    data = manifest("golf.scenery_small." + name, "scenery_small", description, properties, table)
+    return object_files(data, images)
+
+
+def wall_view(colour, rising=False):
+    image = Image(32, 24, (0, 0, 0), 0)
+    c = shade(colour, 0.9 if rising else 1.1)
+    image.fill_rect(2, 6, 28, 12, c)
+    image.fill_rect(4, 4, 24, 4, shade(colour, 1.3))
+    return image
+
+
+def wall(name, description, height, price, collision, colour, palette):
+    images = {}
+    table = []
+    for i in range(6):
+        path = "images/view_%d.png" % i
+        images[path] = quantise(wall_view(colour, i % 2 == 1), palette).png()
+        table.append({"path": path, "x": -16, "y": -12})
+
+    properties = {
+        "price": price,
+        "height": height,
+        "cursor": "CURSOR_FENCE_DOWN",
+        "collision": collision,
+    }
+    data = manifest("golf.wall." + name, "wall", description, properties, table)
+    return object_files(data, images)
+
+
 def climate():
     weather = {}
     for month, base, bias, sunny, partly, cloudy, rain, heavy, thunder in CLIMATE_MONTHS:
@@ -556,6 +625,18 @@ def build(layout=None, palette=None):
         path_addition("bin", "Litter bin", "bin", False, True, False, (0x4A, 0x70, 0x4A), palette, price=30))
     out["path_addition/golf.path_addition.lamp.parkobj"] = pack(
         path_addition("lamp", "Lamp post", "lamp", False, False, True, (0x20, 0x20, 0x30), palette, price=40))
+    out["scenery_small/golf.scenery_small.bumper.parkobj"] = pack(
+        small_scenery("bumper", "Mini-putt bumper", "1/4", 1, 50, 10,
+                      {"shape": "cylinder", "radius": 6, "height": 8, "restitution": 0.90, "friction": 0.10},
+                      (0xE0, 0x30, 0x30), palette, rotatable=False))
+    out["scenery_small/golf.scenery_small.ramp.parkobj"] = pack(
+        small_scenery("ramp", "Mini-putt ramp", "4/4", 1, 80, 20,
+                      {"shape": "box", "footprintX": 32, "footprintY": 32, "height": 8, "restitution": 0.50, "friction": 0.20},
+                      (0x30, 0x60, 0xC0), palette, rotatable=True))
+    out["wall/golf.wall.low_wall.parkobj"] = pack(
+        wall("low_wall", "Mini-putt border wall", 1, 20,
+             {"shape": "box", "height": 8, "restitution": 0.85, "friction": 0.15},
+             (0xA0, 0x50, 0x30), palette))
     return out
 
 
