@@ -101,6 +101,8 @@ namespace OpenRCT2
 
         Golf::MapBallWorld world;
         world.setObstacles(&Golf::GetMapObstacles());
+        if (Golf::GetShotDebug().windEnabledFor(*this))
+            world.useGameWind();
         ScenarioBallRandom rng;
         const auto before = getLocation();
         const auto events = Golf::stepBall(ball, world, rng);

@@ -9,6 +9,7 @@
 
 #include "MapBallWorld.h"
 
+#include "../GameState.h"
 #include "../object/StreamObject.h"
 #include "../object/TerrainSurfaceObject.h"
 #include "../world/Map.h"
@@ -124,6 +125,18 @@ namespace OpenRCT2::Golf
         if (edges & 8)
             best = min(best, distanceToAxisSegment(half, Fixed{}, half, half));
         return best;
+    }
+
+    FixedVec3 windVelocity(const Weather::WindState& wind)
+    {
+        const Fixed radians = Fixed::fromInt(wind.direction) * kFixedPi / 180;
+        const Fixed speed = Fixed::ratio(Weather::kWindMaxSpeedHundredths, 100) * Fixed::ratio(wind.strength, Weather::kWindStrengthMax);
+        return { cos(radians) * speed, sin(radians) * speed, Fixed{} };
+    }
+
+    void MapBallWorld::useGameWind()
+    {
+        _wind = windVelocity(getGameState().wind);
     }
 
     SurfaceSample MapBallWorld::surfaceAt(Fixed x, Fixed y) const

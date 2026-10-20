@@ -241,6 +241,12 @@ TEST(GolfBallEntity, SurvivesASaveAndLoadOfThePark)
         ball->ball.velocity = { Fixed::fromRaw(3333), Fixed::fromRaw(-1111), Fixed{} };
         ball->ball.bounces = 2;
         id = ball->id.ToUnderlying();
+        auto& wind = getGameState().wind;
+        wind.direction = 123;
+        wind.strength = 456;
+        wind.targetDirection = 200;
+        wind.targetStrength = 789;
+        wind.randomState = 0xABCDEF01u;
 
         auto exporter = std::make_unique<ParkFileExporter>();
         exporter->ExportObjectsList = context->GetObjectManager().GetPackableObjects();
@@ -265,6 +271,13 @@ TEST(GolfBallEntity, SurvivesASaveAndLoadOfThePark)
         EXPECT_EQ(loaded->ball.bounces, 2);
         EXPECT_EQ(loaded->x, 150);
         EXPECT_EQ(loaded->trailCount, 0);
+        // The wind is saved with the climate (BAL-031).
+        const auto& wind = getGameState().wind;
+        EXPECT_EQ(wind.direction, 123);
+        EXPECT_EQ(wind.strength, 456);
+        EXPECT_EQ(wind.targetDirection, 200);
+        EXPECT_EQ(wind.targetStrength, 789);
+        EXPECT_EQ(wind.randomState, 0xABCDEF01u);
     }
 }
 

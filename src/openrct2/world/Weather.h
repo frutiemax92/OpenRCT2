@@ -83,6 +83,38 @@ namespace OpenRCT2::Weather
         Level level;
     };
 
+    // The wind (BAL-031): a direction and a strength that drift slowly towards random targets chosen from the current
+    // weather. Part of the game state and saved with the climate.
+    struct WindState
+    {
+        int16_t direction = 0;       // degrees the wind blows towards, 0 = +x, 90 = +y, 0..359
+        uint16_t strength = 0;       // 0..1000 per mille of the strongest wind
+        int16_t targetDirection = 0;
+        uint16_t targetStrength = 0;
+        uint32_t randomState = 0x9E3779B9u; // private generator, so the wind never disturbs the scenario random numbers
+    };
+
+    constexpr int32_t kWindStrengthMax = 1000;
+    // Wind speed in world units per tick at full strength (1.5 u/tick is about 8.5 m/s).
+    constexpr int32_t kWindMaxSpeedHundredths = 150;
+    constexpr uint32_t kWindUpdateInterval = 128; // ticks between steps
+    constexpr int32_t kWindDirectionStep = 3;     // degrees per step
+    constexpr int32_t kWindStrengthStep = 15;     // per mille per step
+
+    struct WindRange
+    {
+        uint16_t min;
+        uint16_t max;
+    };
+    // Strength range the weather asks for.
+    WindRange windRangeFor(Type weather);
+    // One step of the wind: moves towards the targets and picks new ones when it arrives.
+    void stepWind(WindState& wind, Type weather);
+    // The wind steps every kWindUpdateInterval ticks.
+    void updateWind(WindState& wind, Type weather, uint32_t ticks);
+    // Compass name of a direction, like "NE" (north is -y on the map).
+    const char* windCompassName(int32_t directionDegrees);
+
     extern uint16_t gLightningFlash;
 
     int32_t celsiusToFahrenheit(int32_t celsius);

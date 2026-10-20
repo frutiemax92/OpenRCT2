@@ -3884,3 +3884,4 @@ STR_7090    :Choose the tee on the map
 STR_7091    :Perfect shot (no random error)
 STR_7092    :Fire
 STR_7093    :Clear
+STR_7094    :Wind

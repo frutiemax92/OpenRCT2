@@ -27,6 +27,7 @@
 #include "../util/Util.h"
 #include "../windows/Intent.h"
 
+#include <algorithm>
 #include <array>
 #include <memory>
 
@@ -102,6 +103,83 @@ namespace OpenRCT2::Weather
         return (celsius * 29) / 16 + 32;
     }
 
+    WindRange windRangeFor(Type weather)
+    {
+        switch (weather)
+        {
+            case Type::sunny:
+                return { 0, 200 };
+            case Type::partiallyCloudy:
+                return { 50, 300 };
+            case Type::cloudy:
+                return { 100, 350 };
+            case Type::rain:
+                return { 200, 500 };
+            case Type::heavyRain:
+                return { 350, 700 };
+            case Type::thunder:
+                return { 500, 1000 };
+            case Type::snow:
+                return { 100, 400 };
+            case Type::heavySnow:
+                return { 300, 700 };
+            case Type::blizzard:
+                return { 600, 1000 };
+            default:
+                return { 0, 200 };
+        }
+    }
+
+    static uint32_t nextWindRandom(WindState& wind)
+    {
+        wind.randomState = wind.randomState * 1664525u + 1013904223u;
+        return wind.randomState >> 8;
+    }
+
+    static int32_t wrapDegrees(int32_t degrees)
+    {
+        return ((degrees % 360) + 360) % 360;
+    }
+
+    void stepWind(WindState& wind, Type weather)
+    {
+        // Direction: the short way round to the target.
+        int32_t diff = wrapDegrees(wind.targetDirection - wind.direction);
+        if (diff > 180)
+            diff -= 360;
+        if (diff != 0)
+            wind.direction = static_cast<int16_t>(wrapDegrees(wind.direction + std::clamp(diff, -kWindDirectionStep, kWindDirectionStep)));
+
+        const int32_t strengthDiff = static_cast<int32_t>(wind.targetStrength) - static_cast<int32_t>(wind.strength);
+        if (strengthDiff != 0)
+            wind.strength = static_cast<uint16_t>(
+                static_cast<int32_t>(wind.strength) + std::clamp(strengthDiff, -kWindStrengthStep, kWindStrengthStep));
+
+        if (diff == 0 && strengthDiff == 0)
+        {
+            // Arrived: ask the weather for the next target. The direction changes by up to 90 degrees either way.
+            const auto range = windRangeFor(weather);
+            wind.targetStrength = static_cast<uint16_t>(range.min + nextWindRandom(wind) % (range.max - range.min + 1));
+            wind.targetDirection = static_cast<int16_t>(
+                wrapDegrees(wind.direction + static_cast<int32_t>(nextWindRandom(wind) % 181) - 90));
+        }
+    }
+
+    void updateWind(WindState& wind, Type weather, uint32_t ticks)
+    {
+        if (ticks % kWindUpdateInterval == 0)
+            stepWind(wind, weather);
+    }
+
+    const char* windCompassName(int32_t directionDegrees)
+    {
+        // The map's +x axis points to the south-east on screen with the default view rotation, so north is -y and east is
+        // +x: a wind blowing towards +x is heading east.
+        static constexpr const char* kNames[] = { "E", "SE", "S", "SW", "W", "NW", "N", "NE" };
+        const int32_t sector = ((wrapDegrees(directionDegrees) + 22) / 45) % 8;
+        return kNames[sector];
+    }
+
     /**
      * Set climate and determine start weather.
      */
@@ -149,6 +227,8 @@ namespace OpenRCT2::Weather
         // Only do climate logic if playing (not in scenario editor or title screen)
         if (gLegacyScene != LegacyScene::playing)
             return;
+
+        updateWind(gameState.wind, gameState.weatherCurrent.weatherType, gameState.currentTicks);
 
         if (!getGameState().cheats.freezeWeather)
         {

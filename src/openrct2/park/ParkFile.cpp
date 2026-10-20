@@ -964,6 +964,20 @@ namespace OpenRCT2
                     cs.readWrite(cl->weatherGloom);
                     cs.readWrite(cl->level);
                 }
+
+                if (cs.getMode() == OrcaStream::Mode::writing || version >= kWindVersion)
+                {
+                    auto& wind = gameState.wind;
+                    cs.readWrite(wind.direction);
+                    cs.readWrite(wind.strength);
+                    cs.readWrite(wind.targetDirection);
+                    cs.readWrite(wind.targetStrength);
+                    cs.readWrite(wind.randomState);
+                }
+                else
+                {
+                    gameState.wind = {};
+                }
             });
         }
 

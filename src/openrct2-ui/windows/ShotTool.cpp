@@ -12,6 +12,8 @@
 #include <openrct2-ui/interface/Window.h>
 #include <openrct2-ui/windows/Windows.h>
 #include <openrct2/Context.h>
+#include <openrct2/GameState.h>
+#include <openrct2/world/Weather.h>
 #include <openrct2/drawing/Drawing.Screen.h>
 #include <openrct2/drawing/Drawing.h>
 #include <openrct2/drawing/Line.h>
@@ -45,6 +47,7 @@ namespace OpenRCT2::Ui::Windows
         WIDX_DIRECTION_UP,
         WIDX_DIRECTION_DOWN,
         WIDX_PERFECT,
+        WIDX_WIND,
         WIDX_FIRE,
         WIDX_CLEAR,
     };
@@ -64,7 +67,8 @@ namespace OpenRCT2::Ui::Windows
         makeSpinnerWidgets({ 120, 40 }, { 170, 12 }, WidgetType::spinner, WindowColour::secondary),
         makeSpinnerWidgets({ 120, 56 }, { 170, 12 }, WidgetType::spinner, WindowColour::secondary),
         makeSpinnerWidgets({ 120, 72 }, { 170, 12 }, WidgetType::spinner, WindowColour::secondary),
-        makeWidget({ 10, 90 }, { 280, 12 }, WidgetType::checkbox, WindowColour::secondary, STR_SHOT_TOOL_PERFECT),
+        makeWidget({ 10, 90 }, { 135, 12 }, WidgetType::checkbox, WindowColour::secondary, STR_SHOT_TOOL_PERFECT),
+        makeWidget({ 155, 90 }, { 135, 12 }, WidgetType::checkbox, WindowColour::secondary, STR_SHOT_TOOL_WIND),
         makeWidget({ 10, 108 }, { 135, 14 }, WidgetType::button, WindowColour::secondary, STR_SHOT_TOOL_FIRE),
         makeWidget({ 155, 108 }, { 135, 14 }, WidgetType::button, WindowColour::secondary, STR_SHOT_TOOL_CLEAR)
     );
@@ -135,6 +139,9 @@ namespace OpenRCT2::Ui::Windows
                 case WIDX_PERFECT:
                     debug.settings.perfect = !debug.settings.perfect;
                     break;
+                case WIDX_WIND:
+                    debug.settings.wind = !debug.settings.wind;
+                    break;
                 case WIDX_FIRE:
                     debug.fire();
                     break;
@@ -188,6 +195,7 @@ namespace OpenRCT2::Ui::Windows
         void onPrepareDraw() override
         {
             setCheckboxValue(WIDX_PERFECT, GetShotDebug().settings.perfect);
+            setCheckboxValue(WIDX_WIND, GetShotDebug().settings.wind);
             setWidgetPressed(WIDX_PICK_TEE, isToolActive(*this, WIDX_PICK_TEE));
             setWidgetDisabled(WIDX_FIRE, !GetShotDebug().tee().has_value());
         }
@@ -206,9 +214,13 @@ namespace OpenRCT2::Ui::Windows
             text(123, 73, std::to_string(debug.settings.directionDegrees) + " deg (0 = +x, 90 = +y)");
 
             if (const auto& tee = debug.tee(); tee.has_value())
-                text(10, 128, "Tee: " + std::to_string(tee->x.floor() / 32) + ", " + std::to_string(tee->y.floor() / 32) + "  z " + std::to_string(tee->z.floor()));
+                text(10, 128, "Tee " + std::to_string(tee->x.floor() / 32) + ", " + std::to_string(tee->y.floor() / 32));
             else
                 text(10, 128, "No tee chosen");
+            {
+                const auto& wind = getGameState().wind;
+                text(150, 128, "Wind " + std::to_string(wind.strength / 10) + "% to " + Weather::windCompassName(wind.direction));
+            }
 
             DrawChart(rt);
 

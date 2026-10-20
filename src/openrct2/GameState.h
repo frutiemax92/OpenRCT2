@@ -44,6 +44,7 @@ namespace OpenRCT2
         Weather::State weatherCurrent;
         Weather::State weatherNext;
         uint16_t weatherUpdateTimer;
+        Weather::WindState wind;
 
         uint32_t nextGuestNumber;
 

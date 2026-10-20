@@ -11,6 +11,7 @@
 
 #include "../world/Location.hpp"
 #include "../world/TerrainShape.h"
+#include "../world/Weather.h"
 #include "BallPhysics.h"
 #include "MapObstacles.h"
 
@@ -31,6 +32,9 @@ namespace OpenRCT2::Golf
     // Distance from a point to a stream (STR-001) lying in a tile: the segments from the tile centre to the midpoint of
     // each connected edge, or a disc at the centre when no edge is connected. u and v are the position in the tile.
     Fixed distanceToStream(uint8_t edges, Fixed u, Fixed v);
+
+    // The wind as the velocity of the air in world units per tick (BAL-031).
+    FixedVec3 windVelocity(const Weather::WindState& wind);
 
     class MapBallWorld final : public IBallWorld
     {
@@ -68,6 +72,8 @@ namespace OpenRCT2::Golf
         {
             _wind = wind;
         }
+        // Uses the wind of the game state, which follows the weather.
+        void useGameWind();
 
     private:
         BoundsFn _outOfBounds;

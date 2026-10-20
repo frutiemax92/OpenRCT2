@@ -118,6 +118,12 @@ namespace OpenRCT2::Golf
         return true;
     }
 
+    bool ShotDebug::windEnabledFor(const GolfBall& ball) const
+    {
+        const bool isTestBall = _active && ball.id.ToUnderlying() == _entityId;
+        return !isTestBall || settings.wind;
+    }
+
     void ShotDebug::observe(const GolfBall& ball, const BallEvents& events)
     {
         if (!_active || ball.id.ToUnderlying() != _entityId)

@@ -70,6 +70,9 @@ namespace OpenRCT2::Golf
         // Called by the ball entity after each simulation tick of the tracked ball.
         void observe(const GolfBall& ball, const BallEvents& events);
 
+        // Test balls feel the wind unless the tool turned it off; every other ball always does.
+        bool windEnabledFor(const GolfBall& ball) const;
+
         bool hasShot() const
         {
             return _active;
