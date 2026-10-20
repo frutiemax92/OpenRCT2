@@ -25,7 +25,8 @@ namespace OpenRCT2::GameActions
         setOpen,   // value = 0 closed, 1 open
         moveHole,  // value = hole index to move, index = destination index (HOL-004)
         removeHole,// value = hole id
-        setKind    // value = 0 regular course, 1 mini putt (MPT-001)
+        setKind,   // value = 0 regular course, 1 mini putt (MPT-001)
+        setCartsAllowedOffPath // value = 0 off, 1 on (PTH-005)
     };
 
     // What a successful course edit hands back: the course touched, and the hole created or removed if any.

@@ -100,6 +100,7 @@ namespace OpenRCT2::Golf
         std::string name;
         int64_t greenFee = 0; // money64 in currency units
         bool open = false;
+        bool cartsAllowedOffPath = false; // PTH-005: course setting (default off)
         std::vector<Hole> holes; // in playing order: hole 1 first (HOL-004, HOL-011)
 
         bool isFull() const

@@ -174,13 +174,13 @@ namespace OpenRCT2::Ui::FileBrowser
         switch (type)
         {
             case LoadSaveType::park:
-                return "*.park";
+                return isSave ? "*.golf" : "*.golf;*.park";
 
             case LoadSaveType::landscape:
-                return "*.park";
+                return isSave ? "*.golf" : "*.golf;*.park";
 
             case LoadSaveType::scenario:
-                return "*.park";
+                return isSave ? "*.golf" : "*.golf;*.park";
 
             case LoadSaveType::heightmap:
                 return "*.bmp;*.png";

@@ -132,6 +132,10 @@ namespace OpenRCT2
         void ThrowIfIncompatibleVersion()
         {
             const auto& header = _os->getHeader();
+            if (header.magic != kParkFileMagic && header.magic != kGolfFileMagic)
+            {
+                throw IOException("Not a valid park or golf save file");
+            }
             if (/*header.targetVersion < kParkFileMinSupportedVersion || */ header.minVersion > kParkFileCurrentVersion)
             {
                 throw UnsupportedVersionException(header.minVersion, header.targetVersion);
@@ -206,7 +210,7 @@ namespace OpenRCT2
             OrcaStream os(stream, OrcaStream::Mode::writing, compressionLevel);
 
             auto& header = os.getHeader();
-            header.magic = kParkFileMagic;
+            header.magic = kGolfFileMagic;
             header.targetVersion = kParkFileCurrentVersion;
             header.minVersion = kParkFileMinVersion;
 
@@ -898,6 +902,8 @@ namespace OpenRCT2
                     cs.readWrite(course.open);
                     if (os.getMode() == OrcaStream::Mode::writing || os.getHeader().targetVersion >= kGolfCourseKindVersion)
                         cs.readWrite(course.kind);
+                    if (os.getMode() == OrcaStream::Mode::writing || os.getHeader().targetVersion >= kGolfCourseCartsOffPathVersion)
+                        cs.readWrite(course.cartsAllowedOffPath);
                     uint32_t holeCount = static_cast<uint32_t>(course.holes.size());
                     cs.readWrite(holeCount);
                     if (cs.getMode() == OrcaStream::Mode::reading)

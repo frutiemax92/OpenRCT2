@@ -538,6 +538,62 @@ namespace OpenRCT2
             return entryIndex;
         }
 
+        const ObjectRepositoryItem* GetPlaceholderObject(ObjectType type)
+        {
+            const char* fallbackId = nullptr;
+            switch (type)
+            {
+                case ObjectType::terrainSurface:
+                    fallbackId = "golf.terrain_surface.grass";
+                    break;
+                case ObjectType::terrainEdge:
+                    fallbackId = "golf.terrain_edge.rock_cliff";
+                    break;
+                case ObjectType::building:
+                    fallbackId = "golf.building.club_house";
+                    break;
+                case ObjectType::vehicleModel:
+                    fallbackId = "golf.vehicle_model.golf_cart";
+                    break;
+                case ObjectType::stream:
+                    fallbackId = "golf.stream.creek";
+                    break;
+                case ObjectType::pathAdditions:
+                    fallbackId = "golf.path_addition.bench";
+                    break;
+                case ObjectType::walls:
+                    fallbackId = "golf.wall.low_wall";
+                    break;
+                case ObjectType::climate:
+                    fallbackId = "golf.climate.temperate";
+                    break;
+                case ObjectType::audio:
+                    fallbackId = "golf.audio.base";
+                    break;
+                case ObjectType::smallScenery:
+                    fallbackId = "golf.scenery_small.bumper";
+                    break;
+                default:
+                    break;
+            }
+            if (fallbackId != nullptr)
+            {
+                const auto* ori = _objectRepository.FindObject(fallbackId);
+                if (ori != nullptr)
+                    return ori;
+            }
+            auto numObjects = _objectRepository.GetNumObjects();
+            const auto* objects = _objectRepository.GetObjects();
+            for (size_t i = 0; i < numObjects; i++)
+            {
+                if (objects[i].Type == type)
+                {
+                    return &objects[i];
+                }
+            }
+            return nullptr;
+        }
+
         std::vector<ObjectToLoad> GetRequiredObjects(const ObjectList& objectList)
         {
             std::vector<ObjectToLoad> requiredObjects;
@@ -561,14 +617,25 @@ namespace OpenRCT2
 
                         if (ori == nullptr)
                         {
-                            missingObjects.push_back(entry);
                             ReportMissingObject(entry);
+                            ori = GetPlaceholderObject(entry.GetType());
+                            if (ori != nullptr)
+                            {
+                                LOG_WARNING("Replaced missing object with placeholder '%s'", ori->Identifier.c_str());
+                            }
+                            else
+                            {
+                                missingObjects.push_back(entry);
+                            }
                         }
 
-                        ObjectToLoad otl;
-                        otl.RepositoryItem = ori;
-                        otl.Index = i;
-                        requiredObjects.push_back(otl);
+                        if (ori != nullptr)
+                        {
+                            ObjectToLoad otl;
+                            otl.RepositoryItem = ori;
+                            otl.Index = i;
+                            requiredObjects.push_back(otl);
+                        }
                     }
                 }
             }

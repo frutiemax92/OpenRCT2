@@ -55,7 +55,7 @@ static bool TryClassifyAsPark(IStream* stream, ClassifiedFileInfo* result)
     try
     {
         auto magic = stream->ReadValue<uint32_t>();
-        if (magic == kParkFileMagic)
+        if (magic == kParkFileMagic || magic == kGolfFileMagic)
         {
             result->Type = FileType::park;
             result->Version = 0;
@@ -76,7 +76,7 @@ FileExtension GetFileExtensionType(u8string_view path)
     auto extension = Path::GetExtension(path);
     if (String::iequals(extension, ".dat") || String::iequals(extension, ".pob"))
         return FileExtension::dat;
-    if (String::iequals(extension, ".park"))
+    if (String::iequals(extension, ".park") || String::iequals(extension, ".golf"))
         return FileExtension::park;
     return FileExtension::unknown;
 }

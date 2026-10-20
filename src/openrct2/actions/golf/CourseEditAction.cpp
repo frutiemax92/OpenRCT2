@@ -88,6 +88,10 @@ namespace OpenRCT2::GameActions
                 if (_value != 0 && _value != 1)
                     return Result(Status::invalidParameters, STR_COURSE_CANT_CHANGE, kStringIdNone);
                 break;
+            case CourseEditType::setCartsAllowedOffPath:
+                if (_value != 0 && _value != 1)
+                    return Result(Status::invalidParameters, STR_COURSE_CANT_CHANGE, kStringIdNone);
+                break;
             default:
                 break;
         }
@@ -141,6 +145,9 @@ namespace OpenRCT2::GameActions
                 break;
             case CourseEditType::setKind:
                 course->kind = _value == 1 ? Golf::CourseKind::miniPutt : Golf::CourseKind::regular;
+                break;
+            case CourseEditType::setCartsAllowedOffPath:
+                course->cartsAllowedOffPath = (_value != 0);
                 break;
             default:
                 break;

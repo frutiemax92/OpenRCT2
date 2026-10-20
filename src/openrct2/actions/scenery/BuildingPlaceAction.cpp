@@ -16,9 +16,11 @@
 #include "../../management/Finance.h"
 #include "../../object/BuildingObject.h"
 #include "../../world/Building.h"
+#include "../../world/Footpath.h"
 #include "../../world/Map.h"
 #include "../../world/TileElementsView.h"
 #include "../../world/tile_element/BuildingElement.h"
+#include "../../world/tile_element/PathElement.h"
 #include "../../world/tile_element/SurfaceElement.h"
 
 #include <algorithm>
@@ -156,6 +158,15 @@ namespace OpenRCT2::GameActions
             element->setPart(part.localX, part.localY);
             element->setGhost(isGhost);
             MapInvalidateTileFull(part.tile);
+        }
+
+        if (object->HasEntrance && !isGhost)
+        {
+            const auto entrance = Building::GetEntrance(*object, _loc, _rotation);
+            for (auto* pathElement : TileElementsView<PathElement>(entrance.outsideTile))
+            {
+                FootpathConnectEdges(entrance.outsideTile, pathElement->as<TileElement>(), GetFlags());
+            }
         }
         return res;
     }

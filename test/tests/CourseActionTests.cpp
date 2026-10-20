@@ -125,6 +125,15 @@ TEST(CourseActions, CreateRenameAndConfigureACourse)
     CourseEditAction badKind(CourseEditType::setKind, created.courseId, {}, 2);
     EXPECT_EQ(run(badKind).error, Status::invalidParameters);
 
+    CourseEditAction cartsOff(CourseEditType::setCartsAllowedOffPath, created.courseId, {}, 1);
+    EXPECT_EQ(run(cartsOff).error, Status::ok);
+    EXPECT_TRUE(getGameState().golf.findCourse(created.courseId)->cartsAllowedOffPath);
+    CourseEditAction cartsOnPath(CourseEditType::setCartsAllowedOffPath, created.courseId, {}, 0);
+    EXPECT_EQ(run(cartsOnPath).error, Status::ok);
+    EXPECT_FALSE(getGameState().golf.findCourse(created.courseId)->cartsAllowedOffPath);
+    CourseEditAction badCarts(CourseEditType::setCartsAllowedOffPath, created.courseId, {}, 2);
+    EXPECT_EQ(run(badCarts).error, Status::invalidParameters);
+
     CourseEditAction badFee(CourseEditType::setFee, created.courseId, {}, -1);
     EXPECT_EQ(run(badFee).error, Status::invalidParameters);
     CourseEditAction badOpen(CourseEditType::setOpen, created.courseId, {}, 2);

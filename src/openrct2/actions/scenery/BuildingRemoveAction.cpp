@@ -16,8 +16,11 @@
 #include "../../management/Finance.h"
 #include "../../object/BuildingObject.h"
 #include "../../world/Building.h"
+#include "../../world/Footpath.h"
 #include "../../world/Map.h"
+#include "../../world/TileElementsView.h"
 #include "../../world/tile_element/BuildingElement.h"
+#include "../../world/tile_element/PathElement.h"
 
 namespace OpenRCT2::GameActions
 {
@@ -82,6 +85,11 @@ namespace OpenRCT2::GameActions
         const auto index = element->getObjectIndex();
         const auto origin = Building::GetOrigin(_loc, *element);
 
+        const auto entrance = (object != nullptr && object->HasEntrance)
+            ? Building::GetEntrance(*object, origin, rotation)
+            : Building::Entrance{};
+        const bool hasEntrance = (object != nullptr && object->HasEntrance);
+
         // Take out the element of every tile of the footprint; the pointers are looked up again for each one.
         if (object == nullptr)
         {
@@ -98,6 +106,15 @@ namespace OpenRCT2::GameActions
                 continue;
             MapInvalidateTileFull(part.tile);
             TileElementRemove(partElement->as<TileElement>());
+        }
+
+        if (hasEntrance && !GetFlags().has(CommandFlag::ghost))
+        {
+            for (auto* pathElement : TileElementsView<PathElement>(entrance.outsideTile))
+            {
+                pathElement->setEdges(0);
+                FootpathConnectEdges(entrance.outsideTile, pathElement->as<TileElement>(), GetFlags());
+            }
         }
         return res;
     }

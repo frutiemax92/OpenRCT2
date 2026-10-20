@@ -30,6 +30,8 @@
 #include <openrct2/world/Map.h>
 #include <openrct2/world/MapAnimation.h>
 #include <openrct2/world/Building.h>
+#include <openrct2/world/Footpath.h>
+#include <openrct2/golf/Hole.h>
 #include <openrct2/world/TileElementsView.h>
 #include <openrct2/world/tile_element/PathElement.h>
 #include <openrct2/world/tile_element/BuildingElement.h>
@@ -317,4 +319,81 @@ TEST(PathSlope, PlaceActionStoresTheRiseAndRaisesTheClearance)
         EXPECT_EQ(path->getClearanceZ(), z + kPathClearance + rise * kCoordsZStep);
         path->remove();
     }
+}
+
+TEST(FootpathConnections, BuildingPlacementConnectsToPathAndRemovalDisconnects)
+{
+    auto context = startPark();
+    ASSERT_NE(context.get(), nullptr);
+    auto& gameState = getGameState();
+    gameState.cheats.sandboxMode = true;
+    ObjectEntryIndex index{};
+    auto* club = loadClub(*context, index);
+    if (club == nullptr)
+        GTEST_SKIP() << "the club house object is not installed";
+
+    const auto found = findFlatBlock(3, 3);
+    ASSERT_TRUE(found.has_value());
+    const CoordsXY origin = *found;
+    const auto entrance = Building::GetEntrance(*club, origin, 0);
+
+    // Place a path on entrance.outsideTile
+    const auto z = MapGetSurfaceElementAt(entrance.outsideTile)->getBaseZ();
+    GameActions::FootpathPlaceAction placePath(
+        { entrance.outsideTile.x, entrance.outsideTile.y, z }, FootpathSlope{ FootpathSlopeType::flat, 0, 0 }, 0, 0, kInvalidDirection,
+        PathConstructFlag::IsLegacyPathObject);
+    ASSERT_EQ(GameActions::ExecuteNested(&placePath, gameState).error, GameActions::Status::ok);
+
+    PathElement* path = nullptr;
+    for (auto* element : TileElementsView<PathElement>(entrance.outsideTile))
+        path = element;
+    ASSERT_NE(path, nullptr);
+
+    // Now place the building.
+    GameActions::BuildingPlaceAction placeBuilding(origin, index, 0);
+    ASSERT_EQ(GameActions::ExecuteNested(&placeBuilding, gameState).error, GameActions::Status::ok);
+
+    // Direction from outsideTile to insideTile
+    const auto dirToInside = DirectionReverse(entrance.edge);
+    EXPECT_TRUE((path->getEdges() & (1 << dirToInside)) != 0);
+
+    // Now remove the building.
+    GameActions::BuildingRemoveAction removeBuilding(origin);
+    ASSERT_EQ(GameActions::ExecuteNested(&removeBuilding, gameState).error, GameActions::Status::ok);
+    EXPECT_FALSE((path->getEdges() & (1 << dirToInside)) != 0);
+}
+
+TEST(FootpathConnections, PathConnectsToGreenAndTee)
+{
+    auto context = startPark();
+    ASSERT_NE(context.get(), nullptr);
+    auto& gameState = getGameState();
+    gameState.cheats.sandboxMode = true;
+
+    auto block = findFlatBlock(2, 2);
+    ASSERT_TRUE(block.has_value());
+    const CoordsXY holeTile = *block;
+    const CoordsXY pathTile = { holeTile.x + 32, holeTile.y };
+    const auto z = MapGetSurfaceElementAt(pathTile)->getBaseZ();
+
+    // Create course and hole
+    auto* course = gameState.golf.createCourse("TestCourse");
+    ASSERT_NE(course, nullptr);
+    auto* hole = gameState.golf.createHole(course->id);
+    ASSERT_NE(hole, nullptr);
+    hole->cup = CoordsXY{ holeTile.x + 16, holeTile.y + 16 };
+
+    // Place path on pathTile adjacent to holeTile
+    GameActions::FootpathPlaceAction placePath(
+        { pathTile.x, pathTile.y, z }, FootpathSlope{ FootpathSlopeType::flat, 0, 0 }, 0, 0, kInvalidDirection,
+        PathConstructFlag::IsLegacyPathObject);
+    ASSERT_EQ(GameActions::ExecuteNested(&placePath, gameState).error, GameActions::Status::ok);
+
+    PathElement* path = nullptr;
+    for (auto* element : TileElementsView<PathElement>(pathTile))
+        path = element;
+    ASSERT_NE(path, nullptr);
+
+    // Direction from pathTile to holeTile is direction 0 (-x)
+    EXPECT_TRUE((path->getEdges() & (1 << 0)) != 0);
 }

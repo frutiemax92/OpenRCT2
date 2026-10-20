@@ -23,13 +23,13 @@ namespace OpenRCT2::ParkImporter
         if (!ExtensionIsOpenRCT2ParkFile(extension))
         {
             // RCT1 and RCT2 saves and scenarios are not supported (ARC-002).
-            throw std::runtime_error("Only .park files are supported.");
+            throw std::runtime_error("Only .park and .golf files are supported.");
         }
         return CreateParkFile(GetContext()->GetObjectRepository());
     }
 
     bool ExtensionIsOpenRCT2ParkFile(std::string_view extension)
     {
-        return String::iequals(extension, ".park");
+        return String::iequals(extension, ".park") || String::iequals(extension, ".golf");
     }
 } // namespace OpenRCT2::ParkImporter

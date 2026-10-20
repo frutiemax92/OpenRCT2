@@ -31,11 +31,16 @@
 #include "MapOwnership.h"
 #include "Wall.h"
 #include "tile_element/BannerElement.h"
+#include "tile_element/BuildingElement.h"
 #include "tile_element/EntranceElement.h"
 #include "tile_element/PathElement.h"
 #include "tile_element/Slope.h"
 #include "tile_element/SurfaceElement.h"
 #include "tile_element/TrackElement.h"
+#include "Building.h"
+#include "../golf/Hole.h"
+#include "../object/BuildingObject.h"
+#include "../object/TerrainSurfaceObject.h"
 
 #include <bit>
 #include <iterator>
@@ -554,6 +559,7 @@ namespace OpenRCT2
             TileElement* tileElement = MapGetFirstElementAt(targetPos);
             if (tileElement == nullptr)
                 return;
+            SurfaceElement* surfaceCandidate = nullptr;
             do
             {
                 switch (tileElement->getType())
@@ -643,11 +649,88 @@ namespace OpenRCT2
                             }
                         }
                         break;
+                    case TileElementType::building:
+                        if (initialTileElementPos.z == tileElement->getBaseZ())
+                        {
+                            auto* building = tileElement->asBuilding();
+                            auto* buildingObj = building->getObject();
+                            if (buildingObj != nullptr && buildingObj->HasEntrance)
+                            {
+                                auto origin = Building::GetOrigin(targetPos, *building);
+                                auto entrance = Building::GetEntrance(*buildingObj, origin, building->getRotation());
+                                if (CoordsXY{ initialTileElementPos } == entrance.outsideTile && targetPos == entrance.insideTile)
+                                {
+                                    if (query)
+                                    {
+                                        FootpathNeighbourListPush(
+                                            neighbourList, 8, direction, RideId::GetNull(), StationIndex::GetNull());
+                                    }
+                                    Loc6A6FD2(initialTileElementPos, direction, initialTileElement, query);
+                                    return;
+                                }
+                            }
+                        }
+                        break;
+                    case TileElementType::surface:
+                        surfaceCandidate = tileElement->asSurface();
+                        break;
                     default:
                         break;
                 }
 
             } while (!(tileElement++)->isLastForTile());
+
+            // PTH-002: Connect to tee boxes, greens, and mini-putt holes
+            if (surfaceCandidate != nullptr && std::abs(surfaceCandidate->getBaseZ() - initialTileElementPos.z) <= kLandHeightStep)
+            {
+                bool connects = false;
+                auto* surfaceObj = surfaceCandidate->getSurfaceObject();
+                if (surfaceObj != nullptr)
+                {
+                    const auto& id = surfaceObj->GetIdentifier();
+                    if (surfaceObj->Golf.isPuttable || id == "golf.terrain_surface.tee"
+                        || id == "golf.terrain_surface.green" || id == "golf.terrain_surface.mini_putt_carpet")
+                    {
+                        connects = true;
+                    }
+                }
+                if (!connects)
+                {
+                    const auto tileCoords = TileCoordsXY(targetPos);
+                    for (const auto& course : getGameState().golf.courses())
+                    {
+                        for (const auto& hole : course.holes)
+                        {
+                            if (hole.cup && TileCoordsXY(*hole.cup) == tileCoords)
+                            {
+                                connects = true;
+                                break;
+                            }
+                            for (const auto& tee : hole.tees)
+                            {
+                                if (tee && TileCoordsXY(*tee) == tileCoords)
+                                {
+                                    connects = true;
+                                    break;
+                                }
+                            }
+                            if (connects)
+                                break;
+                        }
+                        if (connects)
+                            break;
+                    }
+                }
+                if (connects)
+                {
+                    if (query)
+                    {
+                        FootpathNeighbourListPush(neighbourList, 4, direction, RideId::GetNull(), StationIndex::GetNull());
+                    }
+                    Loc6A6FD2(initialTileElementPos, direction, initialTileElement, query);
+                    return;
+                }
+            }
         }
     }
 

@@ -17,6 +17,7 @@
 #include <openrct2/GameStateSnapshots.h>
 #include <openrct2/OpenRCT2.h>
 #include <openrct2/ParkImporter.h>
+#include <openrct2/FileClassifier.h>
 #include <openrct2/audio/AudioContext.h>
 #include <openrct2/core/MemoryStream.h>
 #include <openrct2/core/String.hpp>
@@ -251,4 +252,90 @@ TEST(ParkImportExportAdvanceTicks, all)
     CompareStates(importBuffer, exportBuffer, snapshotStream);
 
     SUCCEED();
+}
+
+TEST(GolfSaveFormatTests, MagicAndExtensionSupport)
+{
+    EXPECT_EQ(GetFileExtensionType("mypark.golf"), FileExtension::park);
+    EXPECT_EQ(GetFileExtensionType("mypark.park"), FileExtension::park);
+    EXPECT_TRUE(ParkImporter::ExtensionIsOpenRCT2ParkFile(".golf"));
+    EXPECT_TRUE(ParkImporter::ExtensionIsOpenRCT2ParkFile(".park"));
+
+    // Check classification of a stream with kGolfFileMagic
+    MemoryStream ms;
+    ms.WriteValue<uint32_t>(kGolfFileMagic);
+    ms.SetPosition(0);
+    ClassifiedFileInfo info;
+    EXPECT_TRUE(TryClassifyFile(&ms, &info));
+    EXPECT_EQ(info.Type, FileType::park);
+}
+
+TEST(GolfSaveFormatTests, ExportUsesGolfMagicAndRoundtrips)
+{
+    gOpenRCT2Headless = true;
+    gOpenRCT2NoGraphics = true;
+
+    MemoryStream importBuffer;
+    MemoryStream exportBuffer;
+
+    std::unique_ptr<IContext> context = CreateContext();
+    ASSERT_NE(context, nullptr);
+    ASSERT_TRUE(context->Initialise());
+
+    std::string testParkPath = TestData::GetParkPath("BigMapTest.park");
+    ASSERT_TRUE(LoadFileToBuffer(importBuffer, testParkPath));
+    ASSERT_TRUE(ImportPark(importBuffer, context, false));
+
+    // Enable carts allowed off path on a course
+    auto& gameState = getGameState();
+    auto* course = gameState.golf.createCourse("LinksCourse");
+    ASSERT_NE(course, nullptr);
+    course->cartsAllowedOffPath = true;
+    uint32_t courseId = course->id;
+
+    ASSERT_TRUE(ExportSave(exportBuffer, context));
+    context.reset();
+
+    // Verify magic in exportBuffer
+    exportBuffer.SetPosition(0);
+    auto magic = exportBuffer.ReadValue<uint32_t>();
+    EXPECT_EQ(magic, kGolfFileMagic);
+
+    // Import exported buffer
+    std::unique_ptr<IContext> context2 = CreateContext();
+    ASSERT_NE(context2, nullptr);
+    ASSERT_TRUE(context2->Initialise());
+    ASSERT_TRUE(ImportPark(exportBuffer, context2, true));
+
+    // Verify cartsAllowedOffPath persisted
+    auto* loadedCourse = getGameState().golf.findCourse(courseId);
+    ASSERT_NE(loadedCourse, nullptr);
+    EXPECT_TRUE(loadedCourse->cartsAllowedOffPath);
+}
+
+TEST(GolfSaveFormatTests, MissingObjectReplacesWithPlaceholder)
+{
+    gOpenRCT2Headless = true;
+    gOpenRCT2NoGraphics = true;
+
+    std::unique_ptr<IContext> context = CreateContext();
+    ASSERT_NE(context, nullptr);
+    ASSERT_TRUE(context->Initialise());
+
+    ObjectList list;
+    ObjectEntryDescriptor fakeEntry;
+    fakeEntry.Type = ObjectType::terrainSurface;
+    fakeEntry.Identifier = "custom.nonexistent.surface";
+    list.SetObject(0, fakeEntry);
+
+    auto& objManager = context->GetObjectManager();
+    // Loading objects should not throw ObjectLoadException; it replaces with placeholder
+    EXPECT_NO_THROW({
+        objManager.LoadObjects(list, false);
+    });
+
+    auto* loaded = objManager.GetLoadedObject(ObjectType::terrainSurface, 0);
+    ASSERT_NE(loaded, nullptr);
+    // Placeholder for terrain surface is golf.terrain_surface.grass
+    EXPECT_EQ(loaded->GetIdentifier(), "golf.terrain_surface.grass");
 }
