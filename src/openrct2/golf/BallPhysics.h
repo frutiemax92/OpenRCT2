@@ -46,6 +46,10 @@ namespace OpenRCT2::Golf
         bool water = false;                // water or stream: the ball is lost (BAL-050)
         bool outOfBounds = false;          // beyond the course boundary or off the map (BAL-051)
         bool path = false;                 // path or street ("hardpan")
+        bool hazard = false;               // sand-like hazard (TER-041 isHazard)
+        bool puttable = false;             // a green: the putter is used here
+        Fixed distanceFactor = Fixed::fromInt(1); // lie modifiers for the next shot (BAL-040)
+        Fixed accuracyFactor = Fixed::fromInt(1);
     };
 
     // An obstacle the ball touches (BAL-034). `normal` points out of the obstacle, `depth` is how far the ball is inside.
