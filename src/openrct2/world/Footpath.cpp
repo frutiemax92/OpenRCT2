@@ -1144,7 +1144,7 @@ namespace OpenRCT2
             {
                 if (DirectionReverse(ste_slopeDirection) != ste_direction)
                     return true;
-                if (ste_tileElement->getBaseZ() + kPathHeightStep != ste_targetPos.z)
+                if (ste_tileElement->getBaseZ() + ste_tileElement->asPath()->getSlopeRiseZ() != ste_targetPos.z)
                     return true;
             }
             else if (ste_tileElement->getBaseZ() != ste_targetPos.z)

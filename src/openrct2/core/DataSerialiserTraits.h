@@ -897,16 +897,17 @@ namespace OpenRCT2
     {
         static void encode(IStream* stream, const FootpathSlope& slope)
         {
-            uint8_t combined = (EnumValue(slope.type) << 2) | (slope.direction % kNumOrthogonalDirections);
+            uint8_t combined = (EnumValue(slope.type) << 2) | (slope.direction % kNumOrthogonalDirections)
+                | ((slope.riseQ & 0b111) << 4);
             stream->WriteValue(combined);
         }
 
         static void decode(IStream* stream, FootpathSlope& slope)
         {
             auto combined = stream->ReadValue<uint8_t>();
-            auto type = static_cast<FootpathSlopeType>(combined >> 2);
+            auto type = static_cast<FootpathSlopeType>((combined >> 2) & 0b11);
             Direction direction = combined & 0b00000011;
-            slope = FootpathSlope{ type, direction };
+            slope = FootpathSlope{ type, direction, static_cast<uint8_t>((combined >> 4) & 0b111) };
         }
 
         static void log(IStream* stream, const FootpathSlope& slope)

@@ -134,7 +134,7 @@ namespace OpenRCT2::GameActions
         if (_slope.type == FootpathSlopeType::sloped)
         {
             quarterTile = QuarterTile{ 0b1111, 0b1100 }.Rotate(_slope.direction);
-            zHigh += kPathHeightStep;
+            zHigh += slopeRiseZ(_slope);
         }
 
         auto entranceElement = MapGetParkEntranceElementAt(_loc, false);
@@ -202,7 +202,7 @@ namespace OpenRCT2::GameActions
         if (_slope.type == FootpathSlopeType::sloped)
         {
             quarterTile = QuarterTile{ 0b1111, 0b1100 }.Rotate(_slope.direction);
-            zHigh += kPathHeightStep;
+            zHigh += slopeRiseZ(_slope);
         }
 
         auto entranceElement = MapGetParkEntranceElementAt(_loc, false);
@@ -274,6 +274,8 @@ namespace OpenRCT2::GameActions
             }
             pathElement->setSlopeDirection(_slope.direction);
             pathElement->setSloped(_slope.type == FootpathSlopeType::sloped);
+            if (_slope.type == FootpathSlopeType::sloped)
+                pathElement->setSlopeRiseQ(_slope.riseQ);
             pathElement->setIsQueue(isQueue);
             pathElement->setAddition(0);
             pathElement->setRideIndex(RideId::GetNull());

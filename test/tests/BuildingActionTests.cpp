@@ -18,6 +18,7 @@
 #include <openrct2/OpenRCT2.h>
 #include <openrct2/ParkImporter.h>
 #include <openrct2/actions/GameActionRunner.h>
+#include <openrct2/actions/footpath/FootpathPlaceAction.h>
 #include <openrct2/actions/scenery/BuildingPlaceAction.h>
 #include <openrct2/actions/scenery/BuildingRemoveAction.h>
 #include <openrct2/drawing/Drawing.h>
@@ -283,5 +284,37 @@ TEST(BuildingActionTests, TheNearestTilePaintsTheWholeView)
             }
             EXPECT_TRUE(found);
         }
+    }
+}
+
+TEST(PathSlope, PlaceActionStoresTheRiseAndRaisesTheClearance)
+{
+    auto context = startPark();
+    ASSERT_NE(context.get(), nullptr);
+    auto& gameState = getGameState();
+    gameState.cheats.sandboxMode = true;
+    gameState.cheats.disableClearanceChecks = true;
+
+    auto block = findFlatBlock(1, 1);
+    ASSERT_TRUE(block.has_value());
+    const auto z = MapGetSurfaceElementAt(*block)->getBaseZ();
+
+    for (uint8_t rise = 1; rise <= 4; rise++)
+    {
+        const CoordsXY tile{ block->x, block->y };
+        GameActions::FootpathPlaceAction place(
+            { tile.x, tile.y, z }, FootpathSlope{ FootpathSlopeType::sloped, 1, rise }, 0, 0, kInvalidDirection,
+            PathConstructFlag::IsLegacyPathObject);
+        ASSERT_EQ(GameActions::ExecuteNested(&place, gameState).error, GameActions::Status::ok);
+
+        PathElement* path = nullptr;
+        for (auto* element : TileElementsView<PathElement>(tile))
+            path = element;
+        ASSERT_NE(path, nullptr);
+        EXPECT_TRUE(path->isSloped());
+        EXPECT_EQ(path->getSlopeRiseQ(), rise);
+        EXPECT_EQ(path->getSlopeDirection(), 1);
+        EXPECT_EQ(path->getClearanceZ(), z + kPathClearance + rise * kCoordsZStep);
+        path->remove();
     }
 }

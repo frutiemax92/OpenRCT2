@@ -111,12 +111,21 @@ namespace OpenRCT2
     {
         FootpathSlopeType type{};
         Direction direction{};
+        // Rise of a sloped path in quarter steps (1-4); 0 means the legacy default of 2 (PTH-003).
+        uint8_t riseQ{};
 
         constexpr bool operator==(const FootpathSlope& rhs) const
         {
-            return type == rhs.type && direction == rhs.direction;
+            return type == rhs.type && direction == rhs.direction && riseQ == rhs.riseQ;
         }
     };
+
+    // Height in world units that a sloped path rises over its tile (the default rise is kPathHeightStep).
+    constexpr int32_t slopeRiseZ(const FootpathSlope& slope)
+    {
+        const int32_t riseQ = slope.riseQ == 0 ? 2 : (slope.riseQ > 4 ? 4 : slope.riseQ);
+        return riseQ * kCoordsZStep;
+    }
 
     struct FootpathPlacementResult
     {
