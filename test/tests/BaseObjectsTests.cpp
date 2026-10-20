@@ -131,6 +131,38 @@ TEST_F(BaseObjects, TerrainSurfacesHaveASquareTileableTexture)
     }
 }
 
+TEST_F(BaseObjects, TerrainSurfacesHaveTheDefaultGolfProperties)
+{
+    struct Expected
+    {
+        const char* name;
+        float roughness, bounciness, distance, accuracy;
+        bool puttable, hazard;
+    };
+    const Expected table[] = {
+        { "green", 0.05f, 0.30f, 1.00f, 1.00f, true, false },     { "tee", 0.10f, 0.40f, 1.00f, 1.00f, false, false },
+        { "fairway", 0.15f, 0.45f, 1.00f, 1.00f, false, false },  { "grass", 0.35f, 0.35f, 0.90f, 0.90f, false, false },
+        { "rough", 0.45f, 0.30f, 0.85f, 0.85f, false, false },    { "deep_rough", 0.75f, 0.20f, 0.60f, 0.65f, false, false },
+        { "sand", 0.90f, 0.05f, 0.55f, 0.75f, false, true },      { "woods", 0.80f, 0.25f, 0.50f, 0.50f, false, false },
+        { "rocks", 0.30f, 0.75f, 0.70f, 0.60f, false, false },
+    };
+    for (const auto& row : table)
+    {
+        const auto identifier = std::string("golf.terrain_surface.") + row.name;
+        auto* surface = static_cast<TerrainSurfaceObject*>(Load(identifier));
+        ASSERT_NE(nullptr, surface) << identifier;
+        const auto& golf = surface->Golf;
+        EXPECT_FLOAT_EQ(row.roughness, golf.roughness) << identifier;
+        EXPECT_FLOAT_EQ(row.bounciness, golf.bounciness) << identifier;
+        EXPECT_FLOAT_EQ(row.distance, golf.distanceFactor) << identifier;
+        EXPECT_FLOAT_EQ(row.accuracy, golf.accuracyFactor) << identifier;
+        EXPECT_EQ(row.puttable, golf.isPuttable) << identifier;
+        EXPECT_EQ(row.hazard, golf.isHazard) << identifier;
+        EXPECT_GT(golf.buildCost, 0) << identifier;
+        EXPECT_GT(golf.removeCost, 0) << identifier;
+    }
+}
+
 TEST_F(BaseObjects, TerrainEdgeHasAnIconAndAllEdgeImages)
 {
     auto* edge = static_cast<TerrainEdgeObject*>(Load("golf.terrain_edge.rock_cliff"));

@@ -44,7 +44,21 @@ SMOOTHING_PRIORITY = {
     "mini_putt_carpet": 55, "green": 60, "sand": 70,
 }
 
-AUTHORS = ["Open Golf Simulator contributors"]
+# Gameplay properties of each surface (TER-042): roughness, bounciness, distanceFactor, accuracyFactor, puttable, hazard.
+SURFACE_GOLF = {
+    "green": (0.05, 0.30, 1.00, 1.00, True, False),
+    "tee": (0.10, 0.40, 1.00, 1.00, False, False),
+    "fairway": (0.15, 0.45, 1.00, 1.00, False, False),
+    "grass": (0.35, 0.35, 0.90, 0.90, False, False),
+    "rough": (0.45, 0.30, 0.85, 0.85, False, False),
+    "deep_rough": (0.75, 0.20, 0.60, 0.65, False, False),
+    "sand": (0.90, 0.05, 0.55, 0.75, False, True),
+    "woods": (0.80, 0.25, 0.50, 0.50, False, False),
+    "rocks": (0.30, 0.75, 0.70, 0.60, False, False),
+    "mini_putt_carpet": (0.05, 0.30, 1.00, 1.00, True, False),
+}
+
+AUTHORS =["Open Golf Simulator contributors"]
 LICENCE = "CC0-1.0"
 
 # Surface slope bits (kTileSlope*CornerUp) and the steep (diagonal) flag.
@@ -278,6 +292,16 @@ def terrain_surface(name, label, colour, description, palette):
         "hasTexture": True,  # the last image is the square texture
         "smoothing": {"priority": SMOOTHING_PRIORITY[name]},
     }
+    roughness, bounciness, distance, accuracy, puttable, hazard = SURFACE_GOLF[name]
+    properties.update({
+        "roughness": roughness,
+        "bounciness": bounciness,
+        "buildCost": 100,
+        "removeCost": 20,
+        "lie": {"distanceFactor": distance, "accuracyFactor": accuracy},
+        "isHazard": hazard,
+        "isPuttable": puttable,
+    })
     data = manifest("golf.terrain_surface." + name, "terrain_surface", description, properties, table)
     data["default"] = {"normal": 0, "grid": 1, "underground": 2}
     return object_files(data, images)

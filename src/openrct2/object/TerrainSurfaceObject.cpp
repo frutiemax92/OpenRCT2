@@ -187,6 +187,7 @@ namespace OpenRCT2
                   { "canGrow", TerrainSurfaceFlag::canGrow },
                   { "hasPrimaryColour", TerrainSurfaceFlag::hasPrimaryColour } });
 
+            readGolfProperties(properties);
             HasTexture = Json::GetBoolean(properties["hasTexture"]);
             if (properties["smoothing"].is_object())
                 SmoothingPriority = Json::GetNumber<int32_t>(properties["smoothing"]["priority"]);
@@ -240,6 +241,26 @@ namespace OpenRCT2
         }
 
         PopulateTablesFromJson(context, root);
+    }
+
+    void TerrainSurfaceObject::readGolfProperties(json_t& properties)
+    {
+        const auto unit = [](const json_t& value, float defaultValue) {
+            if (!value.is_number())
+                return defaultValue;
+            return std::clamp(value.get<float>(), 0.0f, 1.0f);
+        };
+        Golf.roughness = unit(properties["roughness"], Golf.roughness);
+        Golf.bounciness = unit(properties["bounciness"], Golf.bounciness);
+        if (properties["lie"].is_object())
+        {
+            Golf.distanceFactor = unit(properties["lie"]["distanceFactor"], Golf.distanceFactor);
+            Golf.accuracyFactor = unit(properties["lie"]["accuracyFactor"], Golf.accuracyFactor);
+        }
+        Golf.isHazard = Json::GetBoolean(properties["isHazard"]);
+        Golf.isPuttable = Json::GetBoolean(properties["isPuttable"]);
+        Golf.buildCost = Json::GetNumber<money64>(properties["buildCost"], Price);
+        Golf.removeCost = Json::GetNumber<money64>(properties["removeCost"]);
     }
 
     void TerrainSurfaceObject::readColourSettingsProperty(const json_t& colourSettings)

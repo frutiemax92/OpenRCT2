@@ -51,6 +51,19 @@ namespace OpenRCT2
     };
     using TerrainSurfaceFlags = FlagHolder<uint8_t, TerrainSurfaceFlag>;
 
+    // Gameplay properties of a surface (TER-040, TER-041); the physics and the golfer AI read them.
+    struct TerrainSurfaceGolfProperties
+    {
+        float roughness = 0.35f;
+        float bounciness = 0.35f;
+        float distanceFactor = 1.0f;
+        float accuracyFactor = 1.0f;
+        money64 buildCost = 0;
+        money64 removeCost = 0;
+        bool isHazard = false;
+        bool isPuttable = false;
+    };
+
     class TerrainSurfaceObject final : public Object
     {
     private:
@@ -67,6 +80,7 @@ namespace OpenRCT2
         void precolourPatternImages();
         void unloadPrecolouredPatternImages();
         void loadTexture(ImageIndex imageId);
+        void readGolfProperties(json_t& properties);
 
     public:
         static constexpr ObjectType kObjectType = ObjectType::terrainSurface;
@@ -91,6 +105,7 @@ namespace OpenRCT2
         money64 Price{};
         TerrainSurfaceFlags Flags{};
         MapColour MapColours[2]{};
+        TerrainSurfaceGolfProperties Golf{};
 
         ImageTable precolouredPatternImages{};
 
