@@ -3958,3 +3958,5 @@ STR_7164    :Remove
 STR_7165    :Road entrance
 STR_7166    :{SMALLFONT}{BLACK}Click a street tile at the edge of the map to make it a road entrance, where cars come in and leave (click it again to take the entrance away)
 STR_7167    :Turn the flow
+STR_7168    :Parking
+STR_7169    :Remove parking
