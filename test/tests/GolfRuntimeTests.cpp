@@ -41,6 +41,7 @@
 #include <openrct2/actions/scenery/ParkingRemoveAction.h>
 #include <openrct2/actions/scenery/StreetPlaceAction.h>
 #include <openrct2/actions/scenery/StreetRoadEntranceAction.h>
+#include <openrct2/entity/AnimalEntity.h>
 #include <openrct2/entity/GolfBall.h>
 #include <openrct2/entity/GolfVehicleEntity.h>
 #include <openrct2/entity/GolferEntity.h>
@@ -54,6 +55,7 @@
 #include <openrct2/object/PathAdditionObject.h>
 #include <openrct2/golf/Hole.h>
 #include <openrct2/object/GolferModelObject.h>
+#include <openrct2/paint/entity/Paint.Animal.h>
 #include <openrct2/paint/entity/Paint.Golfer.h>
 #include <openrct2/world/TileElementsView.h>
 #include <openrct2/world/tile_element/PathElement.h>
@@ -1027,4 +1029,46 @@ TEST(GolfRuntimeTests, TheDuckAndTheDeerLoadWithTheirClipsWithinBudget)
             EXPECT_NE(model->findClip(std::string(clip)), nullptr) << id << " has no clip " << clip;
         EXPECT_TRUE(animal->ValidateRequiredClips());
     }
+}
+
+TEST(GolfRuntimeTests, AnimalEntitiesTurnTheWayTheyMoveAndRestartTheirAnimation)
+{
+    auto context = startPark();
+    ASSERT_NE(context.get(), nullptr);
+    auto& gameState = getGameState();
+    auto* entity = AnimalEntity::create(5, 3, { 100, 100, 4 });
+    ASSERT_NE(entity, nullptr);
+    EXPECT_EQ(entity->animal, 5u);
+    EXPECT_EQ(entity->object, 3);
+    EXPECT_EQ(gameState.entities.getEntityListCount(EntityType::animal), 1u);
+
+    entity->follow({ 100, 100, 4 }, Golf::AnimalState::idle);
+    entity->follow({ 100, 100, 4 }, Golf::AnimalState::idle);
+    EXPECT_EQ(entity->animationTick, 2u);
+    // A change of state starts the new clip from the beginning.
+    entity->follow({ 100, 100, 4 }, Golf::AnimalState::walk);
+    EXPECT_EQ(entity->animationTick, 0u);
+    // Moving towards +x faces +x; towards +y faces +y (the same turns as the golfers).
+    entity->follow({ 120, 100, 4 }, Golf::AnimalState::walk);
+    EXPECT_EQ(entity->yaw, 128);
+    entity->follow({ 120, 140, 4 }, Golf::AnimalState::walk);
+    EXPECT_EQ(entity->yaw, 192);
+    entity->remove();
+    EXPECT_EQ(gameState.entities.getEntityListCount(EntityType::animal), 0u);
+}
+
+TEST(GolfRuntimeTests, EveryAnimalStateMapsToAClipTheDuckHas)
+{
+    auto context = startPark();
+    ASSERT_NE(context.get(), nullptr);
+    auto* duck = static_cast<AnimalObject*>(context->GetObjectManager().LoadObject("golf.animal.duck"));
+    if (duck == nullptr)
+        GTEST_SKIP() << "the duck is not installed";
+    const auto* model = Drawing::ModelSpriteStore::Instance().GetModel(duck->ModelId);
+    ASSERT_NE(model, nullptr);
+    for (auto state : { Golf::AnimalState::idle, Golf::AnimalState::walk, Golf::AnimalState::run, Golf::AnimalState::flee,
+                        Golf::AnimalState::swim })
+        EXPECT_NE(model->findClip(animalClipName(state)), nullptr) << animalClipName(state);
+    // The duck has no flying clip in this model; the painter falls back to walking, so the name alone is not an error.
+    EXPECT_STREQ(animalClipName(Golf::AnimalState::fly), "fly");
 }

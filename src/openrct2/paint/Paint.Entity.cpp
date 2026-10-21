@@ -14,6 +14,7 @@
 #include "../entity/GolfBall.h"
 #include "../entity/GolferEntity.h"
 #include "../entity/GolfVehicleEntity.h"
+#include "../entity/AnimalEntity.h"
 #include "../entity/Staff.h"
 #include "../interface/Viewport.h"
 #include "../profiling/Profiling.h"
@@ -27,6 +28,7 @@
 #include "entity/Paint.GolfBall.h"
 #include "entity/Paint.Golfer.h"
 #include "entity/Paint.GolfVehicle.h"
+#include "entity/Paint.Animal.h"
 #include "entity/Paint.Guest.h"
 #include "entity/Paint.JumpingFountain.h"
 #include "entity/Paint.Litter.h"
@@ -173,6 +175,9 @@ void EntityPaintSetup(PaintSession& session, const CoordsXY& pos)
                 break;
             case EntityType::golfBall:
                 PaintGolfBall(session, *entity->cast<GolfBall>(), image_direction);
+                break;
+            case EntityType::animal:
+                PaintAnimal(session, *entity->cast<AnimalEntity>(), image_direction);
                 break;
             case EntityType::golfVehicle:
                 PaintGolfVehicle(session, *entity->cast<GolfVehicleEntity>(), image_direction);
