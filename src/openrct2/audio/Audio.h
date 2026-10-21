@@ -12,6 +12,7 @@
 #include "../Identifiers.h"
 #include "../ride/RideTypes.h"
 #include "AudioMixer.h"
+#include "SpatialAudio.h"
 
 #include <memory>
 #include <string>
@@ -127,6 +128,26 @@ namespace OpenRCT2::Audio
         liftRMC,
         trackFrictionRMC,
         liftFlume,
+        // Golf placeholder sounds (AUD-006)
+        driverSwing,
+        ironSwing,
+        putt,
+        ballImpactGrass,
+        ballImpactSand,
+        ballImpactHard,
+        ballImpactWater,
+        ballImpactTree,
+        ballImpactBuilding,
+        cupDrop,
+        cartMotorLoop,
+        carEngineLoop,
+        carDoor,
+        crowdClap,
+        golferCheer,
+        golferGroan,
+        golferInsultGrumble,
+        birdChirp,
+        streamLoop,
         noScream = 254,
         null = 255
     };
@@ -238,6 +259,11 @@ namespace OpenRCT2::Audio
      * @param loc The coordinates of the location.
      */
     void Play3D(SoundId soundId, const CoordsXYZ& loc);
+
+    /**
+     * AUD-003: Plays the specified sound at a 3D location using the spatial audio model (pan, volume).
+     */
+    void PlaySpatial(SoundId soundId, const CoordsXYZ& loc, const SoundParams& params = {});
 
     /**
      * Populates the gAudioDevices array with the available audio devices.

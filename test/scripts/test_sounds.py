@@ -30,7 +30,9 @@ class SoundIdTests(unittest.TestCase):
     def test_parses_the_enum(self):
         self.assertEqual("liftClassic", NAMES[0])
         self.assertIn("portcullis", NAMES)
-        self.assertEqual("liftFlume", NAMES[-1])
+        self.assertIn("driverSwing", NAMES)
+        self.assertIn("cupDrop", NAMES)
+        self.assertEqual("streamLoop", NAMES[-1])
         self.assertNotIn("noScream", NAMES)
         self.assertNotIn("null", NAMES)
         self.assertEqual(len(NAMES), len(set(NAMES)))

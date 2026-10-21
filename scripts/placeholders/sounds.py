@@ -183,6 +183,45 @@ def synthesise(name, index):
         return mix(tone([base / 2], 0.18), noise(0.18, index, smooth=8))
     if re.match(r"lift|trackFriction|friction|goKartEngine|tram|trainDeparting", name):
         return mix(tone([base / 3], 0.8, "saw", vibrato=0.01), noise(0.8, index, smooth=10, decay=False))
+    # Golf sounds (AUD-006)
+    if name == "driverSwing":
+        return mix(tone([180.0], 0.35, "saw", sweep=2.5), noise(0.35, index, smooth=3))
+    if name == "ironSwing":
+        return mix(tone([280.0], 0.28, "saw", sweep=2.0), noise(0.28, index, smooth=4))
+    if name == "putt":
+        return mix(tone([440.0], 0.12, "sine", sweep=0.8), noise(0.12, index, smooth=8))
+    if name == "ballImpactGrass":
+        return noise(0.15, index, smooth=14)
+    if name == "ballImpactSand":
+        return noise(0.25, index, smooth=20)
+    if name == "ballImpactHard":
+        return mix(tone([800.0], 0.08, "square", sweep=0.5), noise(0.08, index, smooth=2))
+    if name == "ballImpactWater":
+        return noise(0.4, index, smooth=10)
+    if name == "ballImpactTree":
+        return mix(tone([350.0], 0.18, "saw", sweep=0.7), noise(0.18, index, smooth=6))
+    if name == "ballImpactBuilding":
+        return mix(tone([600.0], 0.12, "square", sweep=0.6), noise(0.12, index, smooth=3))
+    if name == "cupDrop":
+        return tone([1200.0, 950.0], 0.2, "sine", sweep=0.9)
+    if name == "cartMotorLoop":
+        return tone([120.0], 0.6, "saw", vibrato=0.01)
+    if name == "carEngineLoop":
+        return mix(tone([80.0], 0.8, "saw", vibrato=0.02), noise(0.8, index, smooth=16, decay=False))
+    if name == "carDoor":
+        return mix(tone([160.0], 0.2, "square"), noise(0.2, index, smooth=6))
+    if name == "crowdClap":
+        return noise(0.8, index, smooth=2, pulses=8, decay=True)
+    if name == "golferCheer":
+        return tone([400.0, 500.0, 650.0], 0.5, "saw", vibrato=0.03, sweep=1.2)
+    if name == "golferGroan":
+        return tone([300.0, 220.0, 160.0], 0.6, "saw", vibrato=0.02, sweep=0.7)
+    if name == "golferInsultGrumble":
+        return noise(0.5, index, smooth=8, pulses=4)
+    if name == "birdChirp":
+        return tone([1800.0, 2400.0, 2100.0], 0.25, "sine", vibrato=0.05, sweep=1.3)
+    if name == "streamLoop":
+        return noise(1.0, index, smooth=8, decay=False)
     return tone([base], 0.15)
 
 

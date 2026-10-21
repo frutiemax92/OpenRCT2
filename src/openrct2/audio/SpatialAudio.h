@@ -9,6 +9,9 @@
 
 #pragma once
 
+#include "AudioMixer.h"
+
+#include <algorithm>
 #include <cstdint>
 #include <vector>
 
@@ -97,4 +100,17 @@ namespace OpenRCT2::Audio
     // most `perTick` and returns the new value.
     float fadeTowards(float current, float target, float perTick);
     constexpr float kLoopFadePerTick = 0.04f; // about 0.6 s from silence to full at 40 ticks per second
+
+    // AUD-003: existing mixer pan is 0.0 (left) to 1.0 (right), 0.5 centre.
+    // SpatialResult pan is -1.0 (left) to +1.0 (right), 0.0 centre.
+    inline float spatialPanToMixer(float pan)
+    {
+        return std::clamp((pan + 1.0f) * 0.5f, 0.0f, 1.0f);
+    }
+
+    // Converts spatial volume (0.0 to 1.0) to mixer volume (0 to kMixerVolumeMax).
+    inline int32_t spatialVolumeToMixer(float volume)
+    {
+        return static_cast<int32_t>(std::clamp(volume, 0.0f, 1.0f) * kMixerVolumeMax);
+    }
 } // namespace OpenRCT2::Audio

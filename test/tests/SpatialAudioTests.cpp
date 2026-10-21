@@ -10,7 +10,10 @@
 #include <cmath>
 #include <gtest/gtest.h>
 #include <vector>
+#include <openrct2/audio/Audio.h>
 #include <openrct2/audio/SpatialAudio.h>
+#include <openrct2/core/EnumUtils.hpp>
+#include <openrct2/world/Location.hpp>
 
 using namespace OpenRCT2::Audio;
 
@@ -258,4 +261,54 @@ TEST(Voices, LoopsFadeInAndOutAtASteadyRate)
     v = fadeTowards(v, 0.0f, 0.5f);
     EXPECT_FLOAT_EQ(v, 0.0f);
     EXPECT_FLOAT_EQ(fadeTowards(0.3f, 0.3f, 0.1f), 0.3f);
+}
+
+TEST(SpatialAudio, SpatialPanAndVolumeConversion)
+{
+    // AUD-003: existing mixer pan is 0.0 (left) to 1.0 (right), 0.5 centre.
+    // SpatialResult pan is -1.0 (left) to +1.0 (right), 0.0 centre.
+    EXPECT_FLOAT_EQ(spatialPanToMixer(-1.0f), 0.0f);
+    EXPECT_FLOAT_EQ(spatialPanToMixer(0.0f), 0.5f);
+    EXPECT_FLOAT_EQ(spatialPanToMixer(1.0f), 1.0f);
+    EXPECT_FLOAT_EQ(spatialPanToMixer(-2.0f), 0.0f);
+    EXPECT_FLOAT_EQ(spatialPanToMixer(2.0f), 1.0f);
+
+    EXPECT_EQ(spatialVolumeToMixer(0.0f), 0);
+    EXPECT_EQ(spatialVolumeToMixer(1.0f), kMixerVolumeMax);
+    EXPECT_EQ(spatialVolumeToMixer(0.5f), kMixerVolumeMax / 2);
+}
+
+TEST(SpatialAudio, GolfPlaceholderSoundsExistInSoundId)
+{
+    // AUD-006: required placeholder sounds: driver swing, iron swing, putt,
+    // ball impacts, cup drop, cart motor loop, car engine loop + door, crowd clap,
+    // golfer vocal reactions, bird chirp, stream loop.
+    EXPECT_LT(EnumValue(SoundId::liftFlume), EnumValue(SoundId::driverSwing));
+    EXPECT_LT(EnumValue(SoundId::driverSwing), EnumValue(SoundId::ironSwing));
+    EXPECT_LT(EnumValue(SoundId::ironSwing), EnumValue(SoundId::putt));
+    EXPECT_LT(EnumValue(SoundId::putt), EnumValue(SoundId::ballImpactGrass));
+    EXPECT_LT(EnumValue(SoundId::ballImpactGrass), EnumValue(SoundId::ballImpactSand));
+    EXPECT_LT(EnumValue(SoundId::ballImpactSand), EnumValue(SoundId::ballImpactHard));
+    EXPECT_LT(EnumValue(SoundId::ballImpactHard), EnumValue(SoundId::ballImpactWater));
+    EXPECT_LT(EnumValue(SoundId::ballImpactWater), EnumValue(SoundId::ballImpactTree));
+    EXPECT_LT(EnumValue(SoundId::ballImpactTree), EnumValue(SoundId::ballImpactBuilding));
+    EXPECT_LT(EnumValue(SoundId::ballImpactBuilding), EnumValue(SoundId::cupDrop));
+    EXPECT_LT(EnumValue(SoundId::cupDrop), EnumValue(SoundId::cartMotorLoop));
+    EXPECT_LT(EnumValue(SoundId::cartMotorLoop), EnumValue(SoundId::carEngineLoop));
+    EXPECT_LT(EnumValue(SoundId::carEngineLoop), EnumValue(SoundId::carDoor));
+    EXPECT_LT(EnumValue(SoundId::carDoor), EnumValue(SoundId::crowdClap));
+    EXPECT_LT(EnumValue(SoundId::crowdClap), EnumValue(SoundId::golferCheer));
+    EXPECT_LT(EnumValue(SoundId::golferCheer), EnumValue(SoundId::golferGroan));
+    EXPECT_LT(EnumValue(SoundId::golferGroan), EnumValue(SoundId::golferInsultGrumble));
+    EXPECT_LT(EnumValue(SoundId::golferInsultGrumble), EnumValue(SoundId::birdChirp));
+    EXPECT_LT(EnumValue(SoundId::birdChirp), EnumValue(SoundId::streamLoop));
+    EXPECT_LT(EnumValue(SoundId::streamLoop), EnumValue(SoundId::noScream));
+}
+
+TEST(SpatialAudio, PlaySpatialHandlesUnavailableGracefully)
+{
+    CoordsXYZ loc{ 320, 320, 16 };
+    PlaySpatial(SoundId::driverSwing, loc);
+    PlaySpatial(SoundId::streamLoop, loc);
+    SUCCEED();
 }

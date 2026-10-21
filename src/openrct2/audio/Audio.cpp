@@ -233,6 +233,50 @@ namespace OpenRCT2::Audio
         }
     }
 
+    void PlaySpatial(SoundId soundId, const CoordsXYZ& loc, const SoundParams& params)
+    {
+        if (!IsAvailable())
+            return;
+
+        auto [baseAudioObject, sampleIndex] = GetAudioObjectAndSampleIndex(soundId);
+        if (baseAudioObject == nullptr)
+            return;
+
+        auto source = baseAudioObject->GetSample(sampleIndex);
+        if (source == nullptr)
+            return;
+
+        Listener l;
+        const auto& activeViewports = GetAllViewports();
+        bool foundViewport = false;
+        for (const auto& viewport : activeViewports)
+        {
+            if (viewport.flags.has(ViewportFlag::soundOn))
+            {
+                l.x = static_cast<float>(viewport.viewPos.x + viewport.ViewWidth() / 2);
+                l.y = static_cast<float>(viewport.viewPos.y + viewport.ViewHeight() / 2);
+                l.z = 0;
+                l.rotation = GetCurrentRotation();
+                l.zoomLevel = static_cast<int8_t>(viewport.zoom);
+                l.viewWidth = static_cast<float>(viewport.ViewWidth());
+                l.pixelsPerUnit = 1.0f;
+                foundViewport = true;
+                break;
+            }
+        }
+        if (!foundViewport)
+            return;
+
+        auto result = spatialise(l, static_cast<float>(loc.x), static_cast<float>(loc.y), static_cast<float>(loc.z), params);
+        if (!result.audible)
+            return;
+
+        float mixerPan = spatialPanToMixer(result.pan);
+        int32_t mixerVolume = spatialVolumeToMixer(result.volume);
+
+        CreateAudioChannel(source, MixerGroup::sound, params.loop, mixerVolume, mixerPan, 1.0, true);
+    }
+
     void Play(SoundId soundId, int32_t volume, int32_t pan)
     {
         if (!IsAvailable())
