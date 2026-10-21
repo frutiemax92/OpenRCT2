@@ -183,6 +183,7 @@ namespace OpenRCT2::Golf
         }
 
     private:
+        friend struct GolfSaveAccess;
         void updateGolfer(Golfer& g);
         void onMinute(Golfer& g);
         bool walk(Golfer& g, const FixedVec3& to);

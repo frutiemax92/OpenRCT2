@@ -78,6 +78,7 @@ namespace OpenRCT2::Golf
         }
 
     private:
+        friend struct GolfSaveAccess;
         std::vector<uint32_t> _lastTeeOff;
         std::vector<bool> _played;
     };

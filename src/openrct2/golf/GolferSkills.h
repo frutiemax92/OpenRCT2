@@ -115,6 +115,7 @@ namespace OpenRCT2::Golf
         void clear();
 
     private:
+        friend struct GolfSaveAccess;
         void evictIfNeeded();
         void reindex();
 

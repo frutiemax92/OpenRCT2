@@ -9,6 +9,9 @@
 
 #include "GolfRuntime.h"
 
+#include "../Diagnostic.h"
+#include "GolfSave.h"
+
 #include "../GameState.h"
 #include "../entity/EntityList.h"
 #include "../entity/EntityRegistry.h"
@@ -106,6 +109,12 @@ namespace OpenRCT2::Golf
         sources.weather = [&gameState] { return gameState.weatherCurrent.weatherType; };
         _director = std::make_unique<GolfDirector>(env, sources);
         refreshBuildings();
+        if (!gameState.golfSimulationData.empty())
+        {
+            if (!loadDirector(*_director, gameState.golfSimulationData))
+                LOG_ERROR("The saved golfers are damaged and were dropped");
+            gameState.golfSimulationData.clear();
+        }
 
         // Golfer entities from before (a map that was reset or swapped) belong to no golfer.
         std::vector<GolferEntity*> orphans;

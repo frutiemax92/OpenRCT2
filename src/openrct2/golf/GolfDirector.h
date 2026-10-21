@@ -120,6 +120,7 @@ namespace OpenRCT2::Golf
         PopularityInputs popularityInputs() const;
 
     private:
+        friend struct GolfSaveAccess;
         void everyMinute(uint32_t ticks);
         void everyDay();
         void admitGroup(uint32_t courseId, bool tournamentField);

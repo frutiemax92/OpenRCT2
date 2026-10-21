@@ -53,6 +53,8 @@ namespace OpenRCT2
         Weather::WindState wind;
         Golf::CourseManager golf;
         // The golfers' behaviour (created on first use, not saved yet).
+        // The saved golfers waiting for the runtime to be built (loaded from the park file).
+        std::vector<uint8_t> golfSimulationData;
         std::shared_ptr<Golf::GolfRuntime> golfRuntime; // shared_ptr: the type is incomplete here
 
         uint32_t nextGuestNumber;

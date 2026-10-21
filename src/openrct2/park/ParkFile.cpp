@@ -35,6 +35,8 @@
 #include "../entity/Particle.h"
 #include "../entity/PatrolArea.h"
 #include "../entity/Staff.h"
+#include "../golf/GolfRuntime.h"
+#include "../golf/GolfSave.h"
 #include "../localisation/Formatter.h"
 #include "../management/Award.h"
 #include "../management/Finance.h"
@@ -102,6 +104,7 @@ namespace OpenRCT2
         pluginStorage           = 0x38,
         preview                 = 0x39,
         golf                    = 0x3A,
+        golfSimulation          = 0x3B,
         packedObjects           = 0x80
         // clang-format on
     };
@@ -188,6 +191,7 @@ namespace OpenRCT2
             ReadWriteRestrictedObjectsChunk(gameState, os);
             ReadWritePluginStorageChunk(gameState, os);
             ReadWriteGolfChunk(gameState, os);
+            ReadWriteGolfSimulationChunk(gameState, os);
 
             auto targetVersion = os.getHeader().targetVersion;
 
@@ -231,6 +235,7 @@ namespace OpenRCT2
             ReadWriteRestrictedObjectsChunk(gameState, os);
             ReadWritePluginStorageChunk(gameState, os);
             ReadWriteGolfChunk(gameState, os);
+            ReadWriteGolfSimulationChunk(gameState, os);
             ReadWritePreviewChunk(gameState, os);
             ReadWritePackedObjectsChunk(os);
         }
@@ -869,6 +874,31 @@ namespace OpenRCT2
             {
                 point.reset();
             }
+        }
+
+        void ReadWriteGolfSimulationChunk(GameState_t& gameState, OrcaStream& os)
+        {
+            if (os.getMode() == OrcaStream::Mode::reading)
+            {
+                gameState.golfRuntime.reset();
+                gameState.golfSimulationData.clear();
+            }
+            else if (gameState.golfRuntime != nullptr)
+            {
+                gameState.golfSimulationData = Golf::saveDirector(gameState.golfRuntime->director());
+            }
+            else if (gameState.golfSimulationData.empty())
+                return; // no golfers yet: older readers and small files stay as they were
+
+            os.readWriteChunk(ParkFileChunkType::golfSimulation, [&gameState](OrcaStream::ChunkStream& cs) {
+                auto& data = gameState.golfSimulationData;
+                uint32_t size = static_cast<uint32_t>(data.size());
+                cs.readWrite(size);
+                if (cs.getMode() == OrcaStream::Mode::reading)
+                    data.resize(size);
+                if (size > 0)
+                    cs.readWrite(data.data(), data.size());
+            });
         }
 
         void ReadWriteGolfChunk(GameState_t& gameState, OrcaStream& os)

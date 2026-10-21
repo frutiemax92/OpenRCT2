@@ -15,6 +15,7 @@
 #include <memory>
 #include <tuple>
 #include <openrct2/golf/GolfDirector.h>
+#include <openrct2/golf/GolfSave.h>
 
 using namespace OpenRCT2;
 using namespace OpenRCT2::Golf;
@@ -312,4 +313,54 @@ TEST(GolfDirector, PopularityReflectsCourseScenery)
         h.sceneryScore = 80;
     const auto inScenery = parkWithScenery.director->popularityInputs();
     EXPECT_EQ(inScenery.sceneryScore, 80);
+}
+
+TEST(GolfDirector, SavedGolfersComeBackExactly)
+{
+    Park park;
+    park.run(at(1, 6), 5 * 60 * kTicksPerGameMinute); // 06:00 to 11:00, golfers are out on the course
+    ASSERT_FALSE(park.director->simulation().golfers().empty());
+    park.director->tournament.phase = TournamentPhase::scheduled;
+    park.director->tournament.day = 9;
+    park.director->hours.close = hhmm(21, 30);
+
+    const auto saved = saveDirector(*park.director);
+    ASSERT_FALSE(saved.empty());
+
+    Park other;
+    EXPECT_TRUE(loadDirector(*other.director, saved));
+    EXPECT_EQ(saveDirector(*other.director), saved);
+    EXPECT_EQ(other.director->simulation().golfers().size(), park.director->simulation().golfers().size());
+    EXPECT_EQ(other.director->registry().size(), park.director->registry().size());
+    EXPECT_EQ(other.director->popularity(), park.director->popularity());
+    EXPECT_EQ(other.director->tournament.day, 9u);
+    EXPECT_EQ(other.director->hours.close, hhmm(21, 30));
+    const auto& a = park.director->simulation().golfers().front();
+    const auto& b = other.director->simulation().golfers().front();
+    EXPECT_EQ(a.name, b.name);
+    EXPECT_EQ(a.state, b.state);
+    EXPECT_EQ(a.position.x, b.position.x);
+    EXPECT_EQ(a.ball.position.y, b.ball.position.y);
+    EXPECT_EQ(a.scorecard, b.scorecard);
+    EXPECT_EQ(a.thoughts.size(), b.thoughts.size());
+}
+
+TEST(GolfDirector, DamagedSaveDataIsRejectedAndChangesNothing)
+{
+    Park park;
+    park.run(at(1, 6), 3 * 60 * kTicksPerGameMinute);
+    const auto before = saveDirector(*park.director);
+
+    auto truncated = before;
+    truncated.resize(truncated.size() / 2);
+    EXPECT_FALSE(loadDirector(*park.director, truncated));
+    EXPECT_EQ(saveDirector(*park.director), before);
+
+    auto newer = before;
+    newer[0] = 99; // a format from the future
+    EXPECT_FALSE(loadDirector(*park.director, newer));
+    EXPECT_EQ(saveDirector(*park.director), before);
+
+    EXPECT_FALSE(loadDirector(*park.director, {}));
+    EXPECT_EQ(saveDirector(*park.director), before);
 }
