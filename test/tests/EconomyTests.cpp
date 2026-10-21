@@ -8,8 +8,13 @@
  *****************************************************************************/
 
 #include <gtest/gtest.h>
+#include <openrct2/GameState.h>
+#include <openrct2/actions/GameActionRunner.h>
+#include <openrct2/actions/park/ParkSetLoanAction.h>
 #include <openrct2/golf/Cottages.h>
 #include <openrct2/golf/Popularity.h>
+#include <openrct2/management/Finance.h>
+#include <openrct2/scripting/ScriptEngine.h>
 
 using namespace OpenRCT2;
 using namespace OpenRCT2::Golf;
@@ -261,4 +266,88 @@ TEST(Cottages, SoldLotsAreLockedExceptForCosmeticPaths)
     EXPECT_EQ(lotAt(lots, outside), nullptr);
     EXPECT_TRUE(lots[0].contains({ 13, 13 }));
     EXPECT_FALSE(lots[0].contains({ 14, 13 }));
+}
+
+TEST(Finances, RenamedCategoriesAndPaymentTracking)
+{
+    // ECO-012: OpenRCT2 finance categories renamed to golf operations and track cash flow.
+    auto& park = getGameState().park;
+    park.cash = 50000.00_GBP;
+    park.expenditureTable[0][EnumValue(ExpenditureType::parkEntranceTickets)] = 0;
+    park.expenditureTable[0][EnumValue(ExpenditureType::parkRideTickets)] = 0;
+    park.expenditureTable[0][EnumValue(ExpenditureType::shopSales)] = 0;
+    park.expenditureTable[0][EnumValue(ExpenditureType::rideConstruction)] = 0;
+
+    // Green fees income (negative cost passed to FinancePayment increases cash)
+    FinancePayment(-150.00_GBP, ExpenditureType::parkEntranceTickets);
+    EXPECT_EQ(park.cash, 50150.00_GBP);
+    EXPECT_EQ(park.expenditureTable[0][EnumValue(ExpenditureType::parkEntranceTickets)], 150.00_GBP);
+
+    // Cart / range fees income
+    FinancePayment(-30.00_GBP, ExpenditureType::parkRideTickets);
+    EXPECT_EQ(park.cash, 50180.00_GBP);
+    EXPECT_EQ(park.expenditureTable[0][EnumValue(ExpenditureType::parkRideTickets)], 30.00_GBP);
+
+    // Course construction expenditure (positive cost reduces cash)
+    FinancePayment(500.00_GBP, ExpenditureType::rideConstruction);
+    EXPECT_EQ(park.cash, 49680.00_GBP);
+    EXPECT_EQ(park.expenditureTable[0][EnumValue(ExpenditureType::rideConstruction)], -500.00_GBP);
+
+    // ScriptEngine expenditure string names mapping (ECO-012)
+    using OpenRCT2::Scripting::ScriptEngine;
+    EXPECT_EQ(ScriptEngine::ExpenditureTypeToString(ExpenditureType::parkEntranceTickets), "green_fees");
+    EXPECT_EQ(ScriptEngine::ExpenditureTypeToString(ExpenditureType::parkRideTickets), "cart_range_fees");
+    EXPECT_EQ(ScriptEngine::ExpenditureTypeToString(ExpenditureType::rideConstruction), "course_construction");
+    EXPECT_EQ(ScriptEngine::ExpenditureTypeToString(ExpenditureType::rideRunningCosts), "facility_upkeep");
+    EXPECT_EQ(ScriptEngine::ExpenditureTypeToString(ExpenditureType::research), "tournaments");
+
+    // Both golf names and legacy aliases resolve
+    EXPECT_EQ(ScriptEngine::StringToExpenditureType("green_fees"), ExpenditureType::parkEntranceTickets);
+    EXPECT_EQ(ScriptEngine::StringToExpenditureType("park_entrance_tickets"), ExpenditureType::parkEntranceTickets);
+    EXPECT_EQ(ScriptEngine::StringToExpenditureType("course_construction"), ExpenditureType::rideConstruction);
+    EXPECT_EQ(ScriptEngine::StringToExpenditureType("ride_construction"), ExpenditureType::rideConstruction);
+}
+
+TEST(Loans, ParkSetLoanActionValidatesLimitsAndUpdatesBalances)
+{
+    // ECO-020: Reuse OpenRCT2 loans (max loan, interest rate, increase/repay)
+    auto& gameState = getGameState();
+    auto& park = gameState.park;
+    park.cash = 10000.00_GBP;
+    park.bankLoan = 5000.00_GBP;
+    park.maxBankLoan = 25000.00_GBP;
+
+    // Normal increase within maxBankLoan
+    auto increase = GameActions::ParkSetLoanAction(10000.00_GBP);
+    EXPECT_EQ(increase.Query(gameState, park).error, GameActions::Status::ok);
+    EXPECT_EQ(increase.Execute(gameState, park).error, GameActions::Status::ok);
+    EXPECT_EQ(park.bankLoan, 10000.00_GBP);
+    EXPECT_EQ(park.cash, 15000.00_GBP);
+
+    // Exceeding maxBankLoan is disallowed
+    auto tooBig = GameActions::ParkSetLoanAction(30000.00_GBP);
+    EXPECT_EQ(tooBig.Query(gameState, park).error, GameActions::Status::disallowed);
+
+    // Negative loan is disallowed
+    auto negative = GameActions::ParkSetLoanAction(-1000.00_GBP);
+    EXPECT_EQ(negative.Query(gameState, park).error, GameActions::Status::invalidParameters);
+
+    // Repaying loan decreases loan and subtracts cash
+    auto repay = GameActions::ParkSetLoanAction(4000.00_GBP);
+    EXPECT_EQ(repay.Query(gameState, park).error, GameActions::Status::ok);
+    EXPECT_EQ(repay.Execute(gameState, park).error, GameActions::Status::ok);
+    EXPECT_EQ(park.bankLoan, 4000.00_GBP);
+    EXPECT_EQ(park.cash, 9000.00_GBP);
+
+    // Repaying more than cash on hand is rejected with insufficientFunds
+    park.cash = 500.00_GBP;
+    auto cantAfford = GameActions::ParkSetLoanAction(2000.00_GBP); // tries to pay 2000 with 500 cash
+    EXPECT_EQ(cantAfford.Query(gameState, park).error, GameActions::Status::insufficientFunds);
+
+    // Increasing loan when in debt (negative cash) is allowed
+    park.cash = -200.00_GBP;
+    auto bailOut = GameActions::ParkSetLoanAction(6000.00_GBP);
+    EXPECT_EQ(bailOut.Query(gameState, park).error, GameActions::Status::ok);
+    EXPECT_EQ(bailOut.Execute(gameState, park).error, GameActions::Status::ok);
+    EXPECT_EQ(park.cash, 1800.00_GBP);
 }

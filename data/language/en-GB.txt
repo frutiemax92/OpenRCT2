@@ -1229,19 +1229,19 @@ STR_1891    :No {STRINGID} in park yet!
 STR_1894    :{WINDOW_COLOUR_2}{STRINGID} sold: {BLACK}{COMMA32}
 STR_1895    :Build new ride/attraction
 STR_1896    :{WINDOW_COLOUR_2}Expenditure/Income
-STR_1897    :{WINDOW_COLOUR_2}Ride construction
-STR_1898    :{WINDOW_COLOUR_2}Ride running costs
-STR_1899    :{WINDOW_COLOUR_2}Land purchase
+STR_1897    :{WINDOW_COLOUR_2}Course construction
+STR_1898    :{WINDOW_COLOUR_2}Facility upkeep
+STR_1899    :{WINDOW_COLOUR_2}Land & cottage sales
 STR_1900    :{WINDOW_COLOUR_2}Landscaping
-STR_1901    :{WINDOW_COLOUR_2}Park entrance tickets
-STR_1902    :{WINDOW_COLOUR_2}Ride tickets
-STR_1903    :{WINDOW_COLOUR_2}Shop sales
-STR_1904    :{WINDOW_COLOUR_2}Shop stock
+STR_1901    :{WINDOW_COLOUR_2}Green fees
+STR_1902    :{WINDOW_COLOUR_2}Cart & range fees
+STR_1903    :{WINDOW_COLOUR_2}Pro shop sales
+STR_1904    :{WINDOW_COLOUR_2}Pro shop stock
 STR_1905    :{WINDOW_COLOUR_2}Food/drink sales
 STR_1906    :{WINDOW_COLOUR_2}Food/drink stock
 STR_1907    :{WINDOW_COLOUR_2}Staff wages
 STR_1908    :{WINDOW_COLOUR_2}Marketing
-STR_1909    :{WINDOW_COLOUR_2}Research
+STR_1909    :{WINDOW_COLOUR_2}Tournaments
 STR_1910    :{WINDOW_COLOUR_2}Loan interest
 STR_1911    :{BLACK} at {COMMA16}% per year
 STR_1912    :{MONTH}
@@ -1280,7 +1280,7 @@ STR_1947    :Show areas patrolled by selected staff type, and locate the nearest
 STR_1948    :Hire a new staff member of the selected type
 STR_1949    :Financial Summary
 STR_1950    :Financial Graph
-STR_1951    :Park Value Graph
+STR_1951    :Course Value Graph
 STR_1952    :Profit Graph
 STR_1953    :Marketing
 STR_1954    :Research Funding
@@ -1539,8 +1539,8 @@ STR_2222    :{BLACK}{STRINGID}
 STR_2223    :{WINDOW_COLOUR_2}Guests in park: {BLACK}{COMMA32}
 STR_2224    :{WINDOW_COLOUR_2}Cash: {BLACK}{CURRENCY2DP}
 STR_2225    :{WINDOW_COLOUR_2}Cash: {RED}{CURRENCY2DP}
-STR_2226    :{WINDOW_COLOUR_2}Park value: {BLACK}{CURRENCY}
-STR_2227    :{WINDOW_COLOUR_2}Company value: {BLACK}{CURRENCY}
+STR_2226    :{WINDOW_COLOUR_2}Course value: {BLACK}{CURRENCY}
+STR_2227    :{WINDOW_COLOUR_2}Club value: {BLACK}{CURRENCY}
 STR_2228    :{WINDOW_COLOUR_2}Last month’s profit from food/drink and{NEWLINE}merchandise sales: {BLACK}{CURRENCY}
 STR_2229    :Slope up to vertical
 STR_2230    :Vertical track
@@ -1754,7 +1754,7 @@ STR_2452    :{WINDOW_COLOUR_2}Cash (less loan): {BLACK}{CURRENCY2DP}
 STR_2453    :{WINDOW_COLOUR_2}Cash (less loan): {RED}{CURRENCY2DP}
 STR_2457    :Show financial accounts
 STR_2458    :Show graph of cash (less loan) over time
-STR_2459    :Show graph of park value over time
+STR_2459    :Show graph of course value over time
 STR_2460    :Show graph of weekly profit
 STR_2461    :Show marketing campaigns
 STR_2462    :Show view of park entrance

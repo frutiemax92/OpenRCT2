@@ -1427,20 +1427,20 @@ GameActions::Result ScriptEngine::JSToGameActionResult(JSContext* ctx, JSValue d
 }
 
 constexpr static const char* ExpenditureTypes[] = {
-    "ride_construction",
-    "ride_runningcosts",
-    "land_purchase",
+    "course_construction",
+    "facility_upkeep",
+    "land_cottage_sales",
     "landscaping",
-    "park_entrance_tickets",
-    "park_ride_tickets",
-    "shop_sales",
-    "shop_stock",
+    "green_fees",
+    "cart_range_fees",
+    "pro_shop_sales",
+    "pro_shop_stock",
     "food_drink_sales",
     "food_drink_stock",
-    "wages",
+    "staff_wages",
     "marketing",
-    "research",
-    "interest",
+    "tournaments",
+    "loan_interest",
 };
 
 std::string_view ScriptEngine::ExpenditureTypeToString(ExpenditureType expenditureType)
@@ -1460,6 +1460,26 @@ ExpenditureType ScriptEngine::StringToExpenditureType(std::string_view expenditu
     {
         return static_cast<ExpenditureType>(std::distance(std::begin(ExpenditureTypes), it));
     }
+
+    // Backward compatibility aliases
+    static constexpr std::pair<std::string_view, ExpenditureType> legacyAliases[] = {
+        { "ride_construction", ExpenditureType::rideConstruction },
+        { "ride_runningcosts", ExpenditureType::rideRunningCosts },
+        { "land_purchase", ExpenditureType::landPurchase },
+        { "park_entrance_tickets", ExpenditureType::parkEntranceTickets },
+        { "park_ride_tickets", ExpenditureType::parkRideTickets },
+        { "shop_sales", ExpenditureType::shopSales },
+        { "shop_stock", ExpenditureType::shopStock },
+        { "wages", ExpenditureType::wages },
+        { "research", ExpenditureType::research },
+        { "interest", ExpenditureType::interest },
+    };
+    for (const auto& [legacy, type] : legacyAliases)
+    {
+        if (expenditureType == legacy)
+            return type;
+    }
+
     return ExpenditureType::count;
 }
 

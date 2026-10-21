@@ -63,7 +63,10 @@ namespace OpenRCT2::GameActions
         park.bankLoan = _value;
 
         auto windowManager = Ui::GetWindowManager();
-        windowManager->BroadcastIntent(Intent(INTENT_ACTION_UPDATE_CASH));
+        if (windowManager != nullptr)
+        {
+            windowManager->BroadcastIntent(Intent(INTENT_ACTION_UPDATE_CASH));
+        }
         return Result();
     }
 } // namespace OpenRCT2::GameActions
