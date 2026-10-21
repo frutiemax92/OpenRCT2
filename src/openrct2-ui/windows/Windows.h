@@ -94,6 +94,9 @@ namespace OpenRCT2::Ui::Windows
     // Golfer window (section 13.7), opened for the entity that shows the golfer
     WindowBase* GolferOpen(EntityId golferEntity);
 
+    // Street tool (section 12.1)
+    WindowBase* StreetToolOpen();
+
     // Hole construction tool (section 16.1)
     WindowBase* HoleToolOpen();
 

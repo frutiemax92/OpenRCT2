@@ -102,6 +102,7 @@ namespace OpenRCT2
         course = 144,
         golfer = 145,
         holeTool = 146,
+        streetTool = 147,
 
         // Only used for colour schemes
         staff = 220,

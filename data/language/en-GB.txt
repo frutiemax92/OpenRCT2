@@ -3952,3 +3952,9 @@ STR_7158    :Remove
 STR_7159    :{SMALLFONT}{BLACK}Click a marker button, then the map, to remove that marker from the hole instead of placing it
 STR_7160    :Streets
 STR_7161    :Road entrances must be on the edge of the map
+STR_7162    :Streets
+STR_7163    :Build
+STR_7164    :Remove
+STR_7165    :Road entrance
+STR_7166    :{SMALLFONT}{BLACK}Click a street tile at the edge of the map to make it a road entrance, where cars come in and leave (click it again to take the entrance away)
+STR_7167    :Turn the flow
