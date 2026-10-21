@@ -40,6 +40,8 @@ namespace OpenRCT2
         ObjectType::stream,
         ObjectType::building,
         ObjectType::vehicleModel,
+        ObjectType::golferModel,
+        ObjectType::animal,
     };
 
     static_assert(kAllObjectTypes.size() == EnumValue(ObjectType::count));
@@ -54,6 +56,8 @@ namespace OpenRCT2
         ObjectType::stream,
         ObjectType::building,
         ObjectType::vehicleModel,
+        ObjectType::golferModel,
+        ObjectType::animal,
     };
 
     // Object types that cannot be saved in a park file.

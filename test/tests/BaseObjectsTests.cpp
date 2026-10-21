@@ -29,7 +29,9 @@
 #include <openrct2/object/Object.h>
 #include <openrct2/object/ObjectManager.h>
 #include <openrct2/object/ObjectRepository.h>
+#include <openrct2/object/AnimalObject.h>
 #include <openrct2/object/BuildingObject.h>
+#include <openrct2/object/GolferModelObject.h>
 #include <openrct2/object/PathAdditionEntry.h>
 #include <openrct2/object/PathAdditionObject.h>
 #include <openrct2/object/StreamObject.h>
@@ -374,6 +376,37 @@ TEST_F(BaseObjects, CarVehicleModelLoadsItsProperties)
     EXPECT_EQ(24, obj->Collision.footprintX);
     EXPECT_EQ(12, obj->Collision.footprintY);
     EXPECT_EQ(16, obj->Collision.height);
+}
+
+TEST_F(BaseObjects, GolferModelObjectLoadsItsPropertiesAndRequiredClips)
+{
+    // GLF-030, OBJ-001 to OBJ-005: golfer_model object
+    auto* obj = static_cast<GolferModelObject*>(Load("golf.golfer_model.standard"));
+    ASSERT_NE(nullptr, obj);
+    EXPECT_EQ(ObjectType::golferModel, obj->GetObjectType());
+    EXPECT_EQ(800, obj->TriangleBudget);
+    EXPECT_EQ(3, obj->MaterialSlots);
+    EXPECT_TRUE(obj->ValidateRequiredClips());
+    for (auto clip : kRequiredGolferClips)
+    {
+        EXPECT_TRUE(obj->HasClip(clip)) << clip;
+    }
+}
+
+TEST_F(BaseObjects, AnimalObjectLoadsItsPropertiesAndRequiredClips)
+{
+    // ANM-001, OBJ-001 to OBJ-005: animal object
+    auto* obj = static_cast<AnimalObject*>(Load("golf.animal.duck"));
+    ASSERT_NE(nullptr, obj);
+    EXPECT_EQ(ObjectType::animal, obj->GetObjectType());
+    EXPECT_EQ(600, obj->TriangleBudget);
+    EXPECT_EQ(2, obj->MinGroupSize);
+    EXPECT_EQ(6, obj->MaxGroupSize);
+    EXPECT_TRUE(obj->ValidateRequiredClips());
+    for (auto clip : kRequiredAnimalClips)
+    {
+        EXPECT_TRUE(obj->HasClip(clip)) << clip;
+    }
 }
 
 TEST_F(BaseObjects, TerrainIsDrawn)

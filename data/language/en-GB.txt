@@ -3921,3 +3921,5 @@ STR_7127    :Carts off-path
 STR_7128    :{SMALLFONT}{BLACK}Allow golf carts to drive off paved paths
 STR_7129    :Up
 STR_7130    :Down
+STR_7131    :Golfer models
+STR_7132    :Animals & wildlife

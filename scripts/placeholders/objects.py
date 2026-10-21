@@ -591,6 +591,55 @@ def vehicle_model(name, description, kind, seats, max_speed, accel,
     return object_files(data, images)
 
 
+def golfer_model(name, description, palette):
+    images = {"images/icon.png": quantise(vehicle_icon((220, 180, 50)), palette).png()}
+    table = [{"path": "images/icon.png", "x": 0, "y": 0}]
+    properties = {
+        "model": "model.glb",
+        "triangleBudget": 800,
+        "materialSlots": 3,
+        "clips": [
+            "idle", "walk", "sit_bench", "talk", "swing_full",
+            "swing_putt", "cheer", "groan", "celebrate", "rage_quit"
+        ],
+        "collision": {
+            "shape": "cylinder",
+            "height": 32,
+            "radius": 6,
+            "restitution": 0.3,
+            "friction": 0.5
+        }
+    }
+    data = manifest("golf.golfer_model." + name, "golfer_model", description, properties, table)
+    return object_files(data, images)
+
+
+def animal(name, description, habitat, group_size, spawn_rate, sound, palette):
+    images = {"images/icon.png": quantise(vehicle_icon((100, 180, 80)), palette).png()}
+    table = [{"path": "images/icon.png", "x": 0, "y": 0}]
+    properties = {
+        "model": "model.glb",
+        "triangleBudget": 600,
+        "habitat": habitat,
+        "minGroupSize": group_size[0],
+        "maxGroupSize": group_size[1],
+        "spawnRate": spawn_rate,
+        "sound": sound,
+        "clips": [
+            "idle", "walk", "run", "flee"
+        ],
+        "collision": {
+            "shape": "cylinder",
+            "height": 12,
+            "radius": 6,
+            "restitution": 0.2,
+            "friction": 0.6
+        }
+    }
+    data = manifest("golf.animal." + name, "animal", description, properties, table)
+    return object_files(data, images)
+
+
 def climate():
     weather = {}
     for month, base, bias, sunny, partly, cloudy, rain, heavy, thunder in CLIMATE_MONTHS:
@@ -678,6 +727,12 @@ def build(layout=None, palette=None):
                       12.0, 6.0, "golf.car.engine", "golf.car.horn",
                       {"shape": "box", "footprintX": 24, "footprintY": 12, "height": 16, "restitution": 0.35, "friction": 0.40},
                       (0x30, 0x50, 0xA0), palette))
+    out["golfer_model/golf.golfer_model.standard.parkobj"] = pack(
+        golfer_model("standard", "Standard Golfer", palette))
+    out["animal/golf.animal.duck.parkobj"] = pack(
+        animal("duck", "Mallard Duck", ["water", "grass"], (2, 6), 15, "duck", palette))
+    out["animal/golf.animal.deer.parkobj"] = pack(
+        animal("deer", "White-tailed Deer", ["rough", "woods"], (1, 4), 5, "birdChirp", palette))
     return out
 
 

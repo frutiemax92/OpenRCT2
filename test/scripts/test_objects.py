@@ -159,7 +159,34 @@ class ObjectTests(unittest.TestCase):
         expected.add("wall/golf.wall.low_wall.parkobj")
         expected.add("vehicle_model/golf.vehicle_model.golf_cart.parkobj")
         expected.add("vehicle_model/golf.vehicle_model.car.parkobj")
+        expected.add("golfer_model/golf.golfer_model.standard.parkobj")
+        expected.add("animal/golf.animal.duck.parkobj")
+        expected.add("animal/golf.animal.deer.parkobj")
         self.assertEqual(expected, set(FILES))
+
+    def test_golfer_model_properties(self):
+        _, golfer = open_object("golfer_model/golf.golfer_model.standard.parkobj")
+        self.assertEqual("golfer_model", golfer["objectType"])
+        self.assertEqual("model.glb", golfer["properties"]["model"])
+        self.assertEqual(800, golfer["properties"]["triangleBudget"])
+        self.assertEqual(3, golfer["properties"]["materialSlots"])
+        required_clips = [
+            "idle", "walk", "sit_bench", "talk", "swing_full",
+            "swing_putt", "cheer", "groan", "celebrate", "rage_quit"
+        ]
+        self.assertEqual(required_clips, golfer["properties"]["clips"])
+        self.assertEqual("cylinder", golfer["properties"]["collision"]["shape"])
+
+    def test_animal_properties(self):
+        _, duck = open_object("animal/golf.animal.duck.parkobj")
+        self.assertEqual("animal", duck["objectType"])
+        self.assertEqual(600, duck["properties"]["triangleBudget"])
+        self.assertEqual(["water", "grass"], duck["properties"]["habitat"])
+        self.assertEqual(2, duck["properties"]["minGroupSize"])
+        self.assertEqual(6, duck["properties"]["maxGroupSize"])
+        self.assertEqual(15, duck["properties"]["spawnRate"])
+        self.assertEqual(["idle", "walk", "run", "flee"], duck["properties"]["clips"])
+        self.assertEqual("cylinder", duck["properties"]["collision"]["shape"])
 
     def test_vehicle_model_properties(self):
         _, cart = open_object("vehicle_model/golf.vehicle_model.golf_cart.parkobj")

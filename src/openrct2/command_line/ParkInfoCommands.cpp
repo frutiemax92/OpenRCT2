@@ -95,6 +95,7 @@ namespace OpenRCT2
             "TerrainEdge",   "Station",        "Music",        "FootpathSurface", "FootpathRailings", "Audio",
             "PeepNames",     "PeepAnimations", "Climate",
             "Stream",        "Building",       "VehicleModel",
+            "GolferModel",   "Animal",
         };
         static_assert(kTypeToName.size() == static_cast<size_t>(ObjectType::count));
 

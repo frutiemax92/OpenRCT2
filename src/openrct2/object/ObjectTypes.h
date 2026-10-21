@@ -46,12 +46,14 @@ namespace OpenRCT2
         stream,
         building,
         vehicleModel,
+        golferModel,
+        animal,
 
         count,
         none = 255
     };
 
-    static constexpr size_t kNumTransientObjectTypes = 22;
+    static constexpr size_t kNumTransientObjectTypes = 24;
     static constexpr size_t kNumIntransientObjectTypes = 2;
 
     bool ObjectTypeIsTransient(ObjectType type);
