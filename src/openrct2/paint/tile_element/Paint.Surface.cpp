@@ -33,6 +33,7 @@
 #include "../../world/tile_element/TileElement.h"
 #include "../Boundbox.h"
 #include "../Paint.SessionFlags.h"
+#include "Paint.HoleMarkers.h"
 #include "Paint.TileElement.h"
 #include "Segment.h"
 
@@ -1532,4 +1533,6 @@ void PaintSurface(PaintSession& session, uint8_t direction, uint16_t height, con
             PaintUtilSetSegmentSupportHeight(session, PaintSegment::top, height + 4 + 6 + 6 + 6 + 6, 0x1E);
             break;
     }
+
+    PaintHoleMarkers(session);
 }

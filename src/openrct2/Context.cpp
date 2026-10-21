@@ -46,6 +46,7 @@
 #include "drawing/Font.h"
 #include "drawing/IDrawingEngine.h"
 #include "drawing/ModelSpriteStore.h"
+#include "golf/HoleMarkers.h"
 #include "drawing/TerrainSpriteStore.h"
 #include "drawing/Image.h"
 #include "drawing/LightFX.h"
@@ -1324,6 +1325,7 @@ namespace OpenRCT2
             }();
             (void)workersStarted;
             Drawing::ModelSpriteStore::Instance().BeginFrame();
+            Golf::GetHoleMarkers().update(getGameState().golf);
             _drawingEngine->BeginDraw();
             _painter->Paint(*_drawingEngine);
             _drawingEngine->EndDraw();
