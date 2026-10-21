@@ -40,7 +40,8 @@ namespace OpenRCT2
 
     struct GameState_t;
 
-    constexpr TileCoordsXY kDefaultMapSize = { 150, 150 };
+    // TER-001: Default new map size 256x256 tiles (~1280x1280 yd)
+    constexpr TileCoordsXY kDefaultMapSize = { 256, 256 };
 
     extern const std::array<CoordsXY, 8> CoordsDirectionDelta;
     extern const TileCoordsXY TileDirectionDelta[];

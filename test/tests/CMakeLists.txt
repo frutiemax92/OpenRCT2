@@ -79,6 +79,7 @@ set(test_files
    "${CMAKE_CURRENT_SOURCE_DIR}/CourseManagerTests.cpp"
    "${CMAKE_CURRENT_SOURCE_DIR}/CourseActionTests.cpp"
    "${CMAKE_CURRENT_SOURCE_DIR}/CourseWorldTests.cpp"
+   "${CMAKE_CURRENT_SOURCE_DIR}/ScenarioValidationTests.cpp"
    "${CMAKE_CURRENT_SOURCE_DIR}/StreamTests.cpp"
   "${CMAKE_CURRENT_SOURCE_DIR}/StringTest.cpp"
    "${CMAKE_CURRENT_SOURCE_DIR}/TerrainShapeTests.cpp"
