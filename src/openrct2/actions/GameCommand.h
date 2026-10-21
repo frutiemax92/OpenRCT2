@@ -113,6 +113,7 @@ namespace OpenRCT2
         placeParking,
         removeParking,
         editCarts,
+        editRange,
         count,
     };
 }

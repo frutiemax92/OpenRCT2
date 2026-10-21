@@ -128,8 +128,44 @@ namespace OpenRCT2::Golf
         return {};
     }
 
+    DrivingRange* CourseManager::createRange(const TileCoordsXY& cornerA, const TileCoordsXY& cornerB)
+    {
+        if (_ranges.size() >= kMaxRanges)
+            return nullptr;
+        DrivingRange range;
+        range.id = _nextRangeId++;
+        range.areaMin = { std::min(cornerA.x, cornerB.x), std::min(cornerA.y, cornerB.y) };
+        range.areaMax = { std::max(cornerA.x, cornerB.x), std::max(cornerA.y, cornerB.y) };
+        _ranges.push_back(std::move(range));
+        return &_ranges.back();
+    }
+
+    bool CourseManager::removeRange(uint32_t rangeId)
+    {
+        const auto it = std::find_if(_ranges.begin(), _ranges.end(), [rangeId](const DrivingRange& r) { return r.id == rangeId; });
+        if (it == _ranges.end())
+            return false;
+        _ranges.erase(it);
+        return true;
+    }
+
+    DrivingRange* CourseManager::findRange(uint32_t rangeId)
+    {
+        for (auto& range : _ranges)
+            if (range.id == rangeId)
+                return &range;
+        return nullptr;
+    }
+
+    const DrivingRange* CourseManager::findRange(uint32_t rangeId) const
+    {
+        return const_cast<CourseManager*>(this)->findRange(rangeId);
+    }
+
     void CourseManager::clear()
     {
+        _ranges.clear();
+        _nextRangeId = 1;
         _courses.clear();
         _boundary.clear();
         _nextCourseId = 1;

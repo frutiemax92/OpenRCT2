@@ -906,7 +906,7 @@ namespace OpenRCT2
             auto& golf = gameState.golf;
             if (os.getMode() == OrcaStream::Mode::reading)
                 golf.clear();
-            else if (golf.courses().empty() && !golf.boundary().defined())
+            else if (golf.courses().empty() && golf.ranges().empty() && !golf.boundary().defined())
                 return; // nothing to save: old readers and small files stay as they were
 
             os.readWriteChunk(ParkFileChunkType::golf, [&golf, &os](OrcaStream::ChunkStream& cs) {
@@ -988,6 +988,50 @@ namespace OpenRCT2
                         cs.readWrite(bits.data(), bits.size());
                     if (cs.getMode() == OrcaStream::Mode::reading)
                         boundary.restore(size, std::move(bits));
+                }
+
+                // Driving ranges (DRV-001 to DRV-005).
+                if (os.getMode() == OrcaStream::Mode::writing || os.getHeader().targetVersion >= kGolfRangesVersion)
+                {
+                    uint32_t nextRange = golf.nextRangeId();
+                    cs.readWrite(nextRange);
+                    if (cs.getMode() == OrcaStream::Mode::reading)
+                        golf.restoreRangeId(nextRange);
+                    uint32_t rangeCount = static_cast<uint32_t>(golf.ranges().size());
+                    cs.readWrite(rangeCount);
+                    if (cs.getMode() == OrcaStream::Mode::reading)
+                        golf.ranges().resize(std::min<uint32_t>(rangeCount, Golf::CourseManager::kMaxRanges));
+                    for (auto& range : golf.ranges())
+                    {
+                        cs.readWrite(range.id);
+                        cs.readWrite(range.areaMin.x);
+                        cs.readWrite(range.areaMin.y);
+                        cs.readWrite(range.areaMax.x);
+                        cs.readWrite(range.areaMax.y);
+                        cs.readWrite(range.bucketPrice);
+                        cs.readWrite(range.ballsPerBucket);
+                        cs.readWrite(range.shootingDirectionDegrees);
+                        ReadWriteHolePoint(cs, range.kiosk);
+                        uint32_t tileCount = static_cast<uint32_t>(range.hittingTiles.size());
+                        cs.readWrite(tileCount);
+                        if (cs.getMode() == OrcaStream::Mode::reading)
+                            range.hittingTiles.resize(std::min<uint32_t>(tileCount, 4096));
+                        for (auto& tile : range.hittingTiles)
+                        {
+                            cs.readWrite(tile.x);
+                            cs.readWrite(tile.y);
+                        }
+                        uint32_t signCount = static_cast<uint32_t>(range.signs.size());
+                        cs.readWrite(signCount);
+                        if (cs.getMode() == OrcaStream::Mode::reading)
+                            range.signs.resize(std::min<uint32_t>(signCount, 4096));
+                        for (auto& sign : range.signs)
+                        {
+                            cs.readWrite(sign.id);
+                            cs.readWrite(sign.position.x);
+                            cs.readWrite(sign.position.y);
+                        }
+                    }
                 }
             });
         }

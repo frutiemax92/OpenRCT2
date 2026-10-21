@@ -21,6 +21,7 @@
 #include <openrct2/actions/GameActionRunner.h>
 #include <openrct2/actions/golf/CourseEditAction.h>
 #include <openrct2/actions/golf/HoleEditAction.h>
+#include <openrct2/actions/golf/RangeEditAction.h>
 #include <openrct2/core/DataSerialiser.h>
 #include <openrct2/core/MemoryStream.h>
 #include <openrct2/drawing/Drawing.h>
@@ -28,6 +29,7 @@
 #include <openrct2/entity/EntityRegistry.h>
 #include <openrct2/entity/EntityTweener.h>
 #include <openrct2/object/ObjectManager.h>
+#include <openrct2/park/ParkFile.h>
 #include <openrct2/world/Map.h>
 #include <openrct2/world/MapAnimation.h>
 #include <openrct2/world/tile_element/SurfaceElement.h>
@@ -411,4 +413,153 @@ TEST(CourseActions, CreateHoleFailsOnAFullCourseAndAMissingCourse)
     EXPECT_EQ(run(extra).error, Status::disallowed);
     CourseEditAction missing(CourseEditType::createHole, 999);
     EXPECT_EQ(run(missing).error, Status::invalidParameters);
+}
+
+TEST(RangeActions, ARangeIsDrawnConfiguredAndRemoved)
+{
+    auto context = startPark();
+    ASSERT_NE(context.get(), nullptr);
+    const auto tile = bareTile();
+
+    // The corners may come in any order and are given by any position in their tile.
+    RangeEditAction create(RangeEditType::create, 0, { tile.x + 70, tile.y + 5 }, { tile.x + 5, tile.y + 130 });
+    auto res = run(create);
+    ASSERT_EQ(res.error, Status::ok);
+    const auto id = res.getData<RangeEditResult>().rangeId;
+    ASSERT_NE(id, 0u);
+    auto* range = getGameState().golf.findRange(id);
+    ASSERT_NE(range, nullptr);
+    EXPECT_EQ(range->areaMin, (TileCoordsXY{ tile.x / 32, tile.y / 32 }));
+    EXPECT_EQ(range->areaMax, (TileCoordsXY{ tile.x / 32 + 2, tile.y / 32 + 4 }));
+    EXPECT_EQ(range->ballsPerBucket, 30);
+
+    RangeEditAction price(RangeEditType::setPrice, id, {}, {}, 450);
+    EXPECT_EQ(run(price).error, Status::ok);
+    RangeEditAction balls(RangeEditType::setBalls, id, {}, {}, 20);
+    EXPECT_EQ(run(balls).error, Status::ok);
+    RangeEditAction direction(RangeEditType::setDirection, id, {}, {}, 90);
+    EXPECT_EQ(run(direction).error, Status::ok);
+    range = getGameState().golf.findRange(id);
+    EXPECT_EQ(range->bucketPrice, 450);
+    EXPECT_EQ(range->ballsPerBucket, 20);
+    EXPECT_EQ(range->shootingDirectionDegrees, 90);
+
+    RangeEditAction badPrice(RangeEditType::setPrice, id, {}, {}, -1);
+    EXPECT_EQ(run(badPrice).error, Status::invalidParameters);
+    RangeEditAction badBalls(RangeEditType::setBalls, id, {}, {}, 0);
+    EXPECT_EQ(run(badBalls).error, Status::invalidParameters);
+    RangeEditAction tooManyBalls(RangeEditType::setBalls, id, {}, {}, 101);
+    EXPECT_EQ(run(tooManyBalls).error, Status::invalidParameters);
+    RangeEditAction badDirection(RangeEditType::setDirection, id, {}, {}, 360);
+    EXPECT_EQ(run(badDirection).error, Status::invalidParameters);
+    RangeEditAction missing(RangeEditType::setPrice, 999, {}, {}, 1);
+    EXPECT_EQ(run(missing).error, Status::invalidParameters);
+    RangeEditAction offMap(RangeEditType::create, 0, { -64, 0 }, { 64, 64 });
+    EXPECT_EQ(run(offMap).error, Status::invalidParameters);
+
+    RangeEditAction remove(RangeEditType::remove, id);
+    EXPECT_EQ(run(remove).error, Status::ok);
+    EXPECT_EQ(getGameState().golf.findRange(id), nullptr);
+}
+
+TEST(RangeActions, HittingTilesBelongToTheArea)
+{
+    auto context = startPark();
+    ASSERT_NE(context.get(), nullptr);
+    const auto tile = bareTile();
+    RangeEditAction create(RangeEditType::create, 0, tile, { tile.x + 96, tile.y + 96 });
+    const auto id = run(create).getData<RangeEditResult>().rangeId;
+
+    RangeEditAction first(RangeEditType::addHittingTile, id, { tile.x + 3, tile.y + 7 });
+    ASSERT_EQ(run(first).error, Status::ok);
+    // The same tile again, from another point in it, is the same tile.
+    RangeEditAction again(RangeEditType::addHittingTile, id, { tile.x + 20, tile.y + 25 });
+    ASSERT_EQ(run(again).error, Status::ok);
+    RangeEditAction second(RangeEditType::addHittingTile, id, { tile.x + 40, tile.y + 5 });
+    ASSERT_EQ(run(second).error, Status::ok);
+    auto* range = getGameState().golf.findRange(id);
+    ASSERT_EQ(range->hittingTiles.size(), 2u);
+    // A hitting tile is the middle of its tile.
+    EXPECT_EQ(range->hittingTiles[0].x, (tile.x & ~31) + 16);
+    EXPECT_EQ(range->hittingTiles[0].y, (tile.y & ~31) + 16);
+
+    // Outside the area is refused.
+    RangeEditAction outside(RangeEditType::addHittingTile, id, { tile.x + 200, tile.y });
+    EXPECT_EQ(run(outside).error, Status::invalidParameters);
+
+    // Shrinking the area drops the tiles that are left outside it.
+    RangeEditAction shrink(RangeEditType::setArea, id, tile, { tile.x + 5, tile.y + 5 });
+    ASSERT_EQ(run(shrink).error, Status::ok);
+    range = getGameState().golf.findRange(id);
+    EXPECT_EQ(range->hittingTiles.size(), 1u);
+
+    RangeEditAction take(RangeEditType::removeHittingTile, id, { tile.x + 1, tile.y + 1 });
+    ASSERT_EQ(run(take).error, Status::ok);
+    EXPECT_TRUE(getGameState().golf.findRange(id)->hittingTiles.empty());
+}
+
+TEST(RangeActions, TheNumberOfRangesIsLimited)
+{
+    auto context = startPark();
+    ASSERT_NE(context.get(), nullptr);
+    const auto tile = bareTile();
+    for (size_t i = 0; i < Golf::CourseManager::kMaxRanges; i++)
+    {
+        RangeEditAction range(RangeEditType::create, 0, tile, tile);
+        ASSERT_EQ(run(range).error, Status::ok);
+    }
+    RangeEditAction one(RangeEditType::create, 0, tile, tile);
+    EXPECT_EQ(run(one).error, Status::disallowed);
+}
+
+TEST(RangeActions, RangesSurviveASaveAndLoadOfThePark)
+{
+    gOpenRCT2Headless = true;
+    gOpenRCT2NoGraphics = true;
+    MemoryStream saved;
+    {
+        auto context = startPark();
+        ASSERT_NE(context.get(), nullptr);
+        const auto tile = bareTile();
+        RangeEditAction create(RangeEditType::create, 0, tile, { tile.x + 96, tile.y + 64 });
+        const auto id = run(create).getData<RangeEditResult>().rangeId;
+        RangeEditAction hit(RangeEditType::addHittingTile, id, tile);
+        ASSERT_EQ(run(hit).error, Status::ok);
+        RangeEditAction price(RangeEditType::setPrice, id, {}, {}, 1234);
+        ASSERT_EQ(run(price).error, Status::ok);
+        RangeEditAction direction(RangeEditType::setDirection, id, {}, {}, 270);
+        ASSERT_EQ(run(direction).error, Status::ok);
+        auto* range = getGameState().golf.findRange(id);
+        range->kiosk = Golf::HolePoint{ 400, 500 };
+        range->signs.push_back({ 7, Golf::HolePoint{ 900, 1000 } });
+
+        auto exporter = std::make_unique<ParkFileExporter>();
+        exporter->ExportObjectsList = context->GetObjectManager().GetPackableObjects();
+        exporter->Export(getGameState(), saved, kParkFileSaveCompressionLevel);
+    }
+    {
+        auto context = CreateContext();
+        ASSERT_TRUE(context->Initialise());
+        saved.SetPosition(0);
+        auto importer = ParkImporter::CreateParkFile(context->GetObjectRepository());
+        auto loadResult = importer->LoadFromStream(&saved, false);
+        context->GetObjectManager().LoadObjects(loadResult.RequiredObjects);
+        getGameState().golf.createRange({ 1, 1 }, { 2, 2 }); // loading replaces whatever was there
+        importer->Import(getGameState());
+
+        const auto& golf = getGameState().golf;
+        ASSERT_EQ(golf.ranges().size(), 1u);
+        const auto& range = golf.ranges()[0];
+        EXPECT_EQ(range.bucketPrice, 1234);
+        EXPECT_EQ(range.shootingDirectionDegrees, 270);
+        EXPECT_EQ(range.areaMax.x - range.areaMin.x, 3);
+        EXPECT_EQ(range.areaMax.y - range.areaMin.y, 2);
+        ASSERT_EQ(range.hittingTiles.size(), 1u);
+        ASSERT_TRUE(range.kiosk.has_value());
+        EXPECT_EQ(range.kiosk->x, 400);
+        ASSERT_EQ(range.signs.size(), 1u);
+        EXPECT_EQ(range.signs[0].id, 7u);
+        EXPECT_EQ(range.signs[0].position.y, 1000);
+        EXPECT_EQ(golf.nextRangeId(), 2u);
+    }
 }

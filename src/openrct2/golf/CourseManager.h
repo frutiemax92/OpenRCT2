@@ -10,6 +10,7 @@
 #pragma once
 
 #include "Hole.h"
+#include "RangeData.h"
 
 #include <cstdint>
 #include <string>
@@ -96,6 +97,30 @@ namespace OpenRCT2::Golf
         };
         HoleRef findHole(uint32_t holeId);
 
+        // DRV-001: driving ranges, drawn as an area on the map.
+        static constexpr size_t kMaxRanges = 8;
+        // Returns nullptr when the limit is reached. The corners may come in any order.
+        DrivingRange* createRange(const TileCoordsXY& cornerA, const TileCoordsXY& cornerB);
+        bool removeRange(uint32_t rangeId);
+        DrivingRange* findRange(uint32_t rangeId);
+        const DrivingRange* findRange(uint32_t rangeId) const;
+        std::vector<DrivingRange>& ranges()
+        {
+            return _ranges;
+        }
+        const std::vector<DrivingRange>& ranges() const
+        {
+            return _ranges;
+        }
+        uint32_t nextRangeId() const
+        {
+            return _nextRangeId;
+        }
+        void restoreRangeId(uint32_t next)
+        {
+            _nextRangeId = next;
+        }
+
         CourseBoundary& boundary()
         {
             return _boundary;
@@ -124,6 +149,8 @@ namespace OpenRCT2::Golf
 
     private:
         std::vector<Course> _courses;
+        std::vector<DrivingRange> _ranges;
+        uint32_t _nextRangeId = 1;
         CourseBoundary _boundary;
         uint32_t _nextCourseId = 1;
         uint32_t _nextHoleId = 1;

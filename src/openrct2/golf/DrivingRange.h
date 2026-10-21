@@ -12,6 +12,7 @@
 #include "BallPhysics.h"
 #include "Golfer.h"
 #include "Hole.h"
+#include "RangeData.h"
 
 #include <cstdint>
 #include <optional>
@@ -21,27 +22,6 @@
 namespace OpenRCT2::Golf
 {
     // The driving range (section 17).
-
-    struct DistanceSign
-    {
-        uint32_t id = 0;
-        HolePoint position;
-    };
-
-    struct DrivingRange
-    {
-        uint32_t id = 0;
-        TileCoordsXY areaMin;                  // DRV-001: the area drawn with the zone tool, inclusive
-        TileCoordsXY areaMax;
-        std::vector<HolePoint> hittingTiles;   // where golfers stand; world positions of the tile centres
-        std::optional<HolePoint> kiosk;        // the one driving range kiosk building
-        std::vector<DistanceSign> signs;
-        int64_t bucketPrice = 300;
-        int32_t ballsPerBucket = 30;           // DRV-005
-        int32_t shootingDirectionDegrees = 0;  // 0 = +x, 90 = +y: where the golfers aim
-
-        bool containsArea(const HolePoint& p) const;
-    };
 
     // DRV-007: Ball picker staff/vehicle collects balls on the range
     struct BallPicker
