@@ -31,8 +31,11 @@
 #include <openrct2/world/MapAnimation.h>
 #include <openrct2/world/Building.h>
 #include <openrct2/world/Footpath.h>
+#include <openrct2/entity/GolferEntity.h>
 #include <openrct2/golf/GolfRuntime.h>
 #include <openrct2/golf/Hole.h>
+#include <openrct2/object/GolferModelObject.h>
+#include <openrct2/paint/entity/Paint.Golfer.h>
 #include <openrct2/world/TileElementsView.h>
 #include <openrct2/world/tile_element/PathElement.h>
 #include <openrct2/world/tile_element/BuildingElement.h>
@@ -162,4 +165,67 @@ TEST(GolfRuntimeTests, FindsTheClubAndTicksOnlyWhenACourseExists)
     // A new map forgets the runtime.
     Golf::resetRuntime(gameState);
     EXPECT_EQ(gameState.golfRuntime, nullptr);
+}
+
+TEST(GolfRuntimeTests, EveryGolferHasAnEntityThatFollowsItAndIsRemovedWhenItLeaves)
+{
+    auto context = startPark();
+    ASSERT_NE(context.get(), nullptr);
+    auto& gameState = getGameState();
+    gameState.cheats.sandboxMode = true;
+    ObjectEntryIndex index{};
+    auto* club = loadClub(*context, index);
+    if (club == nullptr)
+        GTEST_SKIP() << "the club house object is not installed";
+
+    const auto found = findFlatBlock(3, 2);
+    ASSERT_TRUE(found.has_value());
+    insertPath(Building::GetEntrance(*club, *found, 0).outsideTile);
+    GameActions::BuildingPlaceAction place(*found, index, 0);
+    ASSERT_EQ(GameActions::ExecuteNested(&place, gameState).error, GameActions::Status::ok);
+    gameState.golf.createCourse("Links");
+
+    // A stale entity from before belongs to no golfer and is removed when the runtime starts.
+    auto* stale = GolferEntity::create(999, { found->x, found->y, 0 });
+    ASSERT_NE(stale, nullptr);
+
+    auto& runtime = Golf::runtimeOf(gameState);
+    EXPECT_EQ(gameState.entities.getEntityListCount(EntityType::golfer), 0u);
+
+    Golf::GolfSimulation::Spawn spawn;
+    spawn.name = "Test Golfer";
+    spawn.position = runtime.buildings().club;
+    const uint32_t id = runtime.director().simulation().spawn(spawn).id;
+
+    runtime.update(gameState.currentTicks);
+    auto* entity = runtime.entityOf(id);
+    ASSERT_NE(entity, nullptr);
+    EXPECT_EQ(entity->golfer, id);
+    EXPECT_EQ(entity->x, runtime.buildings().club.x.floor());
+    EXPECT_EQ(gameState.entities.getEntityListCount(EntityType::golfer), 1u);
+
+    // The entity moves with the golfer.
+    auto* golfer = runtime.director().simulation().find(id);
+    ASSERT_NE(golfer, nullptr);
+    golfer->position.x = golfer->position.x + Fixed::fromInt(64);
+    runtime.update(gameState.currentTicks);
+    EXPECT_EQ(runtime.entityOf(id)->x, golfer->position.x.floor());
+
+    // When the golfer is gone its entity goes too.
+    runtime.director().simulation().golfers().clear();
+    runtime.update(gameState.currentTicks);
+    EXPECT_EQ(runtime.entityOf(id), nullptr);
+    EXPECT_EQ(gameState.entities.getEntityListCount(EntityType::golfer), 0u);
+}
+
+TEST(GolfRuntimeTests, EveryStateMapsToARequiredAnimationClip)
+{
+    for (int i = 0; i < static_cast<int>(Golf::GolferState::count); i++)
+    {
+        const std::string name = golferClipName(static_cast<Golf::GolferState>(i));
+        bool found = false;
+        for (auto required : kRequiredGolferClips)
+            found = found || required == name;
+        EXPECT_TRUE(found) << "state " << i << " plays '" << name << "', which golfer models are not required to have";
+    }
 }

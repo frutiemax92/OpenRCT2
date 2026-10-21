@@ -10,6 +10,9 @@
 #include "GolfRuntime.h"
 
 #include "../GameState.h"
+#include "../entity/EntityList.h"
+#include "../entity/EntityRegistry.h"
+#include "../entity/GolferEntity.h"
 #include "../object/BuildingObject.h"
 #include "../scenario/Scenario.h"
 #include "../world/Map.h"
@@ -103,6 +106,53 @@ namespace OpenRCT2::Golf
         sources.weather = [&gameState] { return gameState.weatherCurrent.weatherType; };
         _director = std::make_unique<GolfDirector>(env, sources);
         refreshBuildings();
+
+        // Golfer entities from before (a map that was reset or swapped) belong to no golfer.
+        std::vector<GolferEntity*> orphans;
+        for (auto* entity : EntityList<GolferEntity>())
+            orphans.push_back(entity);
+        for (auto* entity : orphans)
+            entity->remove();
+    }
+
+    GolferEntity* GolfRuntime::entityOf(uint32_t golferId) const
+    {
+        const auto it = _entityOf.find(golferId);
+        if (it == _entityOf.end())
+            return nullptr;
+        return getGameState().entities.getEntity<GolferEntity>(EntityId::FromUnderlying(it->second));
+    }
+
+    void GolfRuntime::syncEntities()
+    {
+        auto& sim = _director->simulation();
+        std::unordered_map<uint32_t, bool> alive;
+        for (const auto& g : sim.golfers())
+        {
+            alive[g.id] = true;
+            const CoordsXYZ where{ static_cast<int32_t>(g.position.x.floor()), static_cast<int32_t>(g.position.y.floor()),
+                                   static_cast<int32_t>(g.position.z.floor()) };
+            auto* entity = entityOf(g.id);
+            if (entity == nullptr)
+            {
+                entity = GolferEntity::create(g.id, where);
+                if (entity == nullptr)
+                    continue; // the entity limit is hit: this golfer plays unseen
+                _entityOf[g.id] = entity->id.ToUnderlying();
+            }
+            entity->follow(where, g.state);
+        }
+        for (auto it = _entityOf.begin(); it != _entityOf.end();)
+        {
+            if (alive.find(it->first) == alive.end())
+            {
+                if (auto* entity = entityOf(it->first))
+                    entity->remove();
+                it = _entityOf.erase(it);
+            }
+            else
+                ++it;
+        }
     }
 
     GolfRuntime::~GolfRuntime() = default;
@@ -126,6 +176,7 @@ namespace OpenRCT2::Golf
         if (!_scan.hasClub)
             return;
         _director->update(ticks);
+        syncEntities();
     }
 
     GolfRuntime& runtimeOf(GameState_t& gameState)

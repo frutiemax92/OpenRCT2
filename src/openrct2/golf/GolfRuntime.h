@@ -14,10 +14,12 @@
 #include "MapObstacles.h"
 
 #include <memory>
+#include <unordered_map>
 
 namespace OpenRCT2
 {
     struct GameState_t;
+    struct GolferEntity;
 }
 
 namespace OpenRCT2::Golf
@@ -52,6 +54,8 @@ namespace OpenRCT2::Golf
         {
             return _scan.hasClub;
         }
+        // The entity that shows a golfer, nullptr when it has none.
+        GolferEntity* entityOf(uint32_t golferId) const;
         const BuildingScan& buildings() const
         {
             return _scan;
@@ -59,11 +63,13 @@ namespace OpenRCT2::Golf
 
     private:
         class GameRandom;
+        void syncEntities();
         MapObstacles _obstacles;
         MapBallWorld _world;
         std::unique_ptr<GameRandom> _rng;
         BuildingScan _scan;
         std::unique_ptr<GolfDirector> _director;
+        std::unordered_map<uint32_t, uint16_t> _entityOf; // golfer id -> entity id
     };
 
     // The runtime of a game state, created on first call.

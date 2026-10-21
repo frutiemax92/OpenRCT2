@@ -73,6 +73,7 @@ namespace OpenRCT2
             case EntityType::balloon:
             case EntityType::duck:
             case EntityType::golfBall:
+            case EntityType::golfer:
                 return true;
             default:
                 return false;
@@ -262,7 +263,8 @@ namespace OpenRCT2
         uint16_t count = 0;
         for (auto id : { EntityType::steamParticle, EntityType::moneyEffect, EntityType::crashedVehicleParticle,
                          EntityType::explosionCloud, EntityType::crashSplash, EntityType::explosionFlare,
-                         EntityType::jumpingFountain, EntityType::balloon, EntityType::duck, EntityType::golfBall })
+                         EntityType::jumpingFountain, EntityType::balloon, EntityType::duck, EntityType::golfBall,
+                         EntityType::golfer })
         {
             count += getEntityListCount(id);
         }

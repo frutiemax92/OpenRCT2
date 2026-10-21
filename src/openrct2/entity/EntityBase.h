@@ -24,6 +24,7 @@ namespace OpenRCT2
         balloon,
         duck,
         golfBall,
+        golfer,
         count,
         null = 255
     };

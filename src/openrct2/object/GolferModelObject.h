@@ -40,6 +40,9 @@ namespace OpenRCT2
     public:
         static constexpr ObjectType kObjectType = ObjectType::golferModel;
 
+        // Id in the ModelSpriteStore of the loaded model drawn for golfers, 0 while none is loaded (GLF-030).
+        static inline uint32_t ActiveModelId = 0;
+
         StringId NameStringId{};
         uint32_t IconImageId{};
 

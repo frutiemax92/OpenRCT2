@@ -12,6 +12,7 @@
 #include "../drawing/LightFX.h"
 #include "../entity/EntityList.h"
 #include "../entity/GolfBall.h"
+#include "../entity/GolferEntity.h"
 #include "../entity/Staff.h"
 #include "../interface/Viewport.h"
 #include "../profiling/Profiling.h"
@@ -23,6 +24,7 @@
 #include "entity/Paint.ExplosionCloud.h"
 #include "entity/Paint.ExplosionFlare.h"
 #include "entity/Paint.GolfBall.h"
+#include "entity/Paint.Golfer.h"
 #include "entity/Paint.Guest.h"
 #include "entity/Paint.JumpingFountain.h"
 #include "entity/Paint.Litter.h"
@@ -169,6 +171,9 @@ void EntityPaintSetup(PaintSession& session, const CoordsXY& pos)
                 break;
             case EntityType::golfBall:
                 PaintGolfBall(session, *entity->cast<GolfBall>(), image_direction);
+                break;
+            case EntityType::golfer:
+                PaintGolfer(session, *entity->cast<GolferEntity>(), image_direction);
                 break;
             case EntityType::litter:
                 PaintLitter(session, *entity->cast<Litter>(), image_direction);
