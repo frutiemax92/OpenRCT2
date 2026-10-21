@@ -39,8 +39,9 @@ namespace OpenRCT2::Parking
         std::vector<Tile> tiles;
     };
 
-    // Finds the parking lots of the map (STE-010). A parking tile belongs to the lot of the street tile it faces; a lot needs
-    // a path next to one of its tiles, on an edge other than the one facing the street. Tiles that face no street, and lots
-    // with no path, are left out. Ghosts are ignored. The order is stable: by street tile, then by tile.
+    // Finds the parking lots of the map (STE-010). Parking tiles next to each other, or facing the same street tile, make one
+    // lot, which cars drive into from the street tile of its first tile. A lot needs a path next to one of its tiles, on an
+    // edge other than the one facing the street. Tiles that face no street, and lots with no path, are left out. Ghosts are
+    // ignored. The order is stable: by the first tile of each lot in raster order.
     std::vector<LotDescription> FindLots();
 } // namespace OpenRCT2::Parking

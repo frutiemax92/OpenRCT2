@@ -31,6 +31,11 @@
 #include <openrct2/world/MapAnimation.h>
 #include <openrct2/world/Building.h>
 #include <openrct2/world/Footpath.h>
+#include <openrct2/actions/scenery/ParkingPlaceAction.h>
+#include <openrct2/world/Parking.h>
+#include <openrct2/world/Street.h>
+#include <openrct2/actions/scenery/StreetPlaceAction.h>
+#include <openrct2/actions/scenery/StreetRoadEntranceAction.h>
 #include <openrct2/entity/GolfVehicleEntity.h>
 #include <openrct2/entity/GolferEntity.h>
 #include <openrct2/object/VehicleModelObject.h>
@@ -515,4 +520,192 @@ TEST(GolfRuntimeTests, GolfVehicleEntitiesTurnAndMove)
     EXPECT_EQ(entity->yaw, 64); // towards -y
     entity->remove();
     EXPECT_EQ(gameState.entities.getEntityListCount(EntityType::golfVehicle), 0u);
+}
+
+namespace
+{
+    // A club, a street from the edge of the map with a road entrance, and a parking lot of two tiles with a path to the
+    // club; returns false when the test park has ground in the way.
+    bool buildLotAndStreet(IContext& context, GameState_t& gameState)
+    {
+        gameState.cheats.sandboxMode = true;
+        // The test park is a small map inside bigger storage; the traffic scans the map by its size.
+        gameState.mapSize = { 60, 60 };
+        ObjectEntryIndex clubIndex{};
+        auto* club = loadClub(context, clubIndex);
+        auto& objectManager = context.GetObjectManager();
+        auto* road = objectManager.LoadObject("golf.street.road");
+        if (club == nullptr || road == nullptr)
+            return false;
+        const auto roadIndex = objectManager.GetLoadedObjectEntryIndex(road);
+
+        // A row of bare ground from the edge ring (tile 1) to tile 8, with bare ground below tiles 4 to 6 for the lot.
+        auto bare = [](int x, int y) {
+            const CoordsXY tile{ x * 32, y * 32 };
+            auto* surface = MapGetSurfaceElementAt(tile);
+            return surface != nullptr && isBareFlat(tile, surface->getBaseZ());
+        };
+        int row = -1;
+        for (int y = 3; y < 20 && row < 0; y++)
+        {
+            bool free = true;
+            for (int x = 1; x <= 8; x++)
+                free = free && bare(x, y);
+            for (int x = 4; x <= 6; x++)
+                free = free && bare(x, y + 1);
+            if (free)
+                row = y;
+        }
+        if (row < 0)
+            return false;
+
+        auto ok = [&](const GameActions::GameAction& action) {
+            return GameActions::ExecuteNested(&action, gameState).error == GameActions::Status::ok;
+        };
+        for (int x = 1; x <= 8; x++)
+        {
+            GameActions::StreetPlaceAction street({ x * 32, row * 32 }, roadIndex);
+            if (!ok(street))
+                return false;
+        }
+        GameActions::StreetRoadEntranceAction entrance({ 1 * 32, row * 32 }, true);
+        if (!ok(entrance))
+            return false;
+        // Two parking tiles below the street facing it (-y), and a path next to them.
+        for (int x : { 5, 6 })
+        {
+            GameActions::ParkingPlaceAction parking({ x * 32, (row + 1) * 32 }, roadIndex, 3);
+            if (!ok(parking))
+                return false;
+        }
+        insertPath({ 4 * 32, (row + 1) * 32 });
+
+        // The club goes where there is room left.
+        const auto found = findFlatBlock(3, 2);
+        if (!found.has_value())
+            return false;
+        insertPath(Building::GetEntrance(*club, *found, 0).outsideTile);
+        GameActions::BuildingPlaceAction place(*found, clubIndex, 0);
+        return ok(place);
+    }
+} // namespace
+
+TEST(GolfRuntimeTests, GroupsArriveByCarAndParkInTheLot)
+{
+    auto context = startPark();
+    ASSERT_NE(context.get(), nullptr);
+    auto& gameState = getGameState();
+    if (!buildLotAndStreet(*context, gameState))
+        GTEST_SKIP() << "the test park has no room for a street and a lot, or the objects are missing";
+
+    auto* course = gameState.golf.createCourse("Links");
+    course->open = true;
+    course->greenFee = 500;
+    auto* hole = gameState.golf.createHole(course->id);
+    hole->tees[0] = Golf::HolePoint{ 10 * 32, 8 * 32 };
+    hole->cup = Golf::HolePoint{ 10 * 32 + 200, 8 * 32 };
+
+    auto& runtime = Golf::runtimeOf(gameState);
+    runtime.director().setPopularity(1000);
+    runtime.update(0); // learns the club, the streets and the lot
+    ASSERT_TRUE(runtime.hasCarTraffic());
+    EXPECT_EQ(runtime.traffic().capacity(), 4); // two tiles, two spaces each
+
+    // Run a morning: cars come in at the entrance, park, and the golfers get out of them.
+    const uint32_t start = Golf::kTicksPerGameDay + 6 * 60 * Golf::kTicksPerGameMinute;
+    bool sawCar = false, sawParked = false, sawGolferOut = false;
+    for (uint32_t t = start; t < start + 4 * 60 * Golf::kTicksPerGameMinute; t++)
+    {
+        runtime.update(t);
+        for (const auto& car : runtime.traffic().cars())
+        {
+            sawCar = true;
+            sawParked = sawParked || car.state == Golf::CarState::parked;
+        }
+        // STE-011: never more cars on the way to or in a space than there are spaces.
+        ASSERT_GE(runtime.traffic().freeSpaces(), 0);
+        ASSERT_LE(runtime.traffic().freeSpaces(), 4);
+        for (const auto& golfer : runtime.director().simulation().golfers())
+            sawGolferOut = sawGolferOut || (golfer.state != Golf::GolferState::inCar && golfer.hasExit);
+    }
+    EXPECT_TRUE(sawCar);
+    EXPECT_TRUE(sawParked);
+    EXPECT_TRUE(sawGolferOut);
+    // The cars have entities that show them.
+    EXPECT_EQ(gameState.entities.getEntityListCount(EntityType::golfVehicle), runtime.traffic().cars().size());
+}
+
+TEST(GolfRuntimeTests, WithoutStreetsGroupsStillTurnUpAtTheClub)
+{
+    auto context = startPark();
+    ASSERT_NE(context.get(), nullptr);
+    auto& gameState = getGameState();
+    gameState.cheats.sandboxMode = true;
+    ObjectEntryIndex clubIndex{};
+    auto* club = loadClub(*context, clubIndex);
+    if (club == nullptr)
+        GTEST_SKIP() << "the club house object is not installed";
+    const auto found = findFlatBlock(3, 2);
+    ASSERT_TRUE(found.has_value());
+    insertPath(Building::GetEntrance(*club, *found, 0).outsideTile);
+    GameActions::BuildingPlaceAction place(*found, clubIndex, 0);
+    ASSERT_EQ(GameActions::ExecuteNested(&place, gameState).error, GameActions::Status::ok);
+
+    auto* course = gameState.golf.createCourse("Links");
+    course->open = true;
+    auto* hole = gameState.golf.createHole(course->id);
+    hole->tees[0] = Golf::HolePoint{ found->x + 64, found->y + 200 };
+    hole->cup = Golf::HolePoint{ found->x + 64, found->y + 800 };
+
+    auto& runtime = Golf::runtimeOf(gameState);
+    runtime.director().setPopularity(1000);
+    EXPECT_FALSE(runtime.hasCarTraffic());
+    const uint32_t start = Golf::kTicksPerGameDay + 6 * 60 * Golf::kTicksPerGameMinute;
+    bool sawGolfer = false;
+    for (uint32_t t = start; t < start + 3 * 60 * Golf::kTicksPerGameMinute; t++)
+    {
+        runtime.update(t);
+        for (const auto& golfer : runtime.director().simulation().golfers())
+        {
+            EXPECT_NE(golfer.state, Golf::GolferState::inCar);
+            sawGolfer = true;
+        }
+    }
+    EXPECT_TRUE(sawGolfer);
+    EXPECT_TRUE(runtime.traffic().cars().empty());
+}
+
+TEST(GolfRuntimeTests, EveryCarDrivesAwayOnceItsGroupHasLeft)
+{
+    auto context = startPark();
+    ASSERT_NE(context.get(), nullptr);
+    auto& gameState = getGameState();
+    if (!buildLotAndStreet(*context, gameState))
+        GTEST_SKIP() << "the test park has no room for a street and a lot, or the objects are missing";
+
+    auto* course = gameState.golf.createCourse("Links");
+    course->open = true;
+    course->greenFee = 500;
+    auto* hole = gameState.golf.createHole(course->id);
+    hole->tees[0] = Golf::HolePoint{ 10 * 32, 8 * 32 };
+    hole->cup = Golf::HolePoint{ 10 * 32 + 120, 8 * 32 };
+
+    auto& runtime = Golf::runtimeOf(gameState);
+    runtime.director().setPopularity(1000);
+    size_t mostCars = 0;
+    // From 06:00 to the small hours of the next morning: arrivals stop before closing, everyone is off the course by 20:00.
+    const uint32_t start = Golf::kTicksPerGameDay + 6 * 60 * Golf::kTicksPerGameMinute;
+    for (uint32_t t = start; t < start + 20 * 60 * Golf::kTicksPerGameMinute; t++)
+    {
+        runtime.update(t);
+        mostCars = std::max(mostCars, runtime.traffic().cars().size());
+        ASSERT_LE(runtime.traffic().cars().size(), 4u); // a car holds a space from the moment it is on its way
+    }
+    EXPECT_GT(mostCars, 0u);
+    EXPECT_TRUE(runtime.director().simulation().golfers().empty());
+    // Every car has left by the road entrance, and so has its entity and its place in the way of the balls.
+    for (const auto& car : runtime.traffic().cars())
+        EXPECT_EQ(car.state, Golf::CarState::gone);
+    EXPECT_EQ(gameState.entities.getEntityListCount(EntityType::golfVehicle), 0u);
+    EXPECT_EQ(runtime.traffic().freeSpaces(), runtime.traffic().capacity());
 }

@@ -117,6 +117,10 @@ namespace OpenRCT2::Golf
         }
 
         ParkingLot& addLot(const TileCoordsXY& streetTile, const TileCoordsXY& pathTile);
+        // Forgets the lots, the cars and who was in the way of whom: the streets or the parking changed under them. Ids go on.
+        void reset();
+        // The space with an id, in whichever lot it is; nullptr when there is none.
+        const ParkingSpace* findSpace(uint32_t spaceId) const;
         std::vector<ParkingLot>& lots()
         {
             return _lots;

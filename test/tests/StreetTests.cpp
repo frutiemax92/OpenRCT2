@@ -594,3 +594,39 @@ TEST(Parking, LotsAreFoundWithTheirStreetAndPath)
     ASSERT_EQ(GameActions::ExecuteNested(&ghost, gameState).error, GameActions::Status::ok);
     EXPECT_TRUE(Parking::FindLots().empty());
 }
+
+TEST(Parking, TilesNextToEachOtherAreOneLotEvenWhenTheyFaceDifferentStreetTiles)
+{
+    auto context = startPark();
+    ASSERT_NE(context.get(), nullptr);
+    auto& gameState = getGameState();
+    gameState.cheats.sandboxMode = true;
+    const StreetObject* road = nullptr;
+    const auto index = loadStreet(*context, "golf.street.road", &road);
+    if (road == nullptr)
+        GTEST_SKIP() << "the street object is not installed";
+    const auto found = findFlatBlock(3, 2);
+    ASSERT_TRUE(found.has_value());
+    // The block is 3 x 2: a street along its top row, a row of parking along the bottom row facing it, a path at the end.
+    const CoordsXY s0 = *found, s1{ found->x + 32, found->y }, s2{ found->x + 64, found->y };
+    const CoordsXY p0{ found->x, found->y + 32 }, p1{ found->x + 32, found->y + 32 };
+    for (const auto& tile : { s0, s1, s2 })
+    {
+        GameActions::StreetPlaceAction street(tile, index);
+        ASSERT_EQ(GameActions::ExecuteNested(&street, gameState).error, GameActions::Status::ok);
+    }
+    for (const auto& tile : { p0, p1 })
+    {
+        GameActions::ParkingPlaceAction parking(tile, index, 3);
+        ASSERT_EQ(GameActions::ExecuteNested(&parking, gameState).error, GameActions::Status::ok);
+    }
+    // The path is at the far end of the row of parking, next to the second tile only.
+    layPath({ found->x + 64, found->y + 32 });
+
+    const auto lots = Parking::FindLots();
+    ASSERT_EQ(lots.size(), 1u);
+    EXPECT_EQ(lots[0].tiles.size(), 2u);
+    // It drives in from the street tile of the first tile.
+    EXPECT_EQ(lots[0].streetTile, (TileCoordsXY{ s0.x / 32, s0.y / 32 }));
+    EXPECT_EQ(lots[0].pathTile, (TileCoordsXY{ (found->x + 64) / 32, (found->y + 32) / 32 }));
+}

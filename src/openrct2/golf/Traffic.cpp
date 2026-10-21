@@ -117,6 +117,23 @@ namespace OpenRCT2::Golf
         return _lots.back();
     }
 
+    void TrafficSimulation::reset()
+    {
+        _lots.clear();
+        _cars.clear();
+        _events.clear();
+        _junctionOwner.clear();
+    }
+
+    const ParkingSpace* TrafficSimulation::findSpace(uint32_t spaceId) const
+    {
+        for (const auto& lot : _lots)
+            for (const auto& space : lot.spaces)
+                if (space.id == spaceId)
+                    return &space;
+        return nullptr;
+    }
+
     int32_t TrafficSimulation::freeSpaces() const
     {
         int32_t total = 0;

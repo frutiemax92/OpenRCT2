@@ -13,6 +13,8 @@
 #include "GolfDirector.h"
 #include "MapBallWorld.h"
 #include "MapObstacles.h"
+#include "StreetNetwork.h"
+#include "Traffic.h"
 
 #include <memory>
 #include <unordered_map>
@@ -61,6 +63,16 @@ namespace OpenRCT2::Golf
         // Tells the player about what the golfers did (GLF-042): a rage quit becomes a news item.
         void announce(const SimEvent& event);
 
+        // True when the map has streets with a road entrance and a parking lot, so groups arrive by car (STE-021).
+        bool hasCarTraffic() const
+        {
+            return !_network.roadEntrances().empty() && !_traffic.lots().empty();
+        }
+        const TrafficSimulation& traffic() const
+        {
+            return _traffic;
+        }
+
         // The entity that shows a golfer, nullptr when it has none.
         GolferEntity* entityOf(uint32_t golferId) const;
         const BuildingScan& buildings() const
@@ -71,12 +83,17 @@ namespace OpenRCT2::Golf
     private:
         class GameRandom;
         void syncEntities();
+        // The streets and parking lots of the map, and the cars on them (STE-020 to STE-022).
+        void refreshTraffic();
+        void driveTraffic();
+        bool receiveCar(const std::vector<uint32_t>& golferIds, uint32_t groupId);
+        void getOut(const Car& car);
+        void releaseStrandedGolfers();
         void settleAccounts();
         void payUpkeep();
         Ledger currentLedger() const;
         std::vector<Bench> mergeBenches() const;
         std::vector<LitterBin> mergeBins() const;
-        MapObstacles _obstacles;
         MapBallWorld _world;
         std::unique_ptr<GameRandom> _rng;
         BuildingScan _scan;
@@ -89,6 +106,13 @@ namespace OpenRCT2::Golf
             int32_t x = 0, y = 0;
         };
         std::unordered_map<uint32_t, Known> _known; // golfer id -> name and place, for events about golfers that have left
+        StreetNetwork _network;
+        TrafficSimulation _traffic{ &_network };
+        uint64_t _layout = 0;                // fingerprint of the streets and lots the traffic was built for
+        bool _layoutKnown = false;
+        uint32_t _nextSpaceId = 1;
+        std::unordered_map<uint32_t, uint16_t> _carEntities;              // car id -> entity id
+        std::unordered_map<uint32_t, std::vector<uint32_t>> _carGolfers;  // car id -> the golfers it brought
         Ledger _paid; // what of the director's income has reached the cash of the park
     };
 

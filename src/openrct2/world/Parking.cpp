@@ -18,6 +18,7 @@
 #include "tile_element/StreetElement.h"
 
 #include <algorithm>
+#include <cstdlib>
 #include <map>
 
 namespace OpenRCT2::Parking
@@ -53,8 +54,15 @@ namespace OpenRCT2::Parking
 
     std::vector<LotDescription> FindLots()
     {
-        // Lots keyed by the street tile they face, in tile order.
-        std::map<std::pair<int32_t, int32_t>, LotDescription> lots;
+        // Every parking tile that faces a street, in raster order.
+        struct Member
+        {
+            TileCoordsXY tile;
+            uint8_t facing;
+            TileCoordsXY street;
+            size_t group;
+        };
+        std::vector<Member> members;
         const auto size = getGameState().mapSize;
         for (int32_t y = 0; y < size.y; y++)
         {
@@ -69,19 +77,58 @@ namespace OpenRCT2::Parking
                 const auto* street = Street::FindAt(streetCoords);
                 if (street == nullptr || street->isGhost())
                     continue;
-
-                const TileCoordsXY streetTile{ streetCoords.x / kCoordsXYStep, streetCoords.y / kCoordsXYStep };
-                auto& lot = lots[{ streetTile.y, streetTile.x }];
-                lot.streetTile = streetTile;
-                lot.tiles.push_back({ TileCoordsXY{ x, y }, static_cast<uint8_t>(facing) });
+                members.push_back({ TileCoordsXY{ x, y }, static_cast<uint8_t>(facing),
+                                    TileCoordsXY{ streetCoords.x / kCoordsXYStep, streetCoords.y / kCoordsXYStep },
+                                    members.size() });
             }
         }
 
+        // Tiles next to each other, and tiles that face the same street tile, are one lot.
+        std::vector<size_t> parent(members.size());
+        for (size_t i = 0; i < parent.size(); i++)
+            parent[i] = i;
+        auto find = [&](size_t i) {
+            while (parent[i] != i)
+            {
+                parent[i] = parent[parent[i]];
+                i = parent[i];
+            }
+            return i;
+        };
+        for (size_t i = 0; i < members.size(); i++)
+        {
+            for (size_t j = i + 1; j < members.size(); j++)
+            {
+                const bool adjacent = std::abs(members[i].tile.x - members[j].tile.x)
+                        + std::abs(members[i].tile.y - members[j].tile.y) == 1;
+                const bool sameStreet = members[i].street == members[j].street;
+                if (adjacent || sameStreet)
+                    parent[find(j)] = find(i);
+            }
+        }
+
+        // Lots in the order of their first tile, which the raster order of the members gives.
         std::vector<LotDescription> result;
-        for (auto& [key, lot] : lots)
+        std::map<size_t, size_t> lotOfRoot;
+        for (size_t i = 0; i < members.size(); i++)
+        {
+            const auto root = find(i);
+            auto it = lotOfRoot.find(root);
+            if (it == lotOfRoot.end())
+            {
+                LotDescription lot;
+                lot.streetTile = members[i].street;
+                it = lotOfRoot.emplace(root, result.size()).first;
+                result.push_back(std::move(lot));
+            }
+            result[it->second].tiles.push_back({ members[i].tile, members[i].facing });
+        }
+
+        // A lot needs a path next to one of its tiles, on a side that does not face the street.
+        std::vector<LotDescription> withPath;
+        for (auto& lot : result)
         {
             bool found = false;
-            // The path may be next to any tile of the lot, on a side that does not face the street.
             for (const auto& member : lot.tiles)
             {
                 for (Direction edge = 0; edge < 4 && !found; edge++)
@@ -99,8 +146,8 @@ namespace OpenRCT2::Parking
                     break;
             }
             if (found)
-                result.push_back(std::move(lot));
+                withPath.push_back(std::move(lot));
         }
-        return result;
+        return withPath;
     }
 } // namespace OpenRCT2::Parking
