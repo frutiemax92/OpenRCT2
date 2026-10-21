@@ -34,7 +34,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from generate import EDGES, SURFACES, edge_texture, surface_icon, surface_texture  # noqa: E402
-from glb import car_glb, cart_glb, golfer_glb  # noqa: E402
+from glb import car_glb, cart_glb, deer_glb, duck_glb, golfer_glb  # noqa: E402
 from parkobj import pack  # noqa: E402
 from pixelart import Image, draw_text, shade, text_colour, text_size  # noqa: E402
 
@@ -706,7 +706,10 @@ def golfer_model(name, description, palette):
 
 
 def animal(name, description, habitat, group_size, spawn_rate, sound, palette):
-    images = {"images/icon.png": quantise(vehicle_icon((100, 180, 80)), palette).png()}
+    images = {
+        "images/icon.png": quantise(vehicle_icon((100, 180, 80)), palette).png(),
+        "model.glb": duck_glb() if name == "duck" else deer_glb(),
+    }
     table = [{"path": "images/icon.png", "x": 0, "y": 0}]
     properties = {
         "model": "model.glb",

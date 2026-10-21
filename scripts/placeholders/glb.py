@@ -248,6 +248,63 @@ def cart_glb():
     return vehicle_glb(2.0, 1.1, 0.3, 1.5, True)
 
 
+def animal_glb(kind):
+    """A duck or a deer facing -X, with the clips idle, walk, run and flee (and swim for the duck). Sizes in metres."""
+    b = Builder()
+    if kind == "duck":
+        body_c, head_c, beak_c, leg_c = (120, 90, 60), (40, 110, 60), (240, 180, 40), (240, 150, 40)
+        size = dict(body=(0.40, 0.22, 0.22), head=(0.12, 0.12, 0.12), leg=(0.04, 0.12, 0.04), height=0.12, legs=2)
+    else:
+        body_c, head_c, beak_c, leg_c = (150, 105, 65), (150, 105, 65), (60, 40, 30), (110, 75, 45)
+        size = dict(body=(0.90, 0.40, 0.35), head=(0.20, 0.20, 0.16), leg=(0.08, 0.60, 0.08), height=0.60, legs=4)
+    body_m = b.material("body", body_c)
+    head_m = b.material("head", head_c)
+    beak_m = b.material("beak", beak_c)
+    leg_m = b.material("leg", leg_c)
+    bx, by, bz = size["body"]
+    h = size["height"]
+    body = b.node("body_mesh", mesh=b.box((bx, by, bz), (0, h + by / 2, 0), body_m))
+    head_pivot = b.node("head", (-bx / 2, h + by, 0), children=[
+        b.node("head_mesh", mesh=b.box(size["head"], (-0.04, size["head"][1] / 2, 0), head_m)),
+        b.node("beak_mesh", mesh=b.box((0.08, 0.04, 0.06), (-size["head"][0] - 0.02, size["head"][1] / 2 - 0.01, 0), beak_m)),
+    ])
+    legs = []
+    lx, lz = bx * 0.32, bz * 0.3
+    spots = [(-lx, lz), (-lx, -lz), (lx, lz), (lx, -lz)] if size["legs"] == 4 else [(0.0, lz * 0.5), (0.0, -lz * 0.5)]
+    for i, (px, pz) in enumerate(spots):
+        mesh = b.node("leg_mesh", mesh=b.box(size["leg"], (0, -size["leg"][1] / 2, 0), leg_m))
+        legs.append(b.node("leg_%d" % i, (px, h, pz), children=[mesh]))
+    root = b.node("animal", children=[body, head_pivot] + legs)
+
+    def rot(node, keys):
+        return (node, "rotation", [(t, quat_z(a)) for t, a in keys])
+
+    def bob(keys):
+        return (root, "translation", [(t, v) for t, v in keys])
+
+    def gait(swing, period):
+        channels = []
+        for i, leg in enumerate(legs):
+            phase = 1 if i in (0, 3) or len(legs) == 2 and i == 0 else -1
+            channels.append(rot(leg, [(0, swing * phase), (period / 2, -swing * phase), (period, swing * phase)]))
+        return channels
+
+    b.clip("idle", [rot(head_pivot, [(0, 0), (1.5, -12), (3.0, 0)])])
+    b.clip("walk", gait(25, 1.0) + [bob([(0, (0, 0, 0)), (0.5, (0, 0.02, 0)), (1.0, (0, 0, 0))])])
+    b.clip("run", gait(45, 0.5) + [bob([(0, (0, 0, 0)), (0.25, (0, 0.06, 0)), (0.5, (0, 0, 0))])])
+    b.clip("flee", gait(55, 0.4) + [rot(head_pivot, [(0, -20), (0.4, -20)])])
+    b.clip("swim", [bob([(0, (0, -0.1, 0)), (0.8, (0, -0.08, 0)), (1.6, (0, -0.1, 0))])])
+    return b.build(root)
+
+
+def duck_glb():
+    return animal_glb("duck")
+
+
+def deer_glb():
+    return animal_glb("deer")
+
+
 if __name__ == "__main__":
     import sys
     open(sys.argv[1], "wb").write(golfer_glb())

@@ -12,7 +12,13 @@
 #include "../Context.h"
 #include "../core/Guard.hpp"
 #include "../core/Json.hpp"
+#include "../Diagnostic.h"
+#include "../Diagnostic.h"
 #include "../drawing/Drawing.h"
+#include "../drawing/ModelSpriteStore.h"
+#include "../model/GlbModel.h"
+#include "../drawing/ModelSpriteStore.h"
+#include "../model/GlbModel.h"
 #include "ObjectCollision.h"
 #include "ObjectManager.h"
 
@@ -28,6 +34,9 @@ namespace OpenRCT2
         if (properties.is_object())
         {
             ModelPath = Json::GetString(properties["model"]);
+            ModelData.clear();
+            if (!ModelPath.empty())
+                ModelData = context->GetData(ModelPath);
             TriangleBudget = Json::GetNumber<int32_t>(properties["triangleBudget"], 600);
             MinGroupSize = Json::GetNumber<int32_t>(properties["minGroupSize"], 2);
             MaxGroupSize = Json::GetNumber<int32_t>(properties["maxGroupSize"], 6);
@@ -77,10 +86,25 @@ namespace OpenRCT2
 
     void AnimalObject::Load()
     {
+        if (ModelData.empty())
+            return;
+        // R3D-003: animals stay within their triangle budget (twice over is rejected).
+        auto result = Model::loadGlb(ModelData, static_cast<size_t>(TriangleBudget), 128);
+        if (!result.ok)
+        {
+            LOG_ERROR("Animal model '%s' rejected: %s", std::string(GetIdentifier()).c_str(), result.error.c_str());
+            return;
+        }
+        ModelId = Drawing::ModelSpriteStore::Instance().RegisterModel(std::make_shared<Model::GlbModel>(std::move(result.model)));
     }
 
     void AnimalObject::Unload()
     {
+        if (ModelId != 0)
+        {
+            Drawing::ModelSpriteStore::Instance().UnregisterModel(ModelId);
+            ModelId = 0;
+        }
     }
 
     void AnimalObject::DrawPreview(Drawing::RenderTarget& rt, int32_t width, int32_t height) const

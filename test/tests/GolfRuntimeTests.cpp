@@ -44,6 +44,7 @@
 #include <openrct2/entity/GolfBall.h>
 #include <openrct2/entity/GolfVehicleEntity.h>
 #include <openrct2/entity/GolferEntity.h>
+#include <openrct2/object/AnimalObject.h>
 #include <openrct2/object/VehicleModelObject.h>
 #include <openrct2/model/Rasteriser.h>
 #include <openrct2/golf/GolfRuntime.h>
@@ -1005,4 +1006,25 @@ TEST(GolfRuntimeTests, SwingsPuttsAndTheCupMakeTheirSounds)
     stranger.golferId = 12345;
     runtime.announce(stranger);
     EXPECT_EQ(heard.size(), expected.size());
+}
+
+TEST(GolfRuntimeTests, TheDuckAndTheDeerLoadWithTheirClipsWithinBudget)
+{
+    auto context = startPark();
+    ASSERT_NE(context.get(), nullptr);
+    auto& objectManager = context->GetObjectManager();
+    for (const char* id : { "golf.animal.duck", "golf.animal.deer" })
+    {
+        auto* animal = static_cast<AnimalObject*>(objectManager.LoadObject(id));
+        if (animal == nullptr)
+            GTEST_SKIP() << id << " is not installed";
+        ASSERT_NE(animal->ModelId, 0u) << id;
+        const auto* model = Drawing::ModelSpriteStore::Instance().GetModel(animal->ModelId);
+        ASSERT_NE(model, nullptr);
+        // ANM-001, R3D-003.
+        EXPECT_LE(model->triangleCount(), static_cast<size_t>(animal->TriangleBudget)) << id;
+        for (auto clip : kRequiredAnimalClips)
+            EXPECT_NE(model->findClip(std::string(clip)), nullptr) << id << " has no clip " << clip;
+        EXPECT_TRUE(animal->ValidateRequiredClips());
+    }
 }

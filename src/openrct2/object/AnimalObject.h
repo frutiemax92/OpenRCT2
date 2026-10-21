@@ -38,6 +38,8 @@ namespace OpenRCT2
         uint32_t IconImageId{};
 
         std::string ModelPath;
+        std::vector<uint8_t> ModelData; // the .glb read from the archive
+        uint32_t ModelId = 0;           // in the ModelSpriteStore while the object is loaded
         int32_t TriangleBudget = 600; // R3D-003: animal <= 600
         std::vector<std::string> Clips;
         std::vector<std::string> AllowedSurfaces; // ANM-001: habitat
