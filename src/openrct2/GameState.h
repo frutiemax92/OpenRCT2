@@ -32,6 +32,11 @@
 
 namespace OpenRCT2
 {
+    namespace Golf
+    {
+        class GolfRuntime;
+    }
+
     using PeepSpawn = CoordsXYZD;
 
     struct GameState_t
@@ -47,6 +52,8 @@ namespace OpenRCT2
         uint16_t weatherUpdateTimer;
         Weather::WindState wind;
         Golf::CourseManager golf;
+        // The golfers' behaviour (created on first use, not saved yet).
+        std::shared_ptr<Golf::GolfRuntime> golfRuntime; // shared_ptr: the type is incomplete here
 
         uint32_t nextGuestNumber;
 

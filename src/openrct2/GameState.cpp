@@ -11,6 +11,7 @@
 
 #include "Game.h"
 #include "GameStateSnapshots.h"
+#include "golf/GolfRuntime.h"
 #include "Input.h"
 #include "OpenRCT2.h"
 #include "ReplayManager.h"
@@ -66,6 +67,7 @@ namespace OpenRCT2
         BannerInit(gameState);
         RideInitAll();
         gameState.entities.resetAllEntities();
+        Golf::resetRuntime(gameState);
         UpdateConsolidatedPatrolAreas();
         ResetDate();
         Weather::reset();
@@ -312,6 +314,7 @@ namespace OpenRCT2
         VehicleUpdateAll();
         gameState.entities.updateAllMiscEntities();
         Ride::updateAll();
+        Golf::updateGolf(gameState);
         auto& park = gameState.park;
 
         if (!isInEditorMode())

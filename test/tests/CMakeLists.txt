@@ -67,6 +67,7 @@ set(test_files
    "${CMAKE_CURRENT_SOURCE_DIR}/GolferSkillsTests.cpp"
    "${CMAKE_CURRENT_SOURCE_DIR}/GolfSimulationTests.cpp"
    "${CMAKE_CURRENT_SOURCE_DIR}/GolfDirectorTests.cpp"
+   "${CMAKE_CURRENT_SOURCE_DIR}/GolfRuntimeTests.cpp"
    "${CMAKE_CURRENT_SOURCE_DIR}/ArrivalsTests.cpp"
    "${CMAKE_CURRENT_SOURCE_DIR}/EconomyTests.cpp"
    "${CMAKE_CURRENT_SOURCE_DIR}/TournamentTests.cpp"
