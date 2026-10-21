@@ -59,7 +59,9 @@ namespace OpenRCT2::Golf
 
     int32_t CartFleet::freeCarts() const
     {
-        return static_cast<int32_t>(std::count_if(_carts.begin(), _carts.end(), [](const Cart& c) { return c.state == CartState::parked; }));
+        return static_cast<int32_t>(std::count_if(_carts.begin(), _carts.end(), [](const Cart& c) {
+            return c.state == CartState::parked && c.battery >= kMinBatteryToRent && c.condition > 0;
+        }));
     }
 
     Cart* CartFleet::find(uint32_t cartId)
@@ -88,6 +90,8 @@ namespace OpenRCT2::Golf
             cart.id = _nextCartId++;
             cart.position = space->position;
             cart.spaceId = space->id;
+            cart.battery = 100;
+            cart.condition = 100;
             space->cartId = cart.id;
             _carts.push_back(cart);
             result.bought++;
@@ -132,7 +136,7 @@ namespace OpenRCT2::Golf
             Fixed bestDistance{};
             for (auto& c : _carts)
             {
-                if (c.state != CartState::parked)
+                if (c.state != CartState::parked || c.battery < kMinBatteryToRent || c.condition == 0)
                     continue;
                 const Fixed d = distanceXY(c.position, from);
                 if (best == nullptr || d < bestDistance)
@@ -197,6 +201,12 @@ namespace OpenRCT2::Golf
 
     bool CartFleet::drive(Cart& cart, const FixedVec3& destination)
     {
+        if (cart.battery == 0)
+        {
+            cart.speed = Fixed{};
+            return false;
+        }
+
         Fixed top = Fixed::ratio(kCartTopSpeedHundredths, 100);
         Fixed accel = Fixed::ratio(8, 100);
         auto* cartObj = VehicleModelObject::FindFirstByKind(VehicleModelKind::golfCart);
@@ -235,6 +245,10 @@ namespace OpenRCT2::Golf
         }
         cart.position.x = nextX;
         cart.position.y = nextY;
+        if (cart.battery > 0 && ((cart.id + static_cast<uint32_t>(cart.position.x.raw())) % 8 == 0))
+        {
+            cart.battery--;
+        }
         return false;
     }
 
@@ -268,6 +282,31 @@ namespace OpenRCT2::Golf
         cart->riders.clear();
         cart->groupId = 0;
         cart->state = CartState::parked;
+        if (cart->condition > 0)
+        {
+            cart->condition--;
+        }
+    }
+
+    void CartFleet::rechargeParkedCarts(uint8_t amount)
+    {
+        for (auto& c : _carts)
+        {
+            if (c.state == CartState::parked)
+            {
+                c.battery = static_cast<uint8_t>(std::min<int32_t>(100, static_cast<int32_t>(c.battery) + amount));
+            }
+        }
+    }
+
+    void CartFleet::serviceCart(uint32_t cartId)
+    {
+        auto* cart = find(cartId);
+        if (cart != nullptr)
+        {
+            cart->condition = 100;
+            cart->battery = 100;
+        }
     }
 
     Obstacle CartFleet::obstacleOf(const Cart& cart)

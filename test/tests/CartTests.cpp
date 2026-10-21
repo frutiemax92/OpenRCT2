@@ -281,3 +281,38 @@ TEST(CartFleet, CartContactPointsMatchModelConstants)
     EXPECT_FLOAT_EQ(static_cast<float>(kCartHalfLength), cp.halfLength);
     EXPECT_FLOAT_EQ(static_cast<float>(kCartHalfWidth), cp.halfWidth);
 }
+
+TEST(CartFleet, BatteryRechargingAndMaintenance)
+{
+    auto fleet = fleetWith(2, 2);
+    EXPECT_EQ(fleet.freeCarts(), 2);
+
+    // Deplete battery on cart 1 below minimum rental threshold (kMinBatteryToRent = 20)
+    auto* cart1 = fleet.find(1);
+    ASSERT_NE(cart1, nullptr);
+    cart1->battery = 15;
+    EXPECT_EQ(fleet.freeCarts(), 1);
+
+    // Cart 1 is skipped during rental due to low battery; only cart 2 is rented
+    const auto rental = fleet.rent(group(2), 10, vec(100, 100, 0));
+    ASSERT_EQ(rental.cartIds.size(), 1u);
+    EXPECT_EQ(rental.cartIds[0], 2u);
+
+    // Dead battery prevents driving
+    cart1->battery = 0;
+    EXPECT_FALSE(fleet.drive(*cart1, vec(200, 100, 0)));
+    EXPECT_EQ(cart1->speed, Fixed{});
+
+    // Parked carts recharge
+    cart1->battery = 10;
+    fleet.rechargeParkedCarts(15);
+    EXPECT_EQ(cart1->battery, 25);
+    EXPECT_EQ(fleet.freeCarts(), 1); // cart 2 is rented, cart 1 is now recharged and free
+
+    // Service cart restores battery and condition to 100
+    cart1->condition = 40;
+    fleet.serviceCart(cart1->id);
+    EXPECT_EQ(cart1->battery, 100);
+    EXPECT_EQ(cart1->condition, 100);
+}
+

@@ -60,6 +60,8 @@ namespace OpenRCT2::Golf
         uint32_t spaceId = 0;           // the space it is parked in or heading for
         uint32_t groupId = 0;
         Fixed speed{};
+        uint8_t battery = 100;          // CRT-007: 0..100 battery level, recharges when parked
+        uint8_t condition = 100;        // CRT-007: 0..100 maintenance/wear condition
     };
 
     // CRT-003: whether a golfer wants a cart, from their energy, their physique, the length of the course and their
@@ -137,6 +139,11 @@ namespace OpenRCT2::Golf
 
         // CRT-006: carts are obstacles; balls and other vehicles avoid them.
         static Obstacle obstacleOf(const Cart& cart);
+
+        // CRT-007: recharging and maintenance
+        static constexpr uint8_t kMinBatteryToRent = 20;
+        void rechargeParkedCarts(uint8_t amount = 5);
+        void serviceCart(uint32_t cartId);
 
     private:
         CartSpace* nearestFreeSpace(const FixedVec3& from);
