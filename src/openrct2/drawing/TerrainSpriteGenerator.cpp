@@ -752,4 +752,158 @@ namespace OpenRCT2::Drawing
         }
         return sprite;
     }
+
+    TerrainSprite GenerateTerrainStreamSprite(
+        const TerrainShape& shape,
+        const TerrainTexture& texture,
+        uint8_t edges,
+        int32_t streamWidth,
+        const TerrainShadeTable& shades,
+        int32_t rotation,
+        int32_t zoom)
+    {
+        assert(zoom >= 0 && zoom < kTerrainZoomLevels);
+        rotation &= 3;
+
+        const int32_t hN = shape.north * kQuarterStepZ, hE = shape.east * kQuarterStepZ;
+        const int32_t hS = shape.south * kQuarterStepZ, hW = shape.west * kQuarterStepZ;
+        const Vertex vS = MakeVertex(0, 0, hS, rotation);
+        const Vertex vE = MakeVertex(kTile, 0, hE, rotation);
+        const Vertex vN = MakeVertex(kTile, kTile, hN, rotation);
+        const Vertex vW = MakeVertex(0, kTile, hW, rotation);
+
+        const bool northSouth = GetSplitDiagonal(shape) == SplitDiagonal::northSouth;
+        const std::array<std::array<Vertex, 3>, 2> tris = {{
+            northSouth ? std::array<Vertex, 3>{ vS, vE, vN } : std::array<Vertex, 3>{ vS, vE, vW },
+            northSouth ? std::array<Vertex, 3>{ vS, vN, vW } : std::array<Vertex, 3>{ vE, vN, vW },
+        }};
+
+        const int64_t step = int64_t{ 1 } << zoom;
+        int64_t minX = INT64_MAX, minY = INT64_MAX, maxX = INT64_MIN, maxY = INT64_MIN;
+        for (const auto& tri : tris)
+            for (const auto& v : tri)
+            {
+                minX = std::min(minX, v.sx);
+                maxX = std::max(maxX, v.sx);
+                minY = std::min(minY, v.sy);
+                maxY = std::max(maxY, v.sy);
+            }
+        TerrainSprite sprite;
+        sprite.xOffset = FloorDiv(minX, step);
+        sprite.yOffset = FloorDiv(minY, step);
+        sprite.width = CeilDiv(maxX, step) - sprite.xOffset;
+        sprite.height = CeilDiv(maxY, step) - sprite.yOffset;
+        sprite.pixels.assign(static_cast<size_t>(sprite.width) * static_cast<size_t>(sprite.height), kTerrainTransparent);
+
+        constexpr int64_t kOne = 256;
+        constexpr int64_t kHalf = 16 * kOne;
+        constexpr int64_t kFull = 32 * kOne;
+        const int64_t halfWidth = std::max<int64_t>(1, streamWidth) * kOne / 2;
+        const int64_t radiusSq = halfWidth * halfWidth;
+
+        const int32_t insideX[2] = { northSouth ? 24 : 8, northSouth ? 8 : 24 };
+        const int32_t insideY[2] = { 8, 24 };
+
+        for (int32_t ti = 0; ti < 2; ti++)
+        {
+            Vertex a = tris[ti][0], b = tris[ti][1], c = tris[ti][2];
+            auto area2 = [&](const Vertex& p, const Vertex& q, const Vertex& r) {
+                return Edge(2 * p.sx, 2 * p.sy, 2 * q.sx, 2 * q.sy, 2 * r.sx, 2 * r.sy);
+            };
+            int64_t area = area2(a, b, c);
+            if (area == 0)
+                continue;
+            if (area < 0)
+            {
+                std::swap(b, c);
+                area = -area;
+            }
+
+            const int32_t band = GetTerrainShadeBand(GetSurfaceNormalAt(shape, insideX[ti], insideY[ti]), rotation);
+
+            const int64_t tminX = std::min({ a.sx, b.sx, c.sx }), tmaxX = std::max({ a.sx, b.sx, c.sx });
+            const int64_t tminY = std::min({ a.sy, b.sy, c.sy }), tmaxY = std::max({ a.sy, b.sy, c.sy });
+            const int32_t px0 = FloorDiv(tminX, step), px1 = CeilDiv(tmaxX, step);
+            const int32_t py0 = FloorDiv(tminY, step), py1 = CeilDiv(tmaxY, step);
+
+            const int64_t bias0 = IsTopLeft(2 * b.sx, 2 * b.sy, 2 * c.sx, 2 * c.sy) ? 0 : -1;
+            const int64_t bias1 = IsTopLeft(2 * c.sx, 2 * c.sy, 2 * a.sx, 2 * a.sy) ? 0 : -1;
+            const int64_t bias2 = IsTopLeft(2 * a.sx, 2 * a.sy, 2 * b.sx, 2 * b.sy) ? 0 : -1;
+
+            for (int32_t py = py0; py < py1; py++)
+            {
+                for (int32_t px = px0; px < px1; px++)
+                {
+                    const int64_t cx = (2 * static_cast<int64_t>(px) + 1) * step;
+                    const int64_t cy = (2 * static_cast<int64_t>(py) + 1) * step;
+                    const int64_t w0 = Edge(2 * b.sx, 2 * b.sy, 2 * c.sx, 2 * c.sy, cx, cy);
+                    const int64_t w1 = Edge(2 * c.sx, 2 * c.sy, 2 * a.sx, 2 * a.sy, cx, cy);
+                    const int64_t w2 = Edge(2 * a.sx, 2 * a.sy, 2 * b.sx, 2 * b.sy, cx, cy);
+                    if (w0 + bias0 < 0 || w1 + bias1 < 0 || w2 + bias2 < 0)
+                        continue;
+
+                    const int64_t lx = (w0 * a.lx + w1 * b.lx + w2 * c.lx) * 256 / area;
+                    const int64_t ly = (w0 * a.ly + w1 * b.ly + w2 * c.ly) * 256 / area;
+
+                    // Stream connection pattern mask (STR-002, STR-005)
+                    bool inStream = false;
+                    if ((edges & 0x0F) == 0)
+                    {
+                        const int64_t dx = lx - kHalf, dy = ly - kHalf;
+                        inStream = (dx * dx + dy * dy <= radiusSq);
+                    }
+                    else
+                    {
+                        // Edge 0 = -x (from x=0 to x=16, y=16)
+                        if (edges & 1)
+                        {
+                            const int64_t clx = std::clamp(lx, int64_t{ 0 }, kHalf);
+                            const int64_t dx = lx - clx, dy = ly - kHalf;
+                            if (dx * dx + dy * dy <= radiusSq)
+                                inStream = true;
+                        }
+                        // Edge 1 = +y (from y=16 to y=32, x=16)
+                        if (!inStream && (edges & 2))
+                        {
+                            const int64_t cly = std::clamp(ly, kHalf, kFull);
+                            const int64_t dx = lx - kHalf, dy = ly - cly;
+                            if (dx * dx + dy * dy <= radiusSq)
+                                inStream = true;
+                        }
+                        // Edge 2 = +x (from x=16 to x=32, y=16)
+                        if (!inStream && (edges & 4))
+                        {
+                            const int64_t clx = std::clamp(lx, kHalf, kFull);
+                            const int64_t dx = lx - clx, dy = ly - kHalf;
+                            if (dx * dx + dy * dy <= radiusSq)
+                                inStream = true;
+                        }
+                        // Edge 3 = -y (from y=0 to y=16, x=16)
+                        if (!inStream && (edges & 8))
+                        {
+                            const int64_t cly = std::clamp(ly, int64_t{ 0 }, kHalf);
+                            const int64_t dx = lx - kHalf, dy = ly - cly;
+                            if (dx * dx + dy * dy <= radiusSq)
+                                inStream = true;
+                        }
+                    }
+
+                    if (!inStream)
+                        continue;
+
+                    const int32_t ixl = static_cast<int32_t>(std::clamp<int64_t>(lx >> 8, 0, kTile - 1));
+                    const int32_t iyl = static_cast<int32_t>(std::clamp<int64_t>(ly >> 8, 0, kTile - 1));
+                    const uint8_t pixel = texture.Sample(zoom, ixl, iyl);
+                    if (pixel == kTerrainTransparent)
+                        continue;
+
+                    const int32_t ox = px - sprite.xOffset, oy = py - sprite.yOffset;
+                    if (ox < 0 || oy < 0 || ox >= sprite.width || oy >= sprite.height)
+                        continue;
+                    sprite.pixels[static_cast<size_t>(oy) * sprite.width + ox] = shades.Shade(band, pixel);
+                }
+            }
+        }
+        return sprite;
+    }
 } // namespace OpenRCT2::Drawing

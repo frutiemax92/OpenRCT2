@@ -11,10 +11,13 @@
 
 #include <algorithm>
 
+#include "../GameState.h"
 #include "../config/Config.h"
+#include "../object/StreamObject.h"
 #include "../object/TerrainEdgeObject.h"
 #include "../object/TerrainSurfaceObject.h"
 #include "../world/Map.h"
+#include "../world/tile_element/StreamElement.h"
 #include "../world/tile_element/SurfaceElement.h"
 #include "G1Element.h"
 #include "Image.h"
@@ -152,6 +155,44 @@ namespace OpenRCT2::Drawing
 
         std::lock_guard lock(_mutex);
         const auto* sprite = _cache.Get(key, [&] { return GenerateTerrainOverlaySprite(shape, overlay, rotation, 0); });
+        if (sprite == nullptr || sprite->pixels.empty())
+            return kImageIndexUndefined;
+        return RegisterImage(key, *sprite);
+    }
+
+    ImageIndex TerrainSpriteStore::GetStreamImage(const SurfaceElement& surface, const StreamElement& stream, int32_t rotation)
+    {
+        const auto shape = surface.getTerrainShape();
+        const auto shapeIndex = Terrain::GetShapeIndex(shape);
+        if (shapeIndex == 0xFFFF)
+            return kImageIndexUndefined;
+
+        const auto* streamObject = stream.getObject();
+        if (streamObject == nullptr || streamObject->Frames.empty())
+            return kImageIndexUndefined;
+
+        const int32_t frameDuration = std::max(1, streamObject->FrameDurationTicks);
+        const int32_t frameCount = std::max(1, streamObject->FrameCount);
+        const int32_t frameIdx = (getGameState().currentTicks / frameDuration) % frameCount;
+        const auto* texture = streamObject->getFrame(frameIdx);
+        if (texture == nullptr)
+            return kImageIndexUndefined;
+
+        TerrainSpriteKey key{ static_cast<uint16_t>(kStreamShapeIndexBase + shapeIndex), {}, static_cast<uint8_t>(rotation & 3), 0 };
+        key.quadrantSurfaces[0] = static_cast<uint8_t>(stream.getObjectIndex());
+        key.quadrantSurfaces[1] = stream.getEdges();
+        key.quadrantSurfaces[2] = static_cast<uint8_t>(frameIdx);
+        key.quadrantSurfaces[3] = static_cast<uint8_t>(std::clamp(streamObject->Width, 1, 32));
+
+        std::lock_guard lock(_mutex);
+        if (!_shadesBuilt)
+        {
+            _shades = BuildShades();
+            _shadesBuilt = true;
+        }
+        const auto* sprite = _cache.Get(key, [&] {
+            return GenerateTerrainStreamSprite(shape, *texture, stream.getEdges(), streamObject->Width, _shades, rotation, 0);
+        });
         if (sprite == nullptr || sprite->pixels.empty())
             return kImageIndexUndefined;
         return RegisterImage(key, *sprite);

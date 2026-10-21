@@ -138,4 +138,15 @@ namespace OpenRCT2::Drawing
 
     TerrainSprite GenerateTerrainOverlaySprite(
         const Terrain::TerrainShape& shape, const TerrainOverlay& overlay, int32_t rotation, int32_t zoom);
+
+    // Procedural stream surface (STR-005): the stream texture masked to its connection pattern and projected onto the
+    // surface triangles.
+    TerrainSprite GenerateTerrainStreamSprite(
+        const Terrain::TerrainShape& shape,
+        const TerrainTexture& texture,
+        uint8_t edges,
+        int32_t streamWidth,
+        const TerrainShadeTable& shades,
+        int32_t rotation,
+        int32_t zoom);
 } // namespace OpenRCT2::Drawing

@@ -18,6 +18,10 @@
 namespace OpenRCT2
 {
     struct StreamElement;
+    namespace Golf
+    {
+        class StreetNetwork;
+    }
 }
 
 namespace OpenRCT2::Stream
@@ -61,4 +65,10 @@ namespace OpenRCT2::Stream
     uint8_t GetNeighbourMask(const CoordsXY& tile);
     // Tells the stream neighbours of `tile` that a stream appeared (or disappeared) next to them.
     void UpdateNeighbours(const CoordsXY& tile, bool hasStream);
+
+    // STR-007: Golfers walk across streams only on paths/bridges; vehicles only on streets/bridges.
+    bool HasPathOrBridge(const CoordsXY& tile);
+    bool CanGolferCross(const CoordsXY& tile);
+    bool CanVehicleCross(const CoordsXY& tile, const Golf::StreetNetwork* streets = nullptr);
+    bool CanMove(const CoordsXY& from, const CoordsXY& to, bool isVehicle, const Golf::StreetNetwork* streets = nullptr);
 } // namespace OpenRCT2::Stream

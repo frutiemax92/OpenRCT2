@@ -8,8 +8,10 @@
  *****************************************************************************/
 #include "Stream.h"
 
+#include "../golf/StreetNetwork.h"
 #include "Map.h"
 #include "TileElementsView.h"
+#include "tile_element/PathElement.h"
 #include "tile_element/StreamElement.h"
 
 #include <algorithm>
@@ -100,6 +102,8 @@ namespace OpenRCT2::Stream
 
     StreamElement* FindAt(const CoordsXY& tile)
     {
+        if (!MapIsLocationValid(tile))
+            return nullptr;
         for (auto* element : TileElementsView<StreamElement>(tile))
             return element;
         return nullptr;
@@ -130,5 +134,45 @@ namespace OpenRCT2::Stream
                 MapInvalidateTileFull(neighbour);
             }
         }
+    }
+
+    bool HasPathOrBridge(const CoordsXY& tile)
+    {
+        if (!MapIsLocationValid(tile))
+            return false;
+        for (const auto* element : TileElementsView<PathElement>(tile))
+        {
+            (void)element;
+            return true;
+        }
+        return false;
+    }
+
+    bool CanGolferCross(const CoordsXY& tile)
+    {
+        auto* stream = FindAt(tile);
+        if (stream == nullptr)
+            return true;
+        return HasPathOrBridge(tile);
+    }
+
+    bool CanVehicleCross(const CoordsXY& tile, const Golf::StreetNetwork* streets)
+    {
+        auto* stream = FindAt(tile);
+        if (stream == nullptr)
+            return true;
+        if (streets != nullptr && streets->tileAt(TileCoordsXY{ tile.x >> 5, tile.y >> 5 }) != nullptr)
+            return true;
+        return HasPathOrBridge(tile);
+    }
+
+    bool CanMove(const CoordsXY& from, const CoordsXY& to, bool isVehicle, const Golf::StreetNetwork* streets)
+    {
+        const TileCoordsXY tA{ from.x >> 5, from.y >> 5 };
+        const TileCoordsXY tB{ to.x >> 5, to.y >> 5 };
+        if (tA == tB)
+            return true;
+        const CoordsXY targetTile{ tB.x << 5, tB.y << 5 };
+        return isVehicle ? CanVehicleCross(targetTile, streets) : CanGolferCross(targetTile);
     }
 } // namespace OpenRCT2::Stream

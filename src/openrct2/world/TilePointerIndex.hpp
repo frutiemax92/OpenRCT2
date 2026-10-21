@@ -46,7 +46,12 @@ public:
 
     T* GetFirstElementAt(TileCoordsXY coords)
     {
-        return TilePointers[coords.x + (coords.y * MapSize)];
+        if (coords.x < 0 || coords.y < 0)
+            return nullptr;
+        size_t idx = static_cast<size_t>(coords.x) + (static_cast<size_t>(coords.y) * MapSize);
+        if (idx >= TilePointers.size())
+            return nullptr;
+        return TilePointers[idx];
     }
 
     void SetTile(TileCoordsXY coords, T* tileElement)

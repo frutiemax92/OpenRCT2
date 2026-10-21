@@ -8,6 +8,7 @@
  *****************************************************************************/
 
 #include "GolfSimulation.h"
+#include "../world/Stream.h"
 
 #include <algorithm>
 
@@ -243,11 +244,25 @@ namespace OpenRCT2::Golf
         const Fixed distance = length(delta);
         if (distance <= Fixed::fromInt(kArriveDistanceUnits) || distance <= speed)
         {
+            const CoordsXY currTile{ static_cast<int32_t>(g.position.x.floor()), static_cast<int32_t>(g.position.y.floor()) };
+            const CoordsXY destTile{ static_cast<int32_t>(to.x.floor()), static_cast<int32_t>(to.y.floor()) };
+            if (!Stream::CanMove(currTile, destTile, false))
+            {
+                return false;
+            }
             g.position = { to.x, to.y, groundZ(to.x, to.y) };
             return true;
         }
-        g.position.x += delta.x * speed / distance;
-        g.position.y += delta.y * speed / distance;
+        const Fixed nextX = g.position.x + delta.x * speed / distance;
+        const Fixed nextY = g.position.y + delta.y * speed / distance;
+        const CoordsXY currTile{ static_cast<int32_t>(g.position.x.floor()), static_cast<int32_t>(g.position.y.floor()) };
+        const CoordsXY nextTile{ static_cast<int32_t>(nextX.floor()), static_cast<int32_t>(nextY.floor()) };
+        if (!Stream::CanMove(currTile, nextTile, false))
+        {
+            return false;
+        }
+        g.position.x = nextX;
+        g.position.y = nextY;
         g.position.z = groundZ(g.position.x, g.position.y);
         return false;
     }

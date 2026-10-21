@@ -21,6 +21,7 @@
 namespace OpenRCT2
 {
     struct SurfaceElement;
+    struct StreamElement;
 }
 
 namespace OpenRCT2::Drawing
@@ -54,6 +55,9 @@ namespace OpenRCT2::Drawing
         // An overlay following the surface of a tile (TER-034), or the same overlay on a flat tile for drawing on water
         // (flat = true). kImageIndexUndefined when it is not ready yet.
         ImageIndex GetOverlayImage(const Terrain::TerrainShape& shape, const TerrainOverlay& overlay, int32_t rotation);
+
+        // The stream surface of a tile (STR-005), projected onto the terrain surface and masked to its connection pattern.
+        ImageIndex GetStreamImage(const SurfaceElement& surface, const StreamElement& stream, int32_t rotation);
 
         size_t GetSpriteCount() const;
 

@@ -27,6 +27,7 @@
 #include "../../profiling/Profiling.h"
 #include "../../world/Map.h"
 #include "../../world/MapSelection.h"
+#include "../../world/Stream.h"
 #include "../../world/tile_element/Slope.h"
 #include "../../world/tile_element/SurfaceElement.h"
 #include "../../world/tile_element/TileElement.h"
@@ -1002,6 +1003,17 @@ void PaintSurface(PaintSession& session, uint8_t direction, uint16_t height, con
         }
 
         PaintAddImageAsParent(session, imageId, { 0, 0, height }, { 32, 32, -1 });
+
+        // Stream surface projected on terrain (STR-005)
+        const auto* stream = Stream::FindAt(session.MapPosition);
+        if (stream != nullptr)
+        {
+            const auto streamImage = Drawing::TerrainSpriteStore::Instance().GetStreamImage(tileElement, *stream, rotation);
+            if (streamImage != kImageIndexUndefined)
+            {
+                PaintAttachToPreviousPS(session, ImageId(streamImage), 0, 0);
+            }
+        }
 
         if (showGridlines)
         {

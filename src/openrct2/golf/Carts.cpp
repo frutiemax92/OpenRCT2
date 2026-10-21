@@ -9,6 +9,7 @@
 
 #include "Carts.h"
 #include "../object/VehicleModelObject.h"
+#include "../world/Stream.h"
 
 #include <algorithm>
 
@@ -211,13 +212,29 @@ namespace OpenRCT2::Golf
         cart.speed = cart.speed < wanted ? min(wanted, cart.speed + accel) : wanted;
         if (distance <= cart.speed || distance <= Fixed::fromInt(1))
         {
+            const CoordsXY currTile{ static_cast<int32_t>(cart.position.x.floor()), static_cast<int32_t>(cart.position.y.floor()) };
+            const CoordsXY destTile{ static_cast<int32_t>(destination.x.floor()), static_cast<int32_t>(destination.y.floor()) };
+            if (!Stream::CanMove(currTile, destTile, true, nullptr))
+            {
+                cart.speed = Fixed{};
+                return false;
+            }
             cart.position.x = destination.x;
             cart.position.y = destination.y;
             cart.speed = Fixed{};
             return true;
         }
-        cart.position.x += delta.x * cart.speed / distance;
-        cart.position.y += delta.y * cart.speed / distance;
+        const Fixed nextX = cart.position.x + delta.x * cart.speed / distance;
+        const Fixed nextY = cart.position.y + delta.y * cart.speed / distance;
+        const CoordsXY currTile{ static_cast<int32_t>(cart.position.x.floor()), static_cast<int32_t>(cart.position.y.floor()) };
+        const CoordsXY nextTile{ static_cast<int32_t>(nextX.floor()), static_cast<int32_t>(nextY.floor()) };
+        if (!Stream::CanMove(currTile, nextTile, true, nullptr))
+        {
+            cart.speed = Fixed{};
+            return false;
+        }
+        cart.position.x = nextX;
+        cart.position.y = nextY;
         return false;
     }
 
