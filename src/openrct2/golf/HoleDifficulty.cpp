@@ -9,6 +9,9 @@
 
 #include "HoleDifficulty.h"
 
+#include "PlayAI.h"
+#include "Rules.h"
+
 #include <algorithm>
 
 namespace OpenRCT2::Golf
@@ -162,5 +165,167 @@ namespace OpenRCT2::Golf
     bool isTooHard(const HoleDifficulty& difficulty, const GolferSkills& skills)
     {
         return difficulty.total - golferLevelTenths(skills) > kTooHardThresholdTenths;
+    }
+
+    namespace
+    {
+        Fixed horizontal(const FixedVec3& a, const FixedVec3& b)
+        {
+            return length(FixedVec3{ a.x - b.x, a.y - b.y, Fixed{} });
+        }
+
+        class DefaultTestRandom final : public IBallRandom
+        {
+        private:
+            uint32_t _seed = 0x12345678;
+
+        public:
+            uint32_t next() override
+            {
+                _seed = _seed * 1103515245 + 12345;
+                return _seed;
+            }
+        };
+
+        class HoleCupWorld final : public IBallWorld
+        {
+        private:
+            const IBallWorld& _inner;
+            FixedVec3 _cupPos;
+
+        public:
+            HoleCupWorld(const IBallWorld& inner, const FixedVec3& cupPos)
+                : _inner(inner)
+                , _cupPos(cupPos)
+            {
+            }
+            SurfaceSample surfaceAt(Fixed x, Fixed y) const override
+            {
+                return _inner.surfaceAt(x, y);
+            }
+            bool obstacleAt(const FixedVec3& position, Fixed radius, ObstacleContact& contact) const override
+            {
+                return _inner.obstacleAt(position, radius, contact);
+            }
+            FixedVec3 wind() const override
+            {
+                return _inner.wind();
+            }
+            bool cupNear(Fixed x, Fixed y, CupInfo& cup) const override
+            {
+                if (_inner.cupNear(x, y, cup))
+                    return true;
+                if (abs(x - _cupPos.x) <= Fixed::fromInt(8) && abs(y - _cupPos.y) <= Fixed::fromInt(8))
+                {
+                    cup.position = _cupPos;
+                    cup.radius = Fixed::fromInt(3);
+                    return true;
+                }
+                return false;
+            }
+        };
+    } // namespace
+
+    TestHoleResult testHole(const Hole& hole, const IBallWorld& world, IBallRandom* rng)
+    {
+        TestHoleResult result;
+        const auto teeCategory = hole.firstTee();
+        if (!teeCategory.has_value() || !hole.cup.has_value())
+            return result;
+
+        DefaultTestRandom defaultRng;
+        auto& activeRng = (rng != nullptr) ? *rng : defaultRng;
+
+        result.par = hole.par();
+        result.difficulty = rateHole(hole, world);
+
+        const HolePoint tee = *hole.tees[static_cast<size_t>(*teeCategory)];
+        const HolePoint cup = *hole.cup;
+        const auto line = hole.playingLine(*teeCategory);
+
+        const auto cupSurface = world.surfaceAt(Fixed::fromInt(cup.x), Fixed::fromInt(cup.y));
+        const FixedVec3 cupPos = { Fixed::fromInt(cup.x), Fixed::fromInt(cup.y), cupSurface.height };
+        HoleCupWorld testWorld(world, cupPos);
+
+        Ball ball;
+        placeBall(ball, testWorld, Fixed::fromInt(tee.x), Fixed::fromInt(tee.y), BallState::Teed);
+
+        result.shotPositions.push_back(tee);
+
+        const GolferSkills skills{ kAverageSkill, kAverageSkill, kAverageSkill, kAverageSkill };
+        const int32_t strokeLimit = maxStrokes(result.par);
+
+        while (result.strokes < strokeLimit)
+        {
+            if (horizontal(ball.position, cupPos) <= Fixed::fromInt(4))
+            {
+                result.reachedCup = true;
+                break;
+            }
+
+            PlayContext ctx;
+            ctx.world = &testWorld;
+            ctx.skills = skills;
+            ctx.energy = 255;
+            ctx.equipmentLevel = 0;
+            ctx.riskTolerance = Fixed::ratio(5, 10);
+            ctx.ball = ball.position;
+            ctx.line = line;
+            ctx.cup = cupPos;
+            ctx.teeShot = (result.strokes == 0);
+            ctx.miniPutt = false;
+
+            const auto decision = decideShot(ctx);
+
+            ShotRequest req;
+            req.club = decision.club;
+            req.power = decision.power;
+            req.aimX = decision.aimX;
+            req.aimY = decision.aimY;
+            req.energy = 255;
+            req.skills = skills;
+            req.equipmentLevel = 0;
+            const auto here = testWorld.surfaceAt(ball.position.x, ball.position.y);
+            req.lie = lieOf(here);
+            req.surfaceRoughness = here.roughness;
+
+            const auto shot = computeShot(req, activeRng);
+            applyShot(ball, shot);
+            result.strokes++;
+
+            int32_t stepCount = 0;
+            while (!isSettled(ball.state) && stepCount < 2000)
+            {
+                stepBall(ball, testWorld, activeRng);
+                stepCount++;
+            }
+
+            result.shotPositions.push_back(HolePoint{ static_cast<int32_t>(ball.position.x.floor()), static_cast<int32_t>(ball.position.y.floor()) });
+
+            const auto outcome = judgeShot(ball, testWorld);
+            if (outcome.kind == ShotOutcome::Kind::holed || ball.state == BallState::Holed)
+            {
+                result.reachedCup = true;
+                break;
+            }
+            if (horizontal(ball.position, cupPos) <= Fixed::fromInt(4))
+            {
+                result.reachedCup = true;
+                break;
+            }
+            if (outcome.kind == ShotOutcome::Kind::penalty)
+            {
+                result.strokes += outcome.penaltyStrokes;
+                placeBall(ball, testWorld, outcome.dropPosition.x, outcome.dropPosition.y, BallState::AtRest);
+            }
+        }
+
+        result.scoreAgainstPar = result.strokes - result.par;
+        int32_t adjusted = result.difficulty.total + result.scoreAgainstPar * 10;
+        if (!result.reachedCup)
+            adjusted = std::max(adjusted, 80);
+        result.estimatedDifficulty = std::clamp(adjusted, 0, 100);
+
+        return result;
     }
 } // namespace OpenRCT2::Golf

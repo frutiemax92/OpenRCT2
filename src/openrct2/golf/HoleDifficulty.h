@@ -57,4 +57,20 @@ namespace OpenRCT2::Golf
     bool isTooHard(const HoleDifficulty& difficulty, const GolferSkills& skills);
     // Happiness lost per hole played that is too hard, 0..255 scale (GLF-013).
     constexpr int32_t kTooHardHappinessLoss = 20;
+
+    // Result of testing a hole with AI shots (HOL-012).
+    struct TestHoleResult
+    {
+        int32_t par = 0;
+        int32_t strokes = 0;
+        int32_t scoreAgainstPar = 0;
+        HoleDifficulty difficulty;
+        int32_t estimatedDifficulty = 0; // 0..100: estimated difficulty rating
+        std::vector<HolePoint> shotPositions;
+        bool reachedCup = false;
+    };
+
+    // HOL-012: fires AI shots with average skill (50) from the first tee to the cup to test the hole and estimate
+    // its difficulty.
+    TestHoleResult testHole(const Hole& hole, const IBallWorld& world, IBallRandom* rng = nullptr);
 } // namespace OpenRCT2::Golf

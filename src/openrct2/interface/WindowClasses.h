@@ -99,6 +99,7 @@ namespace OpenRCT2
         editorStatusLine = 141,
         modelViewer = 142,
         shotTool = 143,
+        course = 144,
 
         // Only used for colour schemes
         staff = 220,

@@ -48,6 +48,17 @@ namespace OpenRCT2::Golf
 
     int32_t parForLength(int32_t yards, TeeCategory category = TeeCategory::men);
 
+    struct HoleStats
+    {
+        uint32_t timesPlayed = 0;
+        uint32_t totalStrokes = 0;
+
+        double averageScore() const
+        {
+            return timesPlayed == 0 ? 0.0 : static_cast<double>(totalStrokes) / timesPlayed;
+        }
+    };
+
     // Position of something on the map, in world units; z is looked up from the terrain when it is needed.
     using HolePoint = CoordsXY;
 
@@ -60,6 +71,8 @@ namespace OpenRCT2::Golf
         int32_t parOverride = 0; // 0 for the computed par (men's tee)
         HoleSchedule schedule;   // the time slot and what groups really take (HOL-020)
         int32_t sceneryScore = 0; // 0..100: scenery near the hole (SCN-003)
+        HoleStats stats;
+        int32_t estimatedDifficulty = -1; // -1 if not tested yet; 0..100 from testHole (HOL-012)
 
         bool hasTee(TeeCategory category) const
         {
@@ -93,6 +106,19 @@ namespace OpenRCT2::Golf
         miniPutt,
     };
 
+    struct CourseStats
+    {
+        uint32_t roundsPlayed = 0;
+        int64_t revenue = 0;
+        uint32_t totalSatisfaction = 0;
+        uint32_t satisfactionSamples = 0;
+
+        uint8_t averageSatisfaction() const
+        {
+            return satisfactionSamples == 0 ? 0 : static_cast<uint8_t>(totalSatisfaction / satisfactionSamples);
+        }
+    };
+
     struct Course
     {
         uint32_t id = 0;
@@ -101,6 +127,7 @@ namespace OpenRCT2::Golf
         int64_t greenFee = 0; // money64 in currency units
         bool open = false;
         bool cartsAllowedOffPath = false; // PTH-005: course setting (default off)
+        CourseStats stats;                // HOL-012: course statistics
         std::vector<Hole> holes; // in playing order: hole 1 first (HOL-004, HOL-011)
 
         bool isFull() const

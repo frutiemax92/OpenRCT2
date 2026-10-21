@@ -3892,3 +3892,32 @@ STR_7098    :There is no such hole
 STR_7099    :There is no such course
 STR_7100    :There are too many courses
 STR_7101    :Can't change this course
+STR_7102    :Golf carts & maintenance vehicles
+STR_7103    :Golf Course
+STR_7104    :{SMALLFONT}{BLACK}Holes
+STR_7105    :{SMALLFONT}{BLACK}Scheduling
+STR_7106    :{SMALLFONT}{BLACK}Statistics
+STR_7107    :Test Hole
+STR_7108    :{SMALLFONT}{BLACK}Simulate average-skill AI shots to test this hole and estimate difficulty
+STR_7109    :Hole
+STR_7110    :Par
+STR_7111    :Length
+STR_7112    :Difficulty
+STR_7113    :Avg Score
+STR_7114    :Avg Wait
+STR_7115    :Mode
+STR_7116    :Slot Time
+STR_7117    :Measured Play
+STR_7118    :Bottleneck
+STR_7119    :Rounds played:
+STR_7120    :Total revenue:
+STR_7121    :Golfer satisfaction:
+STR_7122    :Auto
+STR_7123    :Manual
+STR_7124    :Green fee:
+STR_7125    :Open
+STR_7126    :Closed
+STR_7127    :Carts off-path
+STR_7128    :{SMALLFONT}{BLACK}Allow golf carts to drive off paved paths
+STR_7129    :Up
+STR_7130    :Down

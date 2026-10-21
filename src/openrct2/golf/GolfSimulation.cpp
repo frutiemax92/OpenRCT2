@@ -522,6 +522,8 @@ namespace OpenRCT2::Golf
             auto* mutableHole = _env.courses->findCourse(g.courseId)->findHole(hole->id);
             const int32_t played = static_cast<int32_t>(minuteNow() - g.holeStartMinute);
             recordPlay(mutableHole->schedule, played, static_cast<int32_t>(g.waitedMinutes));
+            mutableHole->stats.totalStrokes += strokes;
+            mutableHole->stats.timesPlayed++;
         }
         // GLF-021, MPT-003: a mini putt hole trains Accuracy only; a regular hole trains everything.
         gainSkills(g.skills, course != nullptr && course->kind == CourseKind::miniPutt ? Activity::miniPuttHole : Activity::courseHole, 1);
@@ -544,6 +546,16 @@ namespace OpenRCT2::Golf
             next++;
         if (course == nullptr || next >= course->holes.size())
         {
+            if (course != nullptr)
+            {
+                auto* mutableCourse = _env.courses->findCourse(g.courseId);
+                if (mutableCourse != nullptr)
+                {
+                    mutableCourse->stats.roundsPlayed++;
+                    mutableCourse->stats.totalSatisfaction += g.needs.happinessByte();
+                    mutableCourse->stats.satisfactionSamples++;
+                }
+            }
             leave(g);
             return;
         }
@@ -612,6 +624,11 @@ namespace OpenRCT2::Golf
                 }
                 g.money -= fee;
                 _income += fee;
+                auto* mutableCourse = _env.courses->findCourse(g.courseId);
+                if (mutableCourse != nullptr)
+                {
+                    mutableCourse->stats.revenue += fee;
+                }
                 emit(SimEvent::Type::paidFee, g, static_cast<int32_t>(fee));
                 // HOL-011: always from hole 1, the first hole that can be played.
                 g.holeIndex = 0;

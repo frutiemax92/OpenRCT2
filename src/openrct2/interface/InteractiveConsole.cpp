@@ -1227,6 +1227,10 @@ static void ConsoleCommandOpen(InteractiveConsole& console, const arguments_t& a
         {
             ContextOpenWindow(WindowClass::shotTool);
         }
+        else if (argv[0] == "course")
+        {
+            ContextOpenWindow(WindowClass::course);
+        }
         else if (argv[0] == "themes")
         {
             ContextOpenWindow(WindowClass::themes);

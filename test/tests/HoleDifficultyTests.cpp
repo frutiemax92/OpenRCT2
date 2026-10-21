@@ -173,3 +173,57 @@ TEST(HoleDifficulty, ATooHardHoleLowersHappiness)
     EXPECT_TRUE(isTooHard(edge, beginner));
     EXPECT_GT(kTooHardHappinessLoss, 0);
 }
+
+TEST(HoleDifficulty, TestHoleIncompleteReturnsEmpty)
+{
+    FunctionWorld world;
+    Hole incomplete;
+    auto res = testHole(incomplete, world);
+    EXPECT_FALSE(res.reachedCup);
+    EXPECT_EQ(res.par, 0);
+    EXPECT_EQ(res.strokes, 0);
+    EXPECT_TRUE(res.shotPositions.empty());
+}
+
+TEST(HoleDifficulty, TestHoleSimulationFiresShotsAndReachesCup)
+{
+    FunctionWorld world;
+    // A 150-yard par 3 hole on flat ground with a green at the end
+    world.puttable = [](double x, double) { return x >= 320 + 140 * 32 / 5; };
+    const auto hole = holeOfYards(150);
+    auto res = testHole(hole, world);
+    EXPECT_EQ(res.par, 3);
+    EXPECT_GE(res.strokes, 1);
+    EXPECT_TRUE(res.reachedCup);
+    EXPECT_GT(res.estimatedDifficulty, 0);
+    EXPECT_FALSE(res.shotPositions.empty());
+    EXPECT_EQ(res.shotPositions.front(), *hole.tees[0]);
+}
+
+TEST(HoleDifficulty, TestHoleSimulationIsDeterministic)
+{
+    FunctionWorld world;
+    world.puttable = [](double x, double) { return x >= 320 + 140 * 32 / 5; };
+    const auto hole = holeOfYards(150);
+    auto res1 = testHole(hole, world);
+    auto res2 = testHole(hole, world);
+    EXPECT_EQ(res1.strokes, res2.strokes);
+    EXPECT_EQ(res1.scoreAgainstPar, res2.scoreAgainstPar);
+    EXPECT_EQ(res1.estimatedDifficulty, res2.estimatedDifficulty);
+    EXPECT_EQ(res1.shotPositions.size(), res2.shotPositions.size());
+}
+
+TEST(HoleDifficulty, HoleAndCourseStatsCalculations)
+{
+    Hole h;
+    EXPECT_DOUBLE_EQ(h.stats.averageScore(), 0.0);
+    h.stats.timesPlayed = 2;
+    h.stats.totalStrokes = 8;
+    EXPECT_DOUBLE_EQ(h.stats.averageScore(), 4.0);
+
+    Course c;
+    EXPECT_EQ(c.stats.averageSatisfaction(), 0);
+    c.stats.totalSatisfaction = 200;
+    c.stats.satisfactionSamples = 2;
+    EXPECT_EQ(c.stats.averageSatisfaction(), 100);
+}

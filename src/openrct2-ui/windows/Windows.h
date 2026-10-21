@@ -91,6 +91,9 @@ namespace OpenRCT2::Ui::Windows
     // ShotTool
     WindowBase* ShotToolOpen();
 
+    // Course (HOL-012)
+    WindowBase* CourseOpen(uint32_t courseId = 0);
+
     // EditorInventionsList
     WindowBase* EditorInventionsListOpen();
 

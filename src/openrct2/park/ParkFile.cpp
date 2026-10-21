@@ -904,6 +904,13 @@ namespace OpenRCT2
                         cs.readWrite(course.kind);
                     if (os.getMode() == OrcaStream::Mode::writing || os.getHeader().targetVersion >= kGolfCourseCartsOffPathVersion)
                         cs.readWrite(course.cartsAllowedOffPath);
+                    if (os.getMode() == OrcaStream::Mode::writing || os.getHeader().targetVersion >= kGolfStatsVersion)
+                    {
+                        cs.readWrite(course.stats.roundsPlayed);
+                        cs.readWrite(course.stats.revenue);
+                        cs.readWrite(course.stats.totalSatisfaction);
+                        cs.readWrite(course.stats.satisfactionSamples);
+                    }
                     uint32_t holeCount = static_cast<uint32_t>(course.holes.size());
                     cs.readWrite(holeCount);
                     if (cs.getMode() == OrcaStream::Mode::reading)
@@ -924,6 +931,12 @@ namespace OpenRCT2
                             cs.readWrite(hole.schedule.measuredPlayTenths);
                             cs.readWrite(hole.schedule.measuredWaitTenths);
                             cs.readWrite(hole.schedule.samples);
+                        }
+                        if (os.getMode() == OrcaStream::Mode::writing || os.getHeader().targetVersion >= kGolfStatsVersion)
+                        {
+                            cs.readWrite(hole.stats.timesPlayed);
+                            cs.readWrite(hole.stats.totalStrokes);
+                            cs.readWrite(hole.estimatedDifficulty);
                         }
                     }
                 }
