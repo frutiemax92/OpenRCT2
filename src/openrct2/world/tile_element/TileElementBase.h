@@ -50,6 +50,7 @@ namespace OpenRCT2
     struct BannerElement;
     struct StreamElement;
     struct StreetElement;
+    struct ParkingElement;
     struct BuildingElement;
 
 #pragma pack(push, 1)
@@ -127,6 +128,8 @@ namespace OpenRCT2
         StreamElement* asStream();
         const StreetElement* asStreet() const;
         StreetElement* asStreet();
+        const ParkingElement* asParking() const;
+        ParkingElement* asParking();
         const BuildingElement* asBuilding() const;
         BuildingElement* asBuilding();
     };

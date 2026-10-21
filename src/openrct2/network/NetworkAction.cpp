@@ -142,6 +142,8 @@ namespace OpenRCT2::Network
                 GameCommand::placeStreet,
                 GameCommand::removeStreet,
                 GameCommand::setRoadEntrance,
+                GameCommand::placeParking,
+                GameCommand::removeParking,
                 GameCommand::setBrakesSpeed,
                 GameCommand::removeWall,
                 GameCommand::placeWall,

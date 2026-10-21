@@ -19,6 +19,8 @@
 #include <openrct2/ParkImporter.h>
 #include <openrct2/actions/GameActionRunner.h>
 #include <openrct2/actions/footpath/FootpathPlaceAction.h>
+#include <openrct2/actions/scenery/ParkingPlaceAction.h>
+#include <openrct2/actions/scenery/ParkingRemoveAction.h>
 #include <openrct2/actions/scenery/StreetPlaceAction.h>
 #include <openrct2/actions/scenery/StreetRemoveAction.h>
 #include <openrct2/actions/scenery/StreetRoadEntranceAction.h>
@@ -33,7 +35,9 @@
 #include <openrct2/world/MapAnimation.h>
 #include <openrct2/world/Footpath.h>
 #include <openrct2/golf/StreetNetwork.h>
+#include <openrct2/world/Parking.h>
 #include <openrct2/world/Street.h>
+#include <openrct2/world/tile_element/ParkingElement.h>
 #include <openrct2/world/tile_element/StreetElement.h>
 #include <openrct2/world/TileElementsView.h>
 #include <openrct2/world/tile_element/PathElement.h>
@@ -434,4 +438,159 @@ TEST(StreetActions, RoadEntrancesAreOnStreetsAtTheEdgeOfTheMap)
     // Taking an entrance away works anywhere.
     GameActions::StreetRoadEntranceAction removeInner(inner, false);
     EXPECT_EQ(GameActions::Query(&removeInner, gameState).error, GameActions::Status::ok);
+}
+
+TEST(Parking, ElementFitsATileElementSlotAndStoresItsFacing)
+{
+    EXPECT_EQ(sizeof(ParkingElement), sizeof(TileElement));
+    EXPECT_EQ(static_cast<uint8_t>(TileElementType::parking), 11);
+    TileElement slot{};
+    slot.clearAs(TileElementType::parking);
+    auto* parking = slot.asParking();
+    ASSERT_NE(parking, nullptr);
+    EXPECT_EQ(slot.asStreet(), nullptr);
+    parking->setObjectIndex(7);
+    parking->setFacing(6);
+    EXPECT_EQ(parking->getFacing(), 2);
+    EXPECT_EQ(parking->getObjectIndex(), 7);
+}
+
+namespace
+{
+    struct Lot
+    {
+        CoordsXY street;
+        CoordsXY parkingBelow;  // south... the tile at +y of the street, facing -y towards it
+        CoordsXY parkingAbove;  // the tile at -y of the street, facing +y towards it
+        CoordsXY pathTile;      // next to parkingBelow
+    };
+
+    Lot lotAt(const CoordsXY& corner)
+    {
+        const CoordsXY street{ corner.x + 32, corner.y };
+        return { street, { street.x, street.y + 32 }, { street.x, street.y - 32 }, { corner.x, corner.y + 32 } };
+    }
+
+    void layPath(const CoordsXY& tile)
+    {
+        const auto baseZ = MapGetSurfaceElementAt(tile)->getBaseZ();
+        auto* path = TileElementInsert<PathElement>({ tile.x, tile.y, baseZ }, 0b1111);
+        path->setClearanceZ(baseZ + 16);
+    }
+} // namespace
+
+TEST(ParkingActions, PlacingAndRemovingParkingTiles)
+{
+    auto context = startPark();
+    ASSERT_NE(context.get(), nullptr);
+    auto& gameState = getGameState();
+    gameState.cheats.sandboxMode = true;
+    const StreetObject* road = nullptr;
+    const auto index = loadStreet(*context, "golf.street.road", &road);
+    if (road == nullptr)
+        GTEST_SKIP() << "the street object is not installed";
+    const auto found = findFlatBlock(3, 2);
+    ASSERT_TRUE(found.has_value());
+    const auto lot = lotAt(*found);
+
+    GameActions::ParkingPlaceAction place(lot.parkingBelow, index, 3);
+    const auto res = GameActions::ExecuteNested(&place, gameState);
+    ASSERT_EQ(res.error, GameActions::Status::ok);
+    EXPECT_EQ(res.cost, road->BuildCost);
+    ASSERT_NE(Parking::FindAt(lot.parkingBelow), nullptr);
+    EXPECT_EQ(Parking::FindAt(lot.parkingBelow)->getFacing(), 3);
+    EXPECT_EQ(Parking::FindAt(lot.parkingBelow)->getObjectIndex(), index);
+
+    // One parking tile per tile, and a street cannot share it.
+    GameActions::ParkingPlaceAction again(lot.parkingBelow, index, 1);
+    EXPECT_EQ(GameActions::Query(&again, gameState).error, GameActions::Status::itemAlreadyPlaced);
+    GameActions::StreetPlaceAction street(lot.parkingBelow, index);
+    EXPECT_NE(GameActions::Query(&street, gameState).error, GameActions::Status::ok);
+    GameActions::ParkingPlaceAction badObject(lot.parkingAbove, 200, 1);
+    EXPECT_EQ(GameActions::Query(&badObject, gameState).error, GameActions::Status::invalidParameters);
+
+    GameActions::ParkingRemoveAction remove(lot.parkingBelow);
+    const auto removed = GameActions::ExecuteNested(&remove, gameState);
+    ASSERT_EQ(removed.error, GameActions::Status::ok);
+    EXPECT_EQ(removed.cost, road->RemoveCost);
+    EXPECT_EQ(Parking::FindAt(lot.parkingBelow), nullptr);
+    GameActions::ParkingRemoveAction missing(lot.parkingBelow);
+    EXPECT_EQ(GameActions::Query(&missing, gameState).error, GameActions::Status::invalidParameters);
+}
+
+TEST(ParkingActions, ParkingNeedsLevelGround)
+{
+    auto context = startPark();
+    ASSERT_NE(context.get(), nullptr);
+    auto& gameState = getGameState();
+    gameState.cheats.sandboxMode = true;
+    const StreetObject* road = nullptr;
+    const auto index = loadStreet(*context, "golf.street.road", &road);
+    if (road == nullptr)
+        GTEST_SKIP() << "the street object is not installed";
+    const auto found = findFlatBlock(3, 2);
+    ASSERT_TRUE(found.has_value());
+    // Tilt the tile into a ramp: a road takes it, parking does not.
+    auto* surface = MapGetSurfaceElementAt(*found);
+    surface->setTerrainShape(Terrain::TerrainShape{ 2, 2, 0, 0 });
+
+    GameActions::ParkingPlaceAction parking(*found, index, 0);
+    EXPECT_EQ(GameActions::Query(&parking, gameState).error, GameActions::Status::disallowed);
+    GameActions::StreetPlaceAction street(*found, index);
+    EXPECT_EQ(GameActions::Query(&street, gameState).error, GameActions::Status::ok);
+}
+
+TEST(Parking, LotsAreFoundWithTheirStreetAndPath)
+{
+    auto context = startPark();
+    ASSERT_NE(context.get(), nullptr);
+    auto& gameState = getGameState();
+    gameState.cheats.sandboxMode = true;
+    const StreetObject* road = nullptr;
+    const auto index = loadStreet(*context, "golf.street.road", &road);
+    if (road == nullptr)
+        GTEST_SKIP() << "the street object is not installed";
+    const auto found = findFlatBlock(3, 2);
+    ASSERT_TRUE(found.has_value());
+    const auto lot = lotAt(*found);
+
+    GameActions::StreetPlaceAction street(lot.street, index);
+    ASSERT_EQ(GameActions::ExecuteNested(&street, gameState).error, GameActions::Status::ok);
+    GameActions::ParkingPlaceAction below(lot.parkingBelow, index, 3);
+    ASSERT_EQ(GameActions::ExecuteNested(&below, gameState).error, GameActions::Status::ok);
+
+    // A parking tile on a street but with no path next to it is no lot yet.
+    EXPECT_TRUE(Parking::FindLots().empty());
+
+    layPath(lot.pathTile);
+    auto lots = Parking::FindLots();
+    ASSERT_EQ(lots.size(), 1u);
+    EXPECT_EQ(lots[0].streetTile, (TileCoordsXY{ lot.street.x / 32, lot.street.y / 32 }));
+    EXPECT_EQ(lots[0].pathTile, (TileCoordsXY{ lot.pathTile.x / 32, lot.pathTile.y / 32 }));
+    ASSERT_EQ(lots[0].tiles.size(), 1u);
+    EXPECT_EQ(lots[0].tiles[0].facing, 3);
+
+    // A second tile on the other side of the same street joins the lot (two cars parked either side).
+    GameActions::ParkingPlaceAction above(lot.parkingAbove, index, 1);
+    ASSERT_EQ(GameActions::ExecuteNested(&above, gameState).error, GameActions::Status::ok);
+    lots = Parking::FindLots();
+    ASSERT_EQ(lots.size(), 1u);
+    EXPECT_EQ(lots[0].tiles.size(), 2u);
+
+    // A tile that faces away from the street is not part of any lot.
+    GameActions::ParkingRemoveAction removeAbove(lot.parkingAbove);
+    ASSERT_EQ(GameActions::ExecuteNested(&removeAbove, gameState).error, GameActions::Status::ok);
+    GameActions::ParkingPlaceAction wrongWay(lot.parkingAbove, index, 0);
+    ASSERT_EQ(GameActions::ExecuteNested(&wrongWay, gameState).error, GameActions::Status::ok);
+    lots = Parking::FindLots();
+    ASSERT_EQ(lots.size(), 1u);
+    EXPECT_EQ(lots[0].tiles.size(), 1u);
+
+    // A ghost does not count.
+    GameActions::ParkingRemoveAction removeBelow(lot.parkingBelow);
+    ASSERT_EQ(GameActions::ExecuteNested(&removeBelow, gameState).error, GameActions::Status::ok);
+    GameActions::ParkingPlaceAction ghost(lot.parkingBelow, index, 3);
+    ghost.SetFlags(GameActions::CommandFlag::ghost);
+    ASSERT_EQ(GameActions::ExecuteNested(&ghost, gameState).error, GameActions::Status::ok);
+    EXPECT_TRUE(Parking::FindLots().empty());
 }

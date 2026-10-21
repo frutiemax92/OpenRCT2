@@ -110,6 +110,8 @@ namespace OpenRCT2
         placeStreet,
         removeStreet,
         setRoadEntrance,
+        placeParking,
+        removeParking,
         count,
     };
 }

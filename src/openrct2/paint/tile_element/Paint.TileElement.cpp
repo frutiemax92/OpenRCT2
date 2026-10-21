@@ -295,6 +295,9 @@ static void PaintTileElementBase(PaintSession& session, const CoordsXY& origCoor
             case TileElementType::street:
                 // Streets are drawn by the procedural terrain renderer with the surface (STE-003).
                 break;
+            case TileElementType::parking:
+                // So are parking spaces (STE-010).
+                break;
         }
         session.MapPosition = mapPosition;
     } while (!(tile_element++)->isLastForTile());

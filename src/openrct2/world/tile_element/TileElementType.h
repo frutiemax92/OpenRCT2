@@ -26,5 +26,6 @@ namespace OpenRCT2
         stream = 8,
         building = 9,
         street = 10,
+        parking = 11,
     };
 }

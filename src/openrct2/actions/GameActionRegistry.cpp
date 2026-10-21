@@ -83,6 +83,8 @@
 #include "golf/HoleEditAction.h"
 #include "scenery/StreamPlaceAction.h"
 #include "scenery/StreamRemoveAction.h"
+#include "scenery/ParkingPlaceAction.h"
+#include "scenery/ParkingRemoveAction.h"
 #include "scenery/StreetPlaceAction.h"
 #include "scenery/StreetRemoveAction.h"
 #include "scenery/StreetRoadEntranceAction.h"
@@ -198,6 +200,8 @@ namespace OpenRCT2::GameActions
         REGISTER_ACTION(HoleEditAction);
         REGISTER_ACTION(StreamPlaceAction);
         REGISTER_ACTION(StreamRemoveAction);
+        REGISTER_ACTION(ParkingPlaceAction);
+        REGISTER_ACTION(ParkingRemoveAction);
         REGISTER_ACTION(StreetPlaceAction);
         REGISTER_ACTION(StreetRemoveAction);
         REGISTER_ACTION(StreetRoadEntranceAction);
