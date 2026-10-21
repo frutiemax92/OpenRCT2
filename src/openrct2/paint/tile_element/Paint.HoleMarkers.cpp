@@ -59,6 +59,13 @@ namespace OpenRCT2
                     if (index.showAimPoints())
                         draw(sprites.aim, marker.x, marker.y, z);
                     break;
+                case Golf::HoleMarker::Kind::hittingTile:
+                    draw(sprites.hittingTile, marker.x, marker.y, z);
+                    break;
+                case Golf::HoleMarker::Kind::distanceSign:
+                    // The number hangs over the sign, which is 14 units tall.
+                    draw(Drawing::HoleMarkerSprites::NumberImage(marker.value), marker.x, marker.y, z + 16);
+                    break;
             }
         }
     }

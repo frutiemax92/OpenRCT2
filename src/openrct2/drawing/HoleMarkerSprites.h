@@ -27,9 +27,15 @@ namespace OpenRCT2::Drawing
         ImageIndex pin = kImageIndexUndefined;
         ImageIndex cup = kImageIndexUndefined;
         ImageIndex aim = kImageIndexUndefined;
+        ImageIndex hittingTile = kImageIndexUndefined;
 
         static const HoleMarkerSprites& Get();
         static void Release();
+
+        // The plate of a distance sign with its number (DRV-004). The pictures are made on the main thread before painting
+        // (EnsureNumber), and painting only looks them up.
+        static void EnsureNumber(int32_t number);
+        static ImageIndex NumberImage(int32_t number);
     };
 
     // A sprite as pixels, with the offset that puts the foot of the sprite on the projected point. Index 0 is transparent.
@@ -53,6 +59,10 @@ namespace OpenRCT2::Drawing
     MarkerPixels MakePinPixels();
     MarkerPixels MakeCupPixels();
     MarkerPixels MakeAimPixels();
+    // The mat of a hitting tile: a flat diamond covering most of the tile.
+    MarkerPixels MakeHittingTilePixels();
+    // A white plate with the digits of a number in black (DRV-004). Negative numbers are drawn as zero.
+    MarkerPixels MakeNumberPlatePixels(int32_t number);
     // The palette index closest to a colour.
     uint8_t FindPaletteIndex(uint8_t red, uint8_t green, uint8_t blue);
 } // namespace OpenRCT2::Drawing

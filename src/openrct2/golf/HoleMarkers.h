@@ -28,12 +28,15 @@ namespace OpenRCT2::Golf
             tee,
             cup,
             aim,
+            hittingTile,   // a driving range hitting tile (DRV-001)
+            distanceSign,  // a driving range distance sign; value is its distance (DRV-004)
         };
         Kind kind = Kind::tee;
         uint8_t index = 0;   // tee category or aim point number
         int32_t x = 0;       // map position in world units
         int32_t y = 0;
         uint32_t holeId = 0;
+        int32_t value = 0;   // the distance a sign shows
     };
 
     class HoleMarkerIndex
@@ -55,6 +58,8 @@ namespace OpenRCT2::Golf
         {
             return _showAimPoints;
         }
+        // The distances the signs show, so their pictures can be made before painting starts.
+        std::vector<int32_t> signDistances() const;
         size_t markerCount() const
         {
             return _count;

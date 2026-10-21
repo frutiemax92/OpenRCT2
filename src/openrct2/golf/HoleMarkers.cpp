@@ -48,6 +48,13 @@ namespace OpenRCT2::Golf
                     }
                 }
             }
+            for (const auto& range : courses.ranges())
+            {
+                for (const auto& tile : range.hittingTiles)
+                    fn(HoleMarker{ HoleMarker::Kind::hittingTile, 0, tile.x, tile.y, range.id });
+                for (const auto& sign : range.signs)
+                    fn(HoleMarker{ HoleMarker::Kind::distanceSign, 0, sign.position.x, sign.position.y, range.id, sign.distance });
+            }
         }
     } // namespace
 
@@ -55,7 +62,7 @@ namespace OpenRCT2::Golf
     {
         uint64_t fingerprint = 1469598103934665603ull;
         forEachMarker(courses, [&](const HoleMarker& m) {
-            fingerprint = mix(fingerprint, (static_cast<uint64_t>(m.kind) << 8) | m.index);
+            fingerprint = mix(fingerprint, (static_cast<uint64_t>(m.kind) << 8) | m.index | (static_cast<uint64_t>(static_cast<uint32_t>(m.value)) << 16));
             fingerprint = mix(fingerprint, (static_cast<uint64_t>(static_cast<uint32_t>(m.x)) << 32) | static_cast<uint32_t>(m.y));
         });
         if (_built && fingerprint == _fingerprint)
@@ -69,6 +76,16 @@ namespace OpenRCT2::Golf
         });
         _fingerprint = fingerprint;
         _built = true;
+    }
+
+    std::vector<int32_t> HoleMarkerIndex::signDistances() const
+    {
+        std::vector<int32_t> distances;
+        for (const auto& [key, markers] : _byTile)
+            for (const auto& marker : markers)
+                if (marker.kind == HoleMarker::Kind::distanceSign)
+                    distances.push_back(marker.value);
+        return distances;
     }
 
     const std::vector<HoleMarker>* HoleMarkerIndex::at(const TileCoordsXY& tile) const

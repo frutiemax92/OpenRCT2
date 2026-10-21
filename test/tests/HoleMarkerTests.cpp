@@ -145,3 +145,72 @@ TEST(HoleMarkerSprites, PaletteSearchFindsTheClosestColour)
     EXPECT_EQ(FindPaletteIndex(255, 255, 255), FindWhiteIndex());
     EXPECT_NE(FindPaletteIndex(255, 255, 255), FindPaletteIndex(10, 10, 10));
 }
+
+TEST(HoleMarkers, DrivingRangeTilesAndSignsAreMarkersToo)
+{
+    CourseManager courses;
+    auto* range = courses.createRange({ 2, 2 }, { 8, 8 });
+    range->hittingTiles.push_back(HolePoint{ 3 * 32 + 16, 3 * 32 + 16 });
+    range->hittingTiles.push_back(HolePoint{ 4 * 32 + 16, 3 * 32 + 16 });
+    range->signs.push_back({ 1, HolePoint{ 7 * 32 + 16, 5 * 32 + 16 }, 150 });
+    range->signs.push_back({ 2, HolePoint{ 7 * 32 + 16, 6 * 32 + 16 }, 175 });
+
+    HoleMarkerIndex index;
+    index.update(courses);
+    EXPECT_EQ(index.markerCount(), 4u);
+    const auto* tile = index.at({ 3, 3 });
+    ASSERT_NE(tile, nullptr);
+    EXPECT_EQ((*tile)[0].kind, HoleMarker::Kind::hittingTile);
+    const auto* sign = index.at({ 7, 5 });
+    ASSERT_NE(sign, nullptr);
+    EXPECT_EQ((*sign)[0].kind, HoleMarker::Kind::distanceSign);
+    EXPECT_EQ((*sign)[0].value, 150);
+    auto distances = index.signDistances();
+    std::sort(distances.begin(), distances.end());
+    EXPECT_EQ(distances, (std::vector<int32_t>{ 150, 175 }));
+
+    // A sign that is moved or re-measured is noticed.
+    courses.ranges()[0].signs[0].distance = 200;
+    index.update(courses);
+    EXPECT_EQ((*index.at({ 7, 5 }))[0].value, 200);
+    courses.ranges()[0].hittingTiles.clear();
+    index.update(courses);
+    EXPECT_EQ(index.at({ 3, 3 }), nullptr);
+}
+
+TEST(HoleMarkerSprites, TheNumberPlateShowsTheDigits)
+{
+    const auto plate = MakeNumberPlatePixels(150);
+    EXPECT_EQ(plate.pixels.size(), static_cast<size_t>(plate.width * plate.height));
+    // Three digits of four columns, and a pixel of margin either side.
+    EXPECT_EQ(plate.width, 3 * 4 + 2);
+    EXPECT_EQ(plate.yOffset, -plate.height);
+    const auto white = FindPaletteIndex(250, 250, 250);
+    const auto black = FindPaletteIndex(10, 10, 10);
+    EXPECT_GT(std::count(plate.pixels.begin(), plate.pixels.end(), white), 0);
+    EXPECT_GT(std::count(plate.pixels.begin(), plate.pixels.end(), black), 0);
+    // Every pixel is the plate or a digit.
+    EXPECT_EQ(std::count(plate.pixels.begin(), plate.pixels.end(), white) + std::count(plate.pixels.begin(), plate.pixels.end(), black),
+              plate.width * plate.height);
+
+    // Different numbers look different, and a longer number is a wider plate.
+    EXPECT_NE(MakeNumberPlatePixels(150).pixels, MakeNumberPlatePixels(155).pixels);
+    EXPECT_GT(MakeNumberPlatePixels(1000).width, MakeNumberPlatePixels(100).width);
+    // A "1" has fewer lit pixels than an "8".
+    const auto ones = MakeNumberPlatePixels(1), eights = MakeNumberPlatePixels(8);
+    EXPECT_LT(std::count(ones.pixels.begin(), ones.pixels.end(), black), std::count(eights.pixels.begin(), eights.pixels.end(), black));
+    // A negative number does not break it.
+    EXPECT_EQ(MakeNumberPlatePixels(-5).pixels, MakeNumberPlatePixels(0).pixels);
+}
+
+TEST(HoleMarkerSprites, TheHittingTileIsADiamondWithARim)
+{
+    const auto mat = MakeHittingTilePixels();
+    EXPECT_EQ(mat.width, 28);
+    EXPECT_EQ(mat.height, 14);
+    EXPECT_EQ(mat.pixels[0], 0);                             // the corner is outside the diamond
+    EXPECT_NE(mat.pixels[static_cast<size_t>(7 * 28 + 14)], 0); // the middle is covered
+    const auto covered = mat.width * mat.height - std::count(mat.pixels.begin(), mat.pixels.end(), 0);
+    EXPECT_GT(covered, mat.width * mat.height / 3);
+    EXPECT_LT(covered, mat.width * mat.height * 3 / 4);
+}

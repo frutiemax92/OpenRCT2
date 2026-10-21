@@ -15,6 +15,8 @@
 
 #include <cstdlib>
 #include <limits>
+#include <string>
+#include <unordered_map>
 
 namespace OpenRCT2::Drawing
 {
@@ -23,6 +25,7 @@ namespace OpenRCT2::Drawing
         struct SpriteData
         {
             HoleMarkerSprites sprites;
+            std::unordered_map<int32_t, ImageIndex> numbers;
             std::vector<MarkerPixels> keep; // the pixels must live as long as the images are registered
             bool created = false;
         };
@@ -161,12 +164,79 @@ namespace OpenRCT2::Drawing
         return m;
     }
 
+    MarkerPixels MakeHittingTilePixels()
+    {
+        // A diamond 28 wide and 14 high, a darker rim round a lighter mat.
+        const uint8_t mat = FindPaletteIndex(150, 190, 90);
+        const uint8_t rim = FindPaletteIndex(250, 240, 200);
+        auto m = blank(28, 14, -14, -7);
+        for (int32_t y = 0; y < 14; y++)
+        {
+            const int32_t half = 14 - std::abs(2 * y - 13) - 1;
+            const int32_t left = 14 - half - 1;
+            const int32_t width = 2 * half + 2;
+            for (int32_t x = 0; x < width; x++)
+            {
+                const bool edge = x < 2 || x >= width - 2 || y == 0 || y == 13;
+                plot(m, left + x, y, edge ? rim : mat);
+            }
+        }
+        return m;
+    }
+
+    namespace
+    {
+        // A 3 x 5 pixel font for the digits, one row of three bits each (bit 2 is the left pixel).
+        constexpr uint8_t kDigitRows[10][5] = {
+            { 7, 5, 5, 5, 7 }, { 2, 6, 2, 2, 7 }, { 7, 1, 7, 4, 7 }, { 7, 1, 7, 1, 7 }, { 5, 5, 7, 1, 1 },
+            { 7, 4, 7, 1, 7 }, { 7, 4, 7, 5, 7 }, { 7, 1, 1, 1, 1 }, { 7, 5, 7, 5, 7 }, { 7, 5, 7, 1, 7 },
+        };
+    } // namespace
+
+    MarkerPixels MakeNumberPlatePixels(int32_t number)
+    {
+        const std::string digits = std::to_string(number < 0 ? 0 : number);
+        const int32_t width = static_cast<int32_t>(digits.size()) * 4 + 2;
+        const int32_t height = 9;
+        const uint8_t white = FindPaletteIndex(250, 250, 250);
+        const uint8_t black = FindPaletteIndex(10, 10, 10);
+        // The foot of the plate is the point it hangs over: the bottom middle.
+        auto m = blank(width, height, -width / 2, -height);
+        rect(m, 0, 0, width, height, white);
+        for (size_t i = 0; i < digits.size(); i++)
+        {
+            const auto& rows = kDigitRows[digits[i] - '0'];
+            for (int32_t row = 0; row < 5; row++)
+                for (int32_t column = 0; column < 3; column++)
+                    if (rows[row] & (4 >> column))
+                        plot(m, 1 + static_cast<int32_t>(i) * 4 + column, 2 + row, black);
+        }
+        return m;
+    }
+
+    void HoleMarkerSprites::EnsureNumber(int32_t number)
+    {
+        auto& d = data();
+        if (d.numbers.find(number) != d.numbers.end())
+            return;
+        // The pixels must outlive the image, like the others: they are kept with the sprites.
+        d.keep.push_back(MakeNumberPlatePixels(number));
+        d.numbers[number] = allocate(d.keep.back());
+    }
+
+    ImageIndex HoleMarkerSprites::NumberImage(int32_t number)
+    {
+        auto& d = data();
+        const auto it = d.numbers.find(number);
+        return it == d.numbers.end() ? kImageIndexUndefined : it->second;
+    }
+
     const HoleMarkerSprites& HoleMarkerSprites::Get()
     {
         auto& d = data();
         if (!d.created)
         {
-            d.keep.reserve(kTeeCategories + 3);
+            d.keep.reserve(kTeeCategories + 4);
             for (size_t i = 0; i < kTeeCategories; i++)
             {
                 d.keep.push_back(MakeTeeMarkerPixels(i));
@@ -178,6 +248,8 @@ namespace OpenRCT2::Drawing
             d.sprites.cup = allocate(d.keep.back());
             d.keep.push_back(MakeAimPixels());
             d.sprites.aim = allocate(d.keep.back());
+            d.keep.push_back(MakeHittingTilePixels());
+            d.sprites.hittingTile = allocate(d.keep.back());
             d.created = true;
         }
         return d.sprites;
@@ -191,7 +263,10 @@ namespace OpenRCT2::Drawing
         for (auto index : d.sprites.tee)
             if (index != kImageIndexUndefined)
                 GfxObjectFreeImages(index, 1);
-        for (auto index : { d.sprites.pin, d.sprites.cup, d.sprites.aim })
+        for (auto index : { d.sprites.pin, d.sprites.cup, d.sprites.aim, d.sprites.hittingTile })
+            if (index != kImageIndexUndefined)
+                GfxObjectFreeImages(index, 1);
+        for (const auto& [number, index] : d.numbers)
             if (index != kImageIndexUndefined)
                 GfxObjectFreeImages(index, 1);
         d = SpriteData{};

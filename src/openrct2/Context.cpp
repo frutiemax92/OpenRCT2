@@ -46,6 +46,7 @@
 #include "drawing/Font.h"
 #include "drawing/IDrawingEngine.h"
 #include "drawing/ModelSpriteStore.h"
+#include "drawing/HoleMarkerSprites.h"
 #include "golf/HoleMarkers.h"
 #include "drawing/TerrainSpriteStore.h"
 #include "drawing/Image.h"
@@ -1326,6 +1327,8 @@ namespace OpenRCT2
             (void)workersStarted;
             Drawing::ModelSpriteStore::Instance().BeginFrame();
             Golf::GetHoleMarkers().update(getGameState().golf);
+            for (const auto distance : Golf::GetHoleMarkers().signDistances())
+                Drawing::HoleMarkerSprites::EnsureNumber(distance);
             _drawingEngine->BeginDraw();
             _painter->Paint(*_drawingEngine);
             _drawingEngine->EndDraw();
