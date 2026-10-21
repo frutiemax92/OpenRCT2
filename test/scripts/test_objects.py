@@ -145,6 +145,7 @@ class ObjectTests(unittest.TestCase):
         expected |= {"terrain_edge/golf.terrain_edge.%s.parkobj" % e[0] for e in objects.EDGES}
         expected.add("climate/golf.climate.temperate.parkobj")
         expected.add("stream/golf.stream.creek.parkobj")
+        expected |= {"street/golf.street.road.parkobj", "street/golf.street.one_way.parkobj"}
         expected.add("building/golf.building.club_house.parkobj")
         expected.add("building/golf.building.food_truck.parkobj")
         expected.add("building/golf.building.cottage.parkobj")
@@ -163,6 +164,16 @@ class ObjectTests(unittest.TestCase):
         expected.add("animal/golf.animal.duck.parkobj")
         expected.add("animal/golf.animal.deer.parkobj")
         self.assertEqual(expected, set(FILES))
+
+    def test_streets_have_a_texture_and_a_markings_mask(self):
+        for name, one_way in (("road", False), ("one_way", True)):
+            _, data = open_object("street/golf.street.%s.parkobj" % name)
+            self.assertEqual("street", data["objectType"])
+            self.assertEqual(one_way, data["properties"]["oneWay"])
+            self.assertGreater(data["properties"]["speedLimit"], 0)
+            # The icon, the road texture and the markings mask; both are raw so the engine reads palette indices.
+            self.assertEqual(3, len(data["images"]))
+            self.assertTrue(all(i.get("format") == "raw" for i in data["images"][1:]))
 
     def test_golfer_model_properties(self):
         _, golfer = open_object("golfer_model/golf.golfer_model.standard.parkobj")

@@ -179,6 +179,9 @@ namespace OpenRCT2::Ui::Windows
         { STR_OBJECT_SELECTION_STREAMS,           ObjectType::stream,           FILTER_NONE, SPR_TAB_WATER,           1, 1 },
         { STR_OBJECT_SELECTION_BUILDINGS,         ObjectType::building,         FILTER_NONE, SPR_TAB_WATER,           1, 1 },
         { STR_OBJECT_SELECTION_VEHICLE_MODELS,    ObjectType::vehicleModel,     FILTER_NONE, SPR_TAB_WATER,           1, 1 },
+        { STR_OBJECT_SELECTION_GOLFER_MODELS,     ObjectType::golferModel,      FILTER_NONE, SPR_TAB_WATER,           1, 1 },
+        { STR_OBJECT_SELECTION_ANIMALS,           ObjectType::animal,           FILTER_NONE, SPR_TAB_WATER,           1, 1 },
+        { STR_OBJECT_SELECTION_STREETS,           ObjectType::street,           FILTER_NONE, SPR_TAB_WATER,           1, 1 },
     };
 
     static ObjectSubTab kPeepObjectSubTabs[] = {

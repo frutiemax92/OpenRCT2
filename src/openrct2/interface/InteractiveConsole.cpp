@@ -1146,6 +1146,7 @@ constexpr auto _objectTypeNames = std::to_array<StringId>({
     STR_OBJECT_SELECTION_VEHICLE_MODELS,
     STR_OBJECT_SELECTION_GOLFER_MODELS,
     STR_OBJECT_SELECTION_ANIMALS,
+    STR_OBJECT_SELECTION_STREETS,
 });
 static_assert(_objectTypeNames.size() == EnumValue(ObjectType::count));
 

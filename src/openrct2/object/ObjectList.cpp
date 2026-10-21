@@ -41,6 +41,7 @@ namespace OpenRCT2
         kMaxVehicleModelObjects,
         kMaxGolferModelObjects,
         kMaxAnimalObjects,
+        kMaxStreetObjects,
     };
     static_assert(std::size(kObjectEntryGroupCounts) == EnumValue(ObjectType::count));
 

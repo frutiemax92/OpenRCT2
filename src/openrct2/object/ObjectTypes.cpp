@@ -42,6 +42,7 @@ namespace OpenRCT2
         ObjectType::vehicleModel,
         ObjectType::golferModel,
         ObjectType::animal,
+        ObjectType::street,
     };
 
     static_assert(kAllObjectTypes.size() == EnumValue(ObjectType::count));
@@ -58,6 +59,7 @@ namespace OpenRCT2
         ObjectType::vehicleModel,
         ObjectType::golferModel,
         ObjectType::animal,
+        ObjectType::street,
     };
 
     // Object types that cannot be saved in a park file.

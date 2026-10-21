@@ -35,6 +35,7 @@
 #include <openrct2/object/PathAdditionEntry.h>
 #include <openrct2/object/PathAdditionObject.h>
 #include <openrct2/object/StreamObject.h>
+#include <openrct2/object/StreetObject.h>
 #include <openrct2/object/VehicleModelObject.h>
 #include <openrct2/object/TerrainEdgeObject.h>
 #include <openrct2/object/TerrainSurfaceObject.h>
@@ -407,6 +408,65 @@ TEST_F(BaseObjects, AnimalObjectLoadsItsPropertiesAndRequiredClips)
     {
         EXPECT_TRUE(obj->HasClip(clip)) << clip;
     }
+}
+
+TEST_F(BaseObjects, StreetsLoadTheirPropertiesAndMarkings)
+{
+    auto* road = static_cast<StreetObject*>(Load("golf.street.road"));
+    ASSERT_NE(nullptr, road);
+    EXPECT_EQ(ObjectType::street, road->GetObjectType());
+    EXPECT_FALSE(road->OneWay);
+    EXPECT_EQ(40, road->SpeedLimitKph);
+    EXPECT_GT(road->BuildCost, 0);
+    EXPECT_GT(road->RemoveCost, 0);
+    EXPECT_EQ(64, road->Texture.size);
+    EXPECT_EQ(64, road->Markings.size);
+    // The two-way road has a dashed centre line and edge lines; no arrows.
+    bool centre = false, edge = false, arrow = false;
+    for (int32_t v = 0; v < 64; v++)
+    {
+        for (int32_t u = 0; u < 64; u++)
+        {
+            const auto marking = road->markingAt(u, v);
+            centre |= marking == StreetMarking::centreLine;
+            edge |= marking == StreetMarking::edgeLine;
+            arrow |= marking == StreetMarking::arrow;
+        }
+    }
+    EXPECT_TRUE(centre);
+    EXPECT_TRUE(edge);
+    EXPECT_FALSE(arrow);
+    // The middle of the road is plain asphalt between the dashes of the line.
+    EXPECT_EQ(StreetMarking::none, road->markingAt(10, 16));
+}
+
+TEST_F(BaseObjects, OneWayStreetsHaveArrowsAndNoCentreLine)
+{
+    auto* oneWay = static_cast<StreetObject*>(Load("golf.street.one_way"));
+    ASSERT_NE(nullptr, oneWay);
+    EXPECT_TRUE(oneWay->OneWay);
+    EXPECT_LT(oneWay->SpeedLimitKph, 40);
+    bool centre = false, arrow = false;
+    for (int32_t v = 0; v < 64; v++)
+    {
+        for (int32_t u = 0; u < 64; u++)
+        {
+            centre |= oneWay->markingAt(u, v) == StreetMarking::centreLine;
+            arrow |= oneWay->markingAt(u, v) == StreetMarking::arrow;
+        }
+    }
+    EXPECT_FALSE(centre);
+    EXPECT_TRUE(arrow);
+}
+
+TEST(StreetMarkings, AreToldApartByColour)
+{
+    EXPECT_EQ(StreetMarking::centreLine, classifyStreetMarking(255, 255, 255));
+    EXPECT_EQ(StreetMarking::edgeLine, classifyStreetMarking(250, 215, 10));
+    EXPECT_EQ(StreetMarking::arrow, classifyStreetMarking(120, 200, 255));
+    // Asphalt grey and black are no marking.
+    EXPECT_EQ(StreetMarking::none, classifyStreetMarking(0x58, 0x58, 0x5C));
+    EXPECT_EQ(StreetMarking::none, classifyStreetMarking(0, 0, 0));
 }
 
 TEST_F(BaseObjects, TerrainIsDrawn)

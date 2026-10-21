@@ -51,6 +51,7 @@
 #include "StationObject.h"
 #include "TerrainEdgeObject.h"
 #include "StreamObject.h"
+#include "StreetObject.h"
 #include "TerrainSurfaceObject.h"
 #include "WallObject.h"
 #include "WaterObject.h"
@@ -435,6 +436,9 @@ namespace OpenRCT2::ObjectFactory
             case ObjectType::animal:
                 result = std::make_unique<AnimalObject>();
                 break;
+            case ObjectType::street:
+                result = std::make_unique<StreetObject>();
+                break;
             default:
                 throw std::runtime_error("Invalid object type");
         }
@@ -472,6 +476,7 @@ namespace OpenRCT2::ObjectFactory
         { "vehicle_model", ObjectType::vehicleModel },
         { "golfer_model", ObjectType::golferModel },
         { "animal", ObjectType::animal },
+        { "street", ObjectType::street },
     };
 
     std::unique_ptr<Object> CreateObjectFromZipFile(std::string_view path, bool loadImages)

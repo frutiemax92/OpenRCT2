@@ -8,6 +8,8 @@ Generates the objects the map and the scenario editor need by default, so that n
   golf.climate.temperate        climate
   golf.stream.creek             water stream
   golf.building.club_house      3x2 golf club (4 views of a flat-shaded box)
+  golf.street.road              two-way road (asphalt texture, centre and edge lines)
+  golf.street.one_way           one-way road (asphalt texture, edge lines and arrows)
 
 Terrain surfaces use the existing terrain_surface format: an icon, then 3 entries (normal, grid, underground) of 19
 images, one per surface slope, drawn as flat-shaded isometric tiles from the tile geometry, then the 64x64 tileable
@@ -368,6 +370,82 @@ def stream(name, description, colour, palette):
     return object_files(data, images)
 
 
+STREET_TEXTURE_SIZE = 64
+STREET_MARKING_COLOURS = {
+    "centre": (255, 255, 255),
+    "edge": (255, 220, 0),
+    "arrow": (120, 200, 255),
+}
+
+
+def street_texture():
+    """Asphalt for a road running along the x axis, with fine deterministic grain; it tiles in both directions."""
+    size = STREET_TEXTURE_SIZE
+    image = Image(size, size, (0x58, 0x58, 0x5C))
+    for y in range(size):
+        for x in range(size):
+            grain = (x * 7 + y * 13 + (x * y) % 5) % 6
+            image.set(x, y, shade((0x58, 0x58, 0x5C), 0.92 + 0.03 * grain))
+    return image
+
+
+def street_markings(one_way):
+    """The mask of the markings, transparent where there are none: an edge line along each verge, and either a dashed
+    centre line (two-way) or an arrow pointing along +x (one-way)."""
+    size = STREET_TEXTURE_SIZE
+    image = Image(size, size, (0, 0, 0), 0)
+    for x in range(size):
+        for y in (4, 5, size - 6, size - 5):
+            image.set(x, y, STREET_MARKING_COLOURS["edge"])
+    if one_way:
+        mid = size // 2
+        for k in range(14):
+            image.set(24 + k, mid, STREET_MARKING_COLOURS["arrow"])
+            image.set(24 + k, mid - 1, STREET_MARKING_COLOURS["arrow"])
+        for k in range(1, 6):
+            image.set(38 - k, mid - 1 - k, STREET_MARKING_COLOURS["arrow"])
+            image.set(38 - k, mid + k, STREET_MARKING_COLOURS["arrow"])
+    else:
+        for x in range(size):
+            if (x // 8) % 2 == 0:
+                image.set(x, size // 2 - 1, STREET_MARKING_COLOURS["centre"])
+                image.set(x, size // 2, STREET_MARKING_COLOURS["centre"])
+    return image
+
+
+def street_icon(one_way):
+    image = Image(32, 32, (0, 0, 0), 0)
+    image.fill_rect(2, 8, 28, 16, (0x58, 0x58, 0x5C))
+    if one_way:
+        image.fill_rect(8, 15, 14, 2, STREET_MARKING_COLOURS["arrow"])
+        image.fill_rect(20, 12, 2, 8, STREET_MARKING_COLOURS["arrow"])
+    else:
+        for x in range(2, 30, 6):
+            image.fill_rect(x, 15, 3, 2, STREET_MARKING_COLOURS["centre"])
+    return image
+
+
+def street(name, description, one_way, speed_limit, palette):
+    images = {
+        "images/icon.png": quantise(street_icon(one_way), palette).png(),
+        "images/road.png": quantise(street_texture(), palette).png(),
+        "images/markings.png": quantise(street_markings(one_way), palette).png(),
+    }
+    table = [
+        {"path": "images/icon.png", "x": 0, "y": 0},
+        {"path": "images/road.png", "x": 0, "y": 0, "format": "raw"},
+        {"path": "images/markings.png", "x": 0, "y": 0, "format": "raw"},
+    ]
+    properties = {
+        "buildCost": 120,
+        "removeCost": 30,
+        "oneWay": one_way,
+        "speedLimit": speed_limit,
+    }
+    data = manifest("golf.street." + name, "street", description, properties, table)
+    return object_files(data, images)
+
+
 BUILDING_HEIGHT = 48
 
 
@@ -678,6 +756,8 @@ def build(layout=None, palette=None):
         out["terrain_edge/golf.terrain_edge.%s.parkobj" % name] = pack(
             terrain_edge(name, label, colour, description, layout, palette))
     out["climate/golf.climate.temperate.parkobj"] = pack(climate())
+    out["street/golf.street.road.parkobj"] = pack(street("road", "Two-way road", False, 40, palette))
+    out["street/golf.street.one_way.parkobj"] = pack(street("one_way", "One-way road", True, 30, palette))
     out["stream/golf.stream.creek.parkobj"] = pack(stream("creek", "Creek", (0x3A, 0x7B, 0xC8), palette))
     out["building/golf.building.club_house.parkobj"] = pack(
         building("club_house", "Golf club", "golf_club", (3, 2), (0xB0, 0x7A, 0x4A),

@@ -561,6 +561,9 @@ namespace OpenRCT2
                 case ObjectType::animal:
                     fallbackId = "golf.animal.duck";
                     break;
+                case ObjectType::street:
+                    fallbackId = "golf.street.road";
+                    break;
                 case ObjectType::stream:
                     fallbackId = "golf.stream.creek";
                     break;

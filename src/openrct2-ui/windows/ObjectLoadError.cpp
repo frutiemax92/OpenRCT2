@@ -358,6 +358,12 @@ namespace OpenRCT2::Ui::Windows
                 return STR_OBJECT_SELECTION_BUILDINGS;
             case ObjectType::vehicleModel:
                 return STR_OBJECT_SELECTION_VEHICLE_MODELS;
+            case ObjectType::golferModel:
+                return STR_OBJECT_SELECTION_GOLFER_MODELS;
+            case ObjectType::animal:
+                return STR_OBJECT_SELECTION_ANIMALS;
+            case ObjectType::street:
+                return STR_OBJECT_SELECTION_STREETS;
             // Intransient objects, should never pop up here
             case ObjectType::scenarioMeta:
                 return STR_OBJECT_SELECTION_SCENARIO_TEXTS;
