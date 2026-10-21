@@ -54,3 +54,35 @@ TEST(PathSlope, WalkingHeightScalesWithTheRise)
     EXPECT_EQ(MapHeightFromSlope({ 16, 0 }, 2, true), 8);
     EXPECT_EQ(MapHeightFromSlope({ 31, 0 }, 2, false, 32), 0);
 }
+
+TEST(PathSubgrid, HalfTileDetectionAndMasks)
+{
+    PathElement el{};
+    // Default occupied quadrants is 0b1111 (full tile)
+    el.setOccupiedQuadrants(0b1111);
+    EXPECT_FALSE(el.isHalfTile());
+    EXPECT_EQ(el.getSubgridCellMask(), 0x0F);
+
+    // Half-tile sub-grid: 1 or 2 cells occupied
+    el.setSubgridCellMask(0b0001); // SW quadrant only
+    EXPECT_TRUE(el.isHalfTile());
+    EXPECT_EQ(el.getSubgridCellMask(), 0b0001);
+
+    el.setSubgridCellMask(0b0010); // NW quadrant only
+    EXPECT_TRUE(el.isHalfTile());
+    EXPECT_EQ(el.getSubgridCellMask(), 0b0010);
+
+    el.setSubgridCellMask(0b0100); // NE quadrant only
+    EXPECT_TRUE(el.isHalfTile());
+    EXPECT_EQ(el.getSubgridCellMask(), 0b0100);
+
+    el.setSubgridCellMask(0b1000); // SE quadrant only
+    EXPECT_TRUE(el.isHalfTile());
+    EXPECT_EQ(el.getSubgridCellMask(), 0b1000);
+
+    // Dual quadrant (e.g. SW + NW)
+    el.setSubgridCellMask(0b0011);
+    EXPECT_TRUE(el.isHalfTile());
+    EXPECT_EQ(el.getSubgridCellMask(), 0b0011);
+}
+

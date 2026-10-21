@@ -19,6 +19,7 @@
 #include "../../ride/ted/TrackElemType.h"
 #include "../../world/Footpath.h"
 #include "../../world/Map.h"
+#include "../../world/Stream.h"
 #include "../../world/tile_element/PathElement.h"
 #include "../../world/tile_element/Slope.h"
 #include "../../world/tile_element/SurfaceElement.h"
@@ -662,6 +663,11 @@ static bool ShouldDrawSupports(PaintSession& session, const PathElement& pathEl,
     {
         return true;
     }
+    // PTH-010: Elevated path segments (bridges) with supports, so paths can cross streams, water and streets
+    if (surface->getWaterHeight() > 0 || Stream::FindAt(session.MapPosition) != nullptr)
+    {
+        return true;
+    }
     else if (surface->getBaseZ() != height)
     {
         const auto* surfaceEntry = pathEl.getSurfaceEntry();
@@ -813,7 +819,8 @@ static ImageIndex PathPaintGetBaseImage(
     if (pathElement.isSloped())
     {
         auto directionOffset = (pathElement.getSlopeDirection() + session.CurrentRotation) % kNumOrthogonalDirections;
-        surfaceBaseImageIndex += 16 + directionOffset;
+        const uint8_t riseQ = std::clamp<uint8_t>(pathElement.getSlopeRiseQ(), 1, 4);
+        surfaceBaseImageIndex += 16 + (riseQ - 1) * 4 + directionOffset;
     }
     else
     {
@@ -823,10 +830,36 @@ static ImageIndex PathPaintGetBaseImage(
     return surfaceBaseImageIndex;
 }
 
-static BoundBoxXYZ PathPaintGetBoundbox(const PaintSession& session, int32_t height, uint8_t edges)
+static BoundBoxXYZ PathPaintGetBoundbox(
+    const PaintSession& session, int32_t height, uint8_t edges, const PathElement* pathElement = nullptr)
 {
     CoordsXY boundBoxOffset = kPathBoundingBoxes[edges].offset;
     CoordsXY boundBoxSize = kPathBoundingBoxes[edges].length;
+
+    if (pathElement != nullptr && pathElement->isHalfTile())
+    {
+        const uint8_t quads = pathElement->getOccupiedQuadrants();
+        if (quads == 0b0001) // SW
+        {
+            boundBoxOffset = { 0, 0 };
+            boundBoxSize = { 16, 16 };
+        }
+        else if (quads == 0b0010) // NW
+        {
+            boundBoxOffset = { 0, 16 };
+            boundBoxSize = { 16, 16 };
+        }
+        else if (quads == 0b0100) // NE
+        {
+            boundBoxOffset = { 16, 16 };
+            boundBoxSize = { 16, 16 };
+        }
+        else if (quads == 0b1000) // SE
+        {
+            boundBoxOffset = { 16, 0 };
+            boundBoxSize = { 16, 16 };
+        }
+    }
 
     const bool hasPassedSurface = (session.Flags & PaintSessionFlags::PassedSurface) != 0;
     if (!hasPassedSurface)
@@ -907,7 +940,7 @@ static void PathPaintBoxSupport(
     const uint8_t edgesAndCorners = pathElement.isQueue() ? edges : edges | (corners << 4);
 
     const auto surfaceBaseImageIndex = PathPaintGetBaseImage(session, pathElement, pathPaintInfo, edgesAndCorners);
-    auto boundbox = PathPaintGetBoundbox(session, height, edges);
+    auto boundbox = PathPaintGetBoundbox(session, height, edges, &pathElement);
 
     const bool hasPassedSurface = (session.Flags & PaintSessionFlags::PassedSurface) != 0;
     if (!hasSupports || !hasPassedSurface)
@@ -961,7 +994,7 @@ static void PathPaintPoleSupport(
     const uint8_t edgesAndCorners = pathElement.isQueue() ? edges : edges | (corners << 4);
 
     const auto surfaceBaseImageIndex = PathPaintGetBaseImage(session, pathElement, pathPaintInfo, edgesAndCorners);
-    auto boundbox = PathPaintGetBoundbox(session, height, edges);
+    auto boundbox = PathPaintGetBoundbox(session, height, edges, &pathElement);
 
     // Below Surface
     const bool hasPassedSurface = (session.Flags & PaintSessionFlags::PassedSurface) != 0;

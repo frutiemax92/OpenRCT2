@@ -132,6 +132,26 @@ namespace OpenRCT2
         return nullptr;
     }
 
+    PathElement* MapGetFootpathElementAtCell(const CoordsXYZ& coords, uint8_t quadrant)
+    {
+        TileElement* tileElement = MapGetFirstElementAt(coords);
+        if (tileElement == nullptr)
+            return nullptr;
+
+        const uint8_t quadMask = static_cast<uint8_t>(1 << (quadrant & 3));
+        do
+        {
+            auto* pathElement = tileElement->asPath();
+            if (pathElement != nullptr && pathElement->getBaseZ() == coords.z)
+            {
+                if (pathElement->getOccupiedQuadrants() & quadMask)
+                    return pathElement;
+            }
+        } while (!(tileElement++)->isLastForTile());
+
+        return nullptr;
+    }
+
     /**
      *
      *  rct2: 0x00673883

@@ -114,6 +114,11 @@ namespace OpenRCT2
         bool isWide() const;
         void setWide(bool isWide);
 
+        // PTH-001: Half-tile sub-grid path (16 xy units, 2x2 cells per tile).
+        bool isHalfTile() const { return getOccupiedQuadrants() != 0b1111; }
+        uint8_t getSubgridCellMask() const { return getOccupiedQuadrants(); }
+        void setSubgridCellMask(uint8_t cellMask) { setOccupiedQuadrants(cellMask & 0x0F); }
+
         bool isQueue() const;
         void setIsQueue(bool isQueue);
         bool hasQueueBanner() const;
