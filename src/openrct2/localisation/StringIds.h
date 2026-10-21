@@ -1812,6 +1812,8 @@ enum : StringId
     STR_GOLFER_TAB_SCORECARD = 7137,
     STR_GOLFER_TAB_THOUGHTS = 7138,
     STR_GOLFER_TAB_MONEY = 7139,
+    STR_GOLFER_INSULT_0 = 7140, // 8 insults in a row (kInsultCount), the comic ones golfers shout when they rage quit
+    STR_GOLFER_RAGE_QUIT_NEWS = 7148,
 
     STR_EDITOR_STEP_SCENARIO_DETAILS = 6761,
 

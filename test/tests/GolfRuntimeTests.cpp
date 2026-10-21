@@ -35,6 +35,7 @@
 #include <openrct2/golf/GolfRuntime.h>
 #include <openrct2/drawing/ModelSpriteStore.h>
 #include <openrct2/management/Finance.h>
+#include <openrct2/management/NewsItem.h>
 #include <openrct2/object/PathAdditionObject.h>
 #include <openrct2/golf/Hole.h>
 #include <openrct2/object/GolferModelObject.h>
@@ -394,4 +395,51 @@ TEST(GolfRuntimeTests, BuildingsCostTheirUpkeepEachGameDay)
     EXPECT_EQ(cash - gameState.park.cash, club->UpkeepPerMonth / 30);
     runtime.update(2 * Golf::kTicksPerGameDay + Golf::kTicksPerGameMinute);
     EXPECT_EQ(cash - gameState.park.cash, club->UpkeepPerMonth / 30); // the same day costs nothing more
+}
+
+TEST(GolfRuntimeTests, ARageQuitIsReportedInTheNews)
+{
+    auto context = startPark();
+    ASSERT_NE(context.get(), nullptr);
+    auto& gameState = getGameState();
+    gameState.cheats.sandboxMode = true;
+    ObjectEntryIndex index{};
+    auto* club = loadClub(*context, index);
+    if (club == nullptr)
+        GTEST_SKIP() << "the club house object is not installed";
+    const auto found = findFlatBlock(3, 2);
+    ASSERT_TRUE(found.has_value());
+    insertPath(Building::GetEntrance(*club, *found, 0).outsideTile);
+    GameActions::BuildingPlaceAction place(*found, index, 0);
+    ASSERT_EQ(GameActions::ExecuteNested(&place, gameState).error, GameActions::Status::ok);
+    gameState.golf.createCourse("Links");
+    auto& runtime = Golf::runtimeOf(gameState);
+
+    Golf::GolfSimulation::Spawn spawn;
+    spawn.name = "Grumpy Gary";
+    spawn.position = { Fixed::fromInt(96), Fixed::fromInt(160), Fixed::fromInt(16) };
+    const uint32_t id = runtime.director().simulation().spawn(spawn).id;
+    runtime.update(0);
+    runtime.update(1);
+
+    Golf::SimEvent shot;
+    shot.type = Golf::SimEvent::Type::shotHit;
+    shot.golferId = id;
+    runtime.announce(shot);
+    EXPECT_TRUE(gameState.park.newsItems.isEmpty()); // only rage quits are news
+
+    Golf::SimEvent event;
+    event.type = Golf::SimEvent::Type::rageQuit;
+    event.golferId = id;
+    event.value = 7;
+    event.insult = 2;
+    runtime.announce(event);
+    ASSERT_FALSE(gameState.park.newsItems.isEmpty());
+    const auto& item = gameState.park.newsItems.current();
+    EXPECT_EQ(item.type, News::ItemType::blank);
+    // The news points at where the golfer was (it walked a few units in the two ticks).
+    EXPECT_NEAR(static_cast<int>(item.assoc & 0xFFFF), 96, 8);
+    EXPECT_NEAR(static_cast<int>(item.assoc >> 16), 160, 8);
+    EXPECT_NE(item.text.find("Grumpy Gary"), std::string::npos);
+    EXPECT_NE(item.text.find("hole 7"), std::string::npos);
 }

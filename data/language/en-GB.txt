@@ -3930,3 +3930,12 @@ STR_7136    :{SMALLFONT}{BLACK}Skills
 STR_7137    :{SMALLFONT}{BLACK}Scorecard
 STR_7138    :{SMALLFONT}{BLACK}Thoughts
 STR_7139    :{SMALLFONT}{BLACK}Money and history
+STR_7140    :Who designed this hole, a goat?!
+STR_7141    :My grandmother plays better than this course!
+STR_7142    :I have seen better fairways on a parking lot!
+STR_7143    :This hole is a crime against golf!
+STR_7144    :I want a refund and an apology!
+STR_7145    :Did a squirrel plan this layout?
+STR_7146    :I would rather putt on a trampoline!
+STR_7147    :Never again! I am taking my clubs home!
+STR_7148    :{STRING} rage quit at hole {COMMA16}: ‘{STRINGID}’

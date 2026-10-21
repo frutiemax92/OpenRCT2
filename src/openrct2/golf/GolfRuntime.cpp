@@ -10,11 +10,12 @@
 #include "GolfRuntime.h"
 
 #include "../Diagnostic.h"
-#include "GolfSave.h"
-
 #include "../GameState.h"
 #include "../entity/EntityList.h"
+#include "../localisation/Formatter.h"
+#include "../localisation/StringIds.h"
 #include "../management/Finance.h"
+#include "../management/NewsItem.h"
 #include "../entity/EntityRegistry.h"
 #include "../entity/GolferEntity.h"
 #include "../object/BuildingObject.h"
@@ -24,6 +25,7 @@
 #include "../world/Map.h"
 #include "../world/tile_element/BuildingElement.h"
 #include "../world/tile_element/TileElement.h"
+#include "GolfSave.h"
 
 namespace OpenRCT2::Golf
 {
@@ -170,9 +172,28 @@ namespace OpenRCT2::Golf
         return getGameState().entities.getEntity<GolferEntity>(EntityId::FromUnderlying(it->second));
     }
 
+    void GolfRuntime::announce(const SimEvent& event)
+    {
+        if (event.type != SimEvent::Type::rageQuit)
+            return;
+        const auto known = _known.find(event.golferId);
+        auto ft = Formatter();
+        const std::string who = known != _known.end() ? known->second.name : std::string("A golfer");
+        ft.Add<const char*>(who.c_str());
+        ft.Add<int16_t>(static_cast<int16_t>(event.value));
+        const int32_t insult = std::clamp(event.insult, 0, kInsultCount - 1);
+        ft.Add<StringId>(STR_GOLFER_INSULT_0 + insult);
+        const int32_t x = known != _known.end() ? known->second.x : 0;
+        const int32_t y = known != _known.end() ? known->second.y : 0;
+        const uint32_t packedXY = (static_cast<uint32_t>(y) << 16) | static_cast<uint32_t>(x);
+        News::AddItemToQueue(getGameState().park.newsItems, News::ItemType::blank, STR_GOLFER_RAGE_QUIT_NEWS, packedXY, ft);
+    }
+
     void GolfRuntime::syncEntities()
     {
         auto& sim = _director->simulation();
+        for (const auto& g : sim.golfers())
+            _known[g.id] = Known{ g.name, static_cast<int32_t>(g.position.x.floor()), static_cast<int32_t>(g.position.y.floor()) };
         std::unordered_map<uint32_t, bool> alive;
         for (const auto& g : sim.golfers())
         {
@@ -287,6 +308,8 @@ namespace OpenRCT2::Golf
         if (!_scan.hasClub)
             return;
         _director->update(ticks);
+        for (const auto& event : _director->takeEvents())
+            announce(event);
         syncEntities();
         settleAccounts();
         payUpkeep();

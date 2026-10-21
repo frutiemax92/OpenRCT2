@@ -58,6 +58,9 @@ namespace OpenRCT2::Golf
         {
             return _scan.hasClub;
         }
+        // Tells the player about what the golfers did (GLF-042): a rage quit becomes a news item.
+        void announce(const SimEvent& event);
+
         // The entity that shows a golfer, nullptr when it has none.
         GolferEntity* entityOf(uint32_t golferId) const;
         const BuildingScan& buildings() const
@@ -80,6 +83,12 @@ namespace OpenRCT2::Golf
         std::unique_ptr<GolfDirector> _director;
         std::unordered_map<uint32_t, uint16_t> _entityOf; // golfer id -> entity id
         uint32_t _upkeepDay = 0xFFFFFFFFu; // the game day the upkeep was last paid
+        struct Known
+        {
+            std::string name;
+            int32_t x = 0, y = 0;
+        };
+        std::unordered_map<uint32_t, Known> _known; // golfer id -> name and place, for events about golfers that have left
         Ledger _paid; // what of the director's income has reached the cash of the park
     };
 
