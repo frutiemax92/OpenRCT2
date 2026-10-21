@@ -55,9 +55,10 @@ namespace OpenRCT2::Ui::Windows
         WIDX_FLOW,
         WIDX_PARKING,
         WIDX_REMOVE_PARKING,
+        WIDX_CART_BAY,
     };
 
-    static constexpr ScreenSize kWindowSize = { 260, 160 };
+    static constexpr ScreenSize kWindowSize = { 260, 184 };
     static constexpr const char* kFlowNames[4] = { "-x", "+y", "+x", "-y" };
 
     // clang-format off
@@ -70,7 +71,8 @@ namespace OpenRCT2::Ui::Windows
         makeWidget({ 170, 44 }, {  80, 18 }, WidgetType::button, WindowColour::secondary, STR_STREET_TOOL_ENTRANCE, STR_STREET_TOOL_ENTRANCE_TIP),
         makeWidget({  10, 70 }, { 110, 14 }, WidgetType::button, WindowColour::secondary, STR_STREET_TOOL_FLOW),
         makeWidget({  10, 90 }, { 110, 18 }, WidgetType::button, WindowColour::secondary, STR_STREET_TOOL_PARKING),
-        makeWidget({ 130, 90 }, { 120, 18 }, WidgetType::button, WindowColour::secondary, STR_STREET_TOOL_REMOVE_PARKING)
+        makeWidget({ 130, 90 }, { 120, 18 }, WidgetType::button, WindowColour::secondary, STR_STREET_TOOL_REMOVE_PARKING),
+        makeWidget({  10, 112 }, { 110, 18 }, WidgetType::button, WindowColour::secondary, STR_STREET_TOOL_CART_BAY)
     );
     // clang-format on
 
@@ -102,7 +104,7 @@ namespace OpenRCT2::Ui::Windows
 
         WidgetIndex activeTool() const
         {
-            for (auto widget : { WIDX_BUILD, WIDX_REMOVE, WIDX_ENTRANCE, WIDX_PARKING, WIDX_REMOVE_PARKING })
+            for (auto widget : { WIDX_BUILD, WIDX_REMOVE, WIDX_ENTRANCE, WIDX_PARKING, WIDX_REMOVE_PARKING, WIDX_CART_BAY })
                 if (isToolActive(*this, widget))
                     return widget;
             return kWidgetIndexNull;
@@ -138,6 +140,14 @@ namespace OpenRCT2::Ui::Windows
                         return;
                     // The cars drive in through the edge the "flow" arrow points at.
                     ParkingPlaceAction action(tile, _type, _flow);
+                    result = Execute(&action, gameState);
+                    break;
+                }
+                case WIDX_CART_BAY:
+                {
+                    if (_type == kObjectEntryIndexNull)
+                        return;
+                    ParkingPlaceAction action(tile, _type, _flow, true);
                     result = Execute(&action, gameState);
                     break;
                 }
@@ -192,6 +202,7 @@ namespace OpenRCT2::Ui::Windows
                 case WIDX_ENTRANCE:
                 case WIDX_PARKING:
                 case WIDX_REMOVE_PARKING:
+                case WIDX_CART_BAY:
                     if (isToolActive(*this, widgetIndex))
                         ToolCancel();
                     else
@@ -222,7 +233,7 @@ namespace OpenRCT2::Ui::Windows
 
         void onPrepareDraw() override
         {
-            for (auto widget : { WIDX_BUILD, WIDX_REMOVE, WIDX_ENTRANCE, WIDX_PARKING, WIDX_REMOVE_PARKING })
+            for (auto widget : { WIDX_BUILD, WIDX_REMOVE, WIDX_ENTRANCE, WIDX_PARKING, WIDX_REMOVE_PARKING, WIDX_CART_BAY })
                 setWidgetPressed(widget, isToolActive(*this, widget));
             const auto* object = streetAt(_type);
             // The arrow gives the flow of a one-way street, and the edge a parking tile faces.
@@ -244,10 +255,10 @@ namespace OpenRCT2::Ui::Windows
                 return;
             }
             text(60, 23, std::string(object->GetName()) + (object->OneWay ? " (one-way)" : ""));
-            text(12, 114, "Speed limit: " + std::to_string(object->SpeedLimitKph) + " km/h", Colour::grey);
+            text(12, 138, "Speed limit: " + std::to_string(object->SpeedLimitKph) + " km/h", Colour::grey);
             text(130, 73, std::string(object->OneWay ? "Flow and parking face " : "Parking faces ") + kFlowNames[_flow & 3]);
             if (!_status.empty())
-                text(12, 130, _status, Colour::brightRed);
+                text(12, 156, _status, Colour::brightRed);
         }
     };
 

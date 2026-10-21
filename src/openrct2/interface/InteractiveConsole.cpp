@@ -1230,6 +1230,10 @@ static void ConsoleCommandOpen(InteractiveConsole& console, const arguments_t& a
         {
             ContextOpenWindow(WindowClass::shotTool);
         }
+        else if (argv[0] == "carts")
+        {
+            ContextOpenWindow(WindowClass::carts);
+        }
         else if (argv[0] == "street_tool")
         {
             ContextOpenWindow(WindowClass::streetTool);
@@ -1851,6 +1855,7 @@ static constexpr const utf8* console_window_table[] = {
     "shot_tool",
     "hole_tool",
     "street_tool",
+    "carts",
 };
 // clang-format on
 

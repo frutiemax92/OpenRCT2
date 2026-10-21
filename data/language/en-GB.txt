@@ -3962,3 +3962,9 @@ STR_7168    :Parking
 STR_7169    :Remove parking
 STR_7170    :Can't change the golf carts
 STR_7171    :There is no free cart bay
+STR_7172    :Golf Carts
+STR_7173    :Buy a cart
+STR_7174    :Sell a cart
+STR_7175    :Cart bay
+STR_7176    :{SMALLFONT}{BLACK}A new cart goes into a free cart bay. Build cart bays with the street tool.
+STR_7177    :Price of a cart: {CURRENCY2DP}

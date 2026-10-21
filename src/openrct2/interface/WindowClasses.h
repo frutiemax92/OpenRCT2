@@ -103,6 +103,7 @@ namespace OpenRCT2
         golfer = 145,
         holeTool = 146,
         streetTool = 147,
+        carts = 148,
 
         // Only used for colour schemes
         staff = 220,
