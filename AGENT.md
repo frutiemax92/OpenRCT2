@@ -9,6 +9,17 @@ When you hit a problem or an open question you can't resolve with reasonable eff
 - Use it only for the hard part; take its answer back and continue the routine work (edits, builds, commits) yourself on Sonnet.
 - Don't spawn Opus for routine or well-understood tasks.
 
+## Scope of work: implement everything
+
+The goal is to implement **all** features of `specifications/detailed-specifications.md`, not one. Do not stop after a feature, a commit or a phase.
+
+1. Follow the phase order of section 25. Pick the next unimplemented requirement (by ID, e.g. `TER-012`), implement it, test it, commit it, push it (see "Git workflow"), then immediately take the next one.
+2. Check `git log` and the code and tests to see what is done; requirement IDs in commit messages show progress. Don't redo finished work.
+3. **One commit per feature**, each with its tests, after the whole test suite passes. Never bundle features.
+4. A short status line after a commit is a milestone, not a stopping point. Don't ask "should I continue?": the answer is always yes.
+5. Stop only when every requirement is implemented and its acceptance criteria pass, or when you are blocked on something only the user can decide (missing assets, credentials, a choice with no default in section 26). In that case document the blocker and what was tried, then continue with other unblocked work.
+6. When you do stop, list the requirements that were skipped or only partly done, with the reason.
+
 ## Git workflow
 
 This repository is the Open Golf Simulator, built on top of OpenRCT2.
