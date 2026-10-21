@@ -20,6 +20,8 @@ namespace OpenRCT2
 {
     constexpr int32_t kStreetDefaultSpeedLimitKph = 40;
     constexpr int32_t kStreetMaxSpeedLimitKph = 120;
+    // Width of the road in world units, a bit over half a tile (two lanes of ten).
+    constexpr int32_t kStreetRoadWidth = 20;
 
     // What the markings mask paints over the road texture at a pixel (STE-003, STE-004). The mask is an image like any
     // other, so a marking is told by its colour: white for the centre line, yellow for the edge line, light blue for the
@@ -60,6 +62,8 @@ namespace OpenRCT2
 
         // The marking at a pixel of the (wrapping) mask.
         StreetMarking markingAt(int32_t u, int32_t v) const;
+        // For each palette index of the mask, whether it is a marking.
+        std::array<bool, 256> markingTable() const;
 
     private:
         std::array<StreetMarking, 256> _markingOfIndex{};

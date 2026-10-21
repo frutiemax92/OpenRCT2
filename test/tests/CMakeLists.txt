@@ -69,6 +69,7 @@ set(test_files
    "${CMAKE_CURRENT_SOURCE_DIR}/GolfDirectorTests.cpp"
    "${CMAKE_CURRENT_SOURCE_DIR}/GolfRuntimeTests.cpp"
    "${CMAKE_CURRENT_SOURCE_DIR}/StreetTests.cpp"
+   "${CMAKE_CURRENT_SOURCE_DIR}/StreetSpriteTests.cpp"
    "${CMAKE_CURRENT_SOURCE_DIR}/HoleMarkerTests.cpp"
    "${CMAKE_CURRENT_SOURCE_DIR}/GolfSaveTests.cpp"
    "${CMAKE_CURRENT_SOURCE_DIR}/ArrivalsTests.cpp"

@@ -22,6 +22,7 @@ namespace OpenRCT2::Drawing
     constexpr uint16_t kOverlayShapeIndexBase = 0x2000; // plus the shape index, for overlay sprites
     constexpr uint16_t kWaterShapeIndexBase = 0x4000; // plus the shape index, for water surface sprites
     constexpr uint16_t kStreamShapeIndexBase = 0x6000; // plus the shape index, for stream surface sprites
+    constexpr uint16_t kStreetShapeIndexBase = 0x7000; // plus the shape index, for street surface sprites
 
     // Key of a generated terrain sprite (TER-032).
     struct TerrainSpriteKey

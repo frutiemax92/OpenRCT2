@@ -68,6 +68,14 @@ namespace OpenRCT2
         return _markingOfIndex[Markings.Sample(0, u, v)];
     }
 
+    std::array<bool, 256> StreetObject::markingTable() const
+    {
+        std::array<bool, 256> table{};
+        for (size_t i = 0; i < table.size(); i++)
+            table[i] = _markingOfIndex[i] != StreetMarking::none;
+        return table;
+    }
+
     void StreetObject::ReadJson(IReadObjectContext* context, json_t& root)
     {
         Guard::Assert(root.is_object(), "StreetObject::ReadJson expects parameter root to be object");

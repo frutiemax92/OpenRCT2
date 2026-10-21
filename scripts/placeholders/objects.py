@@ -394,22 +394,25 @@ def street_markings(one_way):
     centre line (two-way) or an arrow pointing along +x (one-way)."""
     size = STREET_TEXTURE_SIZE
     image = Image(size, size, (0, 0, 0), 0)
+    # A texel is about a third of a world unit across the road, and the road is drawn a pixel per unit: the lines are four
+    # texels thick so they show.
     for x in range(size):
-        for y in (4, 5, size - 6, size - 5):
+        for y in (3, 4, 5, 6, size - 7, size - 6, size - 5, size - 4):
             image.set(x, y, STREET_MARKING_COLOURS["edge"])
+    mid = size // 2
     if one_way:
-        mid = size // 2
-        for k in range(14):
-            image.set(24 + k, mid, STREET_MARKING_COLOURS["arrow"])
-            image.set(24 + k, mid - 1, STREET_MARKING_COLOURS["arrow"])
-        for k in range(1, 6):
-            image.set(38 - k, mid - 1 - k, STREET_MARKING_COLOURS["arrow"])
-            image.set(38 - k, mid + k, STREET_MARKING_COLOURS["arrow"])
+        for k in range(18):
+            for t in range(-2, 2):
+                image.set(22 + k, mid + t, STREET_MARKING_COLOURS["arrow"])
+        for k in range(1, 9):
+            for t in range(-1, 2):
+                image.set(40 - k, mid - 2 - k + t, STREET_MARKING_COLOURS["arrow"])
+                image.set(40 - k, mid + 1 + k + t, STREET_MARKING_COLOURS["arrow"])
     else:
         for x in range(size):
             if (x // 8) % 2 == 0:
-                image.set(x, size // 2 - 1, STREET_MARKING_COLOURS["centre"])
-                image.set(x, size // 2, STREET_MARKING_COLOURS["centre"])
+                for t in range(-2, 2):
+                    image.set(x, mid + t, STREET_MARKING_COLOURS["centre"])
     return image
 
 

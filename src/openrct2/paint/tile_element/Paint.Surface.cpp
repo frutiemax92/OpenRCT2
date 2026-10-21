@@ -28,6 +28,7 @@
 #include "../../world/Map.h"
 #include "../../world/MapSelection.h"
 #include "../../world/Stream.h"
+#include "../../world/Street.h"
 #include "../../world/tile_element/Slope.h"
 #include "../../world/tile_element/SurfaceElement.h"
 #include "../../world/tile_element/TileElement.h"
@@ -1013,6 +1014,17 @@ void PaintSurface(PaintSession& session, uint8_t direction, uint16_t height, con
             if (streamImage != kImageIndexUndefined)
             {
                 PaintAttachToPreviousPS(session, ImageId(streamImage), 0, 0);
+            }
+        }
+
+        // Street surface projected on terrain (STE-003)
+        const auto* street = Street::FindAt(session.MapPosition);
+        if (street != nullptr)
+        {
+            const auto streetImage = Drawing::TerrainSpriteStore::Instance().GetStreetImage(tileElement, *street, rotation);
+            if (streetImage != kImageIndexUndefined)
+            {
+                PaintAttachToPreviousPS(session, ImageId(streetImage), 0, 0);
             }
         }
 

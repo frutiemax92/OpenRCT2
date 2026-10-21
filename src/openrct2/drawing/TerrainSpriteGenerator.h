@@ -149,4 +149,20 @@ namespace OpenRCT2::Drawing
         const TerrainShadeTable& shades,
         int32_t rotation,
         int32_t zoom);
+
+    // Procedural street surface (STE-003): the road texture and the markings over it, cut to the connection pattern of the
+    // tile and projected onto the surface triangles, so a road lies on any ramp. The road is `roadWidth` units wide; a
+    // one-way road flows towards `flowDirection`. isMarking says which palette indices of the mask are markings.
+    TerrainSprite GenerateTerrainStreetSprite(
+        const Terrain::TerrainShape& shape,
+        const TerrainTexture& road,
+        const TerrainTexture& markings,
+        const std::array<bool, 256>& isMarking,
+        uint8_t connections,
+        bool oneWay,
+        int32_t flowDirection,
+        int32_t roadWidth,
+        const TerrainShadeTable& shades,
+        int32_t rotation,
+        int32_t zoom);
 } // namespace OpenRCT2::Drawing

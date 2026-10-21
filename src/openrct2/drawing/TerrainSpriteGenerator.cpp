@@ -906,4 +906,192 @@ namespace OpenRCT2::Drawing
         }
         return sprite;
     }
+
+    namespace
+    {
+        // The palette index of the road at a point of the tile (positions in 1/256 units), or transparent off the road.
+        // The road runs from the middle of the tile to the middle of each connected edge (STE-001); a tile with no
+        // connection is a patch of road. Markings follow the arms; a straight through road is one arm so its dashes do not
+        // break in the middle, and the centre of a corner or junction has none.
+        uint8_t StreetPixel(
+            int64_t lx, int64_t ly, const TerrainTexture& road, const TerrainTexture& markings,
+            const std::array<bool, 256>& isMarking, uint8_t connections, bool oneWay, int32_t flowDirection, int64_t roadHalf,
+            int32_t zoom)
+        {
+            constexpr int64_t kOne = 256;
+            constexpr int64_t kHalf = 16 * kOne;
+            constexpr int64_t kFull = 32 * kOne;
+            const int64_t dx = lx - kHalf, dy = ly - kHalf;
+            connections &= 0x0F;
+
+            bool inRoad = false;
+            bool hasMarking = false;
+            int64_t s = 0;       // across the road from its middle line
+            int64_t along = 0;   // along the road, in the direction of travel
+            const bool straightX = connections == 0b0101, straightY = connections == 0b1010;
+            if (straightX || straightY)
+            {
+                s = straightX ? dy : dx;
+                inRoad = std::abs(s) <= roadHalf;
+                hasMarking = inRoad;
+                const int64_t position = straightX ? lx : ly;
+                // Travel runs towards the flow direction on a one-way road: +x/+y keep the position, -x/-y reverse it.
+                const bool reversed = oneWay && (flowDirection == 0 || flowDirection == 3);
+                along = reversed ? kFull - position : position;
+            }
+            else
+            {
+                const bool inSquare = std::abs(dx) <= roadHalf && std::abs(dy) <= roadHalf;
+                inRoad = inSquare;
+                if (connections == 0)
+                    inRoad = std::abs(dx) <= roadHalf / 2 + kOne && std::abs(dy) <= roadHalf / 2 + kOne;
+                static constexpr int64_t kArmX[4] = { -1, 0, 1, 0 };
+                static constexpr int64_t kArmY[4] = { 0, 1, 0, -1 };
+                for (int32_t e = 0; e < 4 && !(inRoad && hasMarking); e++)
+                {
+                    if ((connections & (1 << e)) == 0)
+                        continue;
+                    const int64_t t = dx * kArmX[e] + dy * kArmY[e];
+                    const int64_t side = dx * kArmY[e] - dy * kArmX[e];
+                    if (t < 0 || t > kHalf || std::abs(side) > roadHalf)
+                        continue;
+                    inRoad = true;
+                    if (t > roadHalf)
+                    {
+                        hasMarking = true;
+                        s = side;
+                        // Traffic enters the tile on the arm opposite the flow of a one-way road.
+                        const bool inbound = oneWay && e == ((flowDirection + 2) & 3);
+                        along = inbound ? kHalf - t : t;
+                    }
+                }
+            }
+            if (!inRoad)
+                return kTerrainTransparent;
+
+            const int32_t ix = static_cast<int32_t>(std::clamp<int64_t>(lx >> 7, 0, 2 * kTile - 1));
+            const int32_t iy = static_cast<int32_t>(std::clamp<int64_t>(ly >> 7, 0, 2 * kTile - 1));
+            if (hasMarking && markings.size > 0 && roadHalf > 0)
+            {
+                // The mask covers one tile along the road: markings.size texels for 32 units.
+                const int32_t u = static_cast<int32_t>((along * markings.size / kFull) % markings.size);
+                const int32_t v = static_cast<int32_t>(markings.size / 2 + s * (markings.size / 2) / roadHalf);
+                if (v >= 0 && v < markings.size)
+                {
+                    const uint8_t marking = markings.Sample(0, u, v);
+                    if (marking != kTerrainTransparent && isMarking[marking])
+                        return marking;
+                }
+            }
+            return road.Sample(zoom, ix, iy);
+        }
+    } // namespace
+
+    TerrainSprite GenerateTerrainStreetSprite(
+        const TerrainShape& shape,
+        const TerrainTexture& road,
+        const TerrainTexture& markings,
+        const std::array<bool, 256>& isMarking,
+        uint8_t connections,
+        bool oneWay,
+        int32_t flowDirection,
+        int32_t roadWidth,
+        const TerrainShadeTable& shades,
+        int32_t rotation,
+        int32_t zoom)
+    {
+        assert(zoom >= 0 && zoom < kTerrainZoomLevels);
+        rotation &= 3;
+
+        const int32_t hN = shape.north * kQuarterStepZ, hE = shape.east * kQuarterStepZ;
+        const int32_t hS = shape.south * kQuarterStepZ, hW = shape.west * kQuarterStepZ;
+        const Vertex vS = MakeVertex(0, 0, hS, rotation);
+        const Vertex vE = MakeVertex(kTile, 0, hE, rotation);
+        const Vertex vN = MakeVertex(kTile, kTile, hN, rotation);
+        const Vertex vW = MakeVertex(0, kTile, hW, rotation);
+
+        const bool northSouth = GetSplitDiagonal(shape) == SplitDiagonal::northSouth;
+        const std::array<std::array<Vertex, 3>, 2> tris = {{
+            northSouth ? std::array<Vertex, 3>{ vS, vE, vN } : std::array<Vertex, 3>{ vS, vE, vW },
+            northSouth ? std::array<Vertex, 3>{ vS, vN, vW } : std::array<Vertex, 3>{ vE, vN, vW },
+        }};
+
+        const int64_t step = int64_t{ 1 } << zoom;
+        int64_t minX = INT64_MAX, minY = INT64_MAX, maxX = INT64_MIN, maxY = INT64_MIN;
+        for (const auto& tri : tris)
+            for (const auto& v : tri)
+            {
+                minX = std::min(minX, v.sx);
+                maxX = std::max(maxX, v.sx);
+                minY = std::min(minY, v.sy);
+                maxY = std::max(maxY, v.sy);
+            }
+        TerrainSprite sprite;
+        sprite.xOffset = FloorDiv(minX, step);
+        sprite.yOffset = FloorDiv(minY, step);
+        sprite.width = CeilDiv(maxX, step) - sprite.xOffset;
+        sprite.height = CeilDiv(maxY, step) - sprite.yOffset;
+        sprite.pixels.assign(static_cast<size_t>(sprite.width) * static_cast<size_t>(sprite.height), kTerrainTransparent);
+
+        constexpr int64_t kOne = 256;
+        const int64_t roadHalf = std::clamp<int64_t>(roadWidth, 2, 32) * kOne / 2;
+
+        const int32_t insideX[2] = { northSouth ? 24 : 8, northSouth ? 8 : 24 };
+        const int32_t insideY[2] = { 8, 24 };
+
+        for (int32_t ti = 0; ti < 2; ti++)
+        {
+            Vertex a = tris[ti][0], b = tris[ti][1], c = tris[ti][2];
+            auto area2 = [&](const Vertex& p, const Vertex& q, const Vertex& r) {
+                return Edge(2 * p.sx, 2 * p.sy, 2 * q.sx, 2 * q.sy, 2 * r.sx, 2 * r.sy);
+            };
+            int64_t area = area2(a, b, c);
+            if (area == 0)
+                continue;
+            if (area < 0)
+            {
+                std::swap(b, c);
+                area = -area;
+            }
+
+            const int32_t band = GetTerrainShadeBand(GetSurfaceNormalAt(shape, insideX[ti], insideY[ti]), rotation);
+
+            const int64_t tminX = std::min({ a.sx, b.sx, c.sx }), tmaxX = std::max({ a.sx, b.sx, c.sx });
+            const int64_t tminY = std::min({ a.sy, b.sy, c.sy }), tmaxY = std::max({ a.sy, b.sy, c.sy });
+            const int32_t px0 = FloorDiv(tminX, step), px1 = CeilDiv(tmaxX, step);
+            const int32_t py0 = FloorDiv(tminY, step), py1 = CeilDiv(tmaxY, step);
+
+            const int64_t bias0 = IsTopLeft(2 * b.sx, 2 * b.sy, 2 * c.sx, 2 * c.sy) ? 0 : -1;
+            const int64_t bias1 = IsTopLeft(2 * c.sx, 2 * c.sy, 2 * a.sx, 2 * a.sy) ? 0 : -1;
+            const int64_t bias2 = IsTopLeft(2 * a.sx, 2 * a.sy, 2 * b.sx, 2 * b.sy) ? 0 : -1;
+
+            for (int32_t py = py0; py < py1; py++)
+            {
+                for (int32_t px = px0; px < px1; px++)
+                {
+                    const int64_t cx = (2 * static_cast<int64_t>(px) + 1) * step;
+                    const int64_t cy = (2 * static_cast<int64_t>(py) + 1) * step;
+                    const int64_t w0 = Edge(2 * b.sx, 2 * b.sy, 2 * c.sx, 2 * c.sy, cx, cy);
+                    const int64_t w1 = Edge(2 * c.sx, 2 * c.sy, 2 * a.sx, 2 * a.sy, cx, cy);
+                    const int64_t w2 = Edge(2 * a.sx, 2 * a.sy, 2 * b.sx, 2 * b.sy, cx, cy);
+                    if (w0 + bias0 < 0 || w1 + bias1 < 0 || w2 + bias2 < 0)
+                        continue;
+
+                    const int64_t lx = (w0 * a.lx + w1 * b.lx + w2 * c.lx) * 256 / area;
+                    const int64_t ly = (w0 * a.ly + w1 * b.ly + w2 * c.ly) * 256 / area;
+
+                    const auto pixel = StreetPixel(
+                        lx, ly, road, markings, isMarking, connections, oneWay, flowDirection, roadHalf, zoom);
+                    if (pixel == kTerrainTransparent)
+                        continue;
+
+                    const int32_t ox = px - sprite.xOffset, oy = py - sprite.yOffset;
+                    if (ox < 0 || oy < 0 || ox >= sprite.width || oy >= sprite.height)
+                        continue;
+                    sprite.pixels[static_cast<size_t>(oy) * sprite.width + ox] = shades.Shade(band, pixel);
+                }
+            }
+        }
+        return sprite;
+    }
 } // namespace OpenRCT2::Drawing

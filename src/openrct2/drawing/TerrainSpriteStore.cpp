@@ -14,10 +14,12 @@
 #include "../GameState.h"
 #include "../config/Config.h"
 #include "../object/StreamObject.h"
+#include "../object/StreetObject.h"
 #include "../object/TerrainEdgeObject.h"
 #include "../object/TerrainSurfaceObject.h"
 #include "../world/Map.h"
 #include "../world/tile_element/StreamElement.h"
+#include "../world/tile_element/StreetElement.h"
 #include "../world/tile_element/SurfaceElement.h"
 #include "G1Element.h"
 #include "Image.h"
@@ -192,6 +194,41 @@ namespace OpenRCT2::Drawing
         }
         const auto* sprite = _cache.Get(key, [&] {
             return GenerateTerrainStreamSprite(shape, *texture, stream.getEdges(), streamObject->Width, _shades, rotation, 0);
+        });
+        if (sprite == nullptr || sprite->pixels.empty())
+            return kImageIndexUndefined;
+        return RegisterImage(key, *sprite);
+    }
+
+    ImageIndex TerrainSpriteStore::GetStreetImage(const SurfaceElement& surface, const StreetElement& street, int32_t rotation)
+    {
+        const auto shape = surface.getTerrainShape();
+        const auto shapeIndex = Terrain::GetShapeIndex(shape);
+        if (shapeIndex == 0xFFFF)
+            return kImageIndexUndefined;
+
+        const auto* streetObject = street.getObject();
+        if (streetObject == nullptr || streetObject->Texture.size == 0)
+            return kImageIndexUndefined;
+
+        // The flow only changes the picture of a one-way road.
+        const int32_t flow = streetObject->OneWay ? street.getFlowDirection() : 0;
+        TerrainSpriteKey key{ static_cast<uint16_t>(kStreetShapeIndexBase + shapeIndex), {}, static_cast<uint8_t>(rotation & 3), 0 };
+        key.quadrantSurfaces[0] = static_cast<uint8_t>(street.getObjectIndex());
+        key.quadrantSurfaces[1] = street.getConnections();
+        key.quadrantSurfaces[2] = static_cast<uint8_t>(flow);
+        key.quadrantSurfaces[3] = static_cast<uint8_t>(kStreetRoadWidth);
+
+        std::lock_guard lock(_mutex);
+        if (!_shadesBuilt)
+        {
+            _shades = BuildShades();
+            _shadesBuilt = true;
+        }
+        const auto* sprite = _cache.Get(key, [&] {
+            return GenerateTerrainStreetSprite(
+                shape, streetObject->Texture, streetObject->Markings, streetObject->markingTable(), street.getConnections(),
+                streetObject->OneWay, flow, kStreetRoadWidth, _shades, rotation, 0);
         });
         if (sprite == nullptr || sprite->pixels.empty())
             return kImageIndexUndefined;
