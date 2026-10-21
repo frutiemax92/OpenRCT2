@@ -17,6 +17,8 @@
 #include "../entity/EntityRegistry.h"
 #include "../entity/GolferEntity.h"
 #include "../object/BuildingObject.h"
+#include "../object/PathAdditionEntry.h"
+#include "../world/tile_element/PathElement.h"
 #include "../scenario/Scenario.h"
 #include "../world/Map.h"
 #include "../world/tile_element/BuildingElement.h"
@@ -49,6 +51,33 @@ namespace OpenRCT2::Golf
         TileElementIteratorBegin(&it);
         do
         {
+            if (it.element != nullptr && it.element->getType() == TileElementType::path)
+            {
+                const auto* path = it.element->asPath();
+                const auto* addition = path->hasAddition() && !path->additionIsGhost() ? path->getAdditionEntry() : nullptr;
+                if (addition == nullptr)
+                    continue;
+                // The id is the tile, so a bench keeps its occupants and a bin its rubbish from one scan to the next.
+                const uint32_t id = static_cast<uint32_t>(it.y) * 1024u + static_cast<uint32_t>(it.x) + 1u;
+                const FixedVec3 centre{ Fixed::fromInt(it.x * kTileSize + kTileSize / 2),
+                                        Fixed::fromInt(it.y * kTileSize + kTileSize / 2),
+                                        Fixed::fromInt(path->getBaseZ()) };
+                if (addition->flags.has(PathAdditionFlag::isBench))
+                {
+                    Bench bench;
+                    bench.id = id;
+                    bench.position = centre;
+                    scan.benches.push_back(bench);
+                }
+                else if (addition->flags.has(PathAdditionFlag::isBin))
+                {
+                    LitterBin bin;
+                    bin.id = id;
+                    bin.position = centre;
+                    scan.bins.push_back(bin);
+                }
+                continue;
+            }
             if (it.element == nullptr || it.element->getType() != TileElementType::building)
                 continue;
             const auto* element = it.element->asBuilding();
@@ -103,6 +132,8 @@ namespace OpenRCT2::Golf
 
         GolfDirector::Sources sources;
         sources.services = [this] { return _scan.services; };
+        sources.benches = [this] { return mergeBenches(); };
+        sources.bins = [this] { return mergeBins(); };
         sources.spawnPoint = [this] { return _scan.club; };
         sources.clubEntrance = [this] { return _scan.club; };
         sources.exitPoint = [this] { return _scan.club; };
@@ -173,6 +204,29 @@ namespace OpenRCT2::Golf
         env.clubEntrance = _scan.club;
         env.exit = _scan.club;
         env.services = _scan.services;
+        env.benches = mergeBenches();
+        env.bins = mergeBins();
+    }
+
+    std::vector<Bench> GolfRuntime::mergeBenches() const
+    {
+        // A bench that is still there keeps who sits on it.
+        auto benches = _scan.benches;
+        for (auto& bench : benches)
+            for (const auto& old : _director->simulation().environment().benches)
+                if (old.id == bench.id)
+                    bench.occupants = old.occupants;
+        return benches;
+    }
+
+    std::vector<LitterBin> GolfRuntime::mergeBins() const
+    {
+        auto bins = _scan.bins;
+        for (auto& bin : bins)
+            for (const auto& old : _director->simulation().environment().bins)
+                if (old.id == bin.id)
+                    bin.trashCount = old.trashCount;
+        return bins;
     }
 
     void GolfRuntime::update(uint32_t ticks)

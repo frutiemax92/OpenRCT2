@@ -34,6 +34,7 @@
 #include <openrct2/entity/GolferEntity.h>
 #include <openrct2/golf/GolfRuntime.h>
 #include <openrct2/drawing/ModelSpriteStore.h>
+#include <openrct2/object/PathAdditionObject.h>
 #include <openrct2/golf/Hole.h>
 #include <openrct2/object/GolferModelObject.h>
 #include <openrct2/paint/entity/Paint.Golfer.h>
@@ -258,4 +259,65 @@ TEST(GolfRuntimeTests, TheStandardGolferModelLoadsWithAllClipsAndRemapMaterials)
     // Every state of a golfer plays a clip the model has.
     for (int i = 0; i < static_cast<int>(Golf::GolferState::count); i++)
         EXPECT_NE(model->findClip(golferClipName(static_cast<Golf::GolferState>(i))), nullptr);
+}
+
+TEST(GolfRuntimeTests, BenchesAndBinsOnThePathAreFoundAndKeepTheirState)
+{
+    auto context = startPark();
+    ASSERT_NE(context.get(), nullptr);
+    auto& gameState = getGameState();
+    auto& objectManager = context->GetObjectManager();
+    auto* benchObject = objectManager.LoadObject("golf.path_addition.bench");
+    auto* binObject = objectManager.LoadObject("golf.path_addition.bin");
+    if (benchObject == nullptr || binObject == nullptr)
+        GTEST_SKIP() << "the path additions are not installed";
+
+    const auto found = findFlatBlock(3, 2);
+    ASSERT_TRUE(found.has_value());
+    auto place = [&](const CoordsXY& tile, Object* object) {
+        const auto baseZ = MapGetSurfaceElementAt(tile)->getBaseZ();
+        auto* path = TileElementInsert<PathElement>({ tile.x, tile.y, baseZ }, 0b1111);
+        path->setClearanceZ(baseZ + 16);
+        path->setAdditionEntryIndex(objectManager.GetLoadedObjectEntryIndex(object));
+    };
+    place({ found->x, found->y }, benchObject);
+    place({ found->x + 32, found->y }, binObject);
+
+    // The park may have benches of its own: look for the two that were just placed.
+    auto bench = [&](const Golf::BuildingScan& scan) -> const Golf::Bench* {
+        for (const auto& b : scan.benches)
+            if (b.position.x.floor() == found->x + 16 && b.position.y.floor() == found->y + 16)
+                return &b;
+        return nullptr;
+    };
+    auto bin = [&](const Golf::BuildingScan& scan) -> const Golf::LitterBin* {
+        for (const auto& b : scan.bins)
+            if (b.position.x.floor() == found->x + 32 + 16 && b.position.y.floor() == found->y + 16)
+                return &b;
+        return nullptr;
+    };
+    const auto scan = Golf::scanBuildings();
+    ASSERT_NE(bench(scan), nullptr);
+    ASSERT_NE(bin(scan), nullptr);
+    EXPECT_NE(bench(scan)->id, bin(scan)->id);
+
+    // A rescan keeps who sits on the bench and what is in the bin.
+    gameState.golf.createCourse("Links");
+    auto& runtime = Golf::runtimeOf(gameState);
+    auto& env = runtime.director().simulation().environment();
+    for (auto& b : env.benches)
+        if (b.id == bench(scan)->id)
+            b.occupants = 2;
+    for (auto& b : env.bins)
+        if (b.id == bin(scan)->id)
+            b.trashCount = 7;
+    runtime.refreshBuildings();
+    int occupants = -1;
+    uint32_t trash = 0;
+    for (const auto& b : env.benches)
+        occupants = b.id == bench(scan)->id ? b.occupants : occupants;
+    for (const auto& b : env.bins)
+        trash = b.id == bin(scan)->id ? b.trashCount : trash;
+    EXPECT_EQ(occupants, 2);
+    EXPECT_EQ(trash, 7u);
 }

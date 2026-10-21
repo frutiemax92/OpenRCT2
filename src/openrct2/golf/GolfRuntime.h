@@ -30,6 +30,8 @@ namespace OpenRCT2::Golf
         bool hasClub = false;
         FixedVec3 club;                 // the entrance of the first golf club
         std::vector<Service> services;  // food trucks, restrooms, the pro shop of the club
+        std::vector<Bench> benches;     // path additions that are benches (PTH-021)
+        std::vector<LitterBin> bins;    // path additions that are litter bins (PTH-022)
     };
     BuildingScan scanBuildings();
 
@@ -64,6 +66,8 @@ namespace OpenRCT2::Golf
     private:
         class GameRandom;
         void syncEntities();
+        std::vector<Bench> mergeBenches() const;
+        std::vector<LitterBin> mergeBins() const;
         MapObstacles _obstacles;
         MapBallWorld _world;
         std::unique_ptr<GameRandom> _rng;
