@@ -14,6 +14,7 @@
 #include "BannerElement.h"
 #include "BuildingElement.h"
 #include "StreamElement.h"
+#include "StreetElement.h"
 #include "EntranceElement.h"
 #include "LargeSceneryElement.h"
 #include "PathElement.h"
@@ -216,6 +217,14 @@ namespace OpenRCT2
     StreamElement* TileElementBase::asStream()
     {
         return as<StreamElement>();
+    }
+    const StreetElement* TileElementBase::asStreet() const
+    {
+        return as<StreetElement>();
+    }
+    StreetElement* TileElementBase::asStreet()
+    {
+        return as<StreetElement>();
     }
     const BuildingElement* TileElementBase::asBuilding() const
     {

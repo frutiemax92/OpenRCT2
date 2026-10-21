@@ -1474,6 +1474,7 @@ namespace OpenRCT2
                             case TileElementType::surface:
                             case TileElementType::stream:
                             case TileElementType::building:
+                            case TileElementType::street:
                                 break;
                             case TileElementType::path:
                             {

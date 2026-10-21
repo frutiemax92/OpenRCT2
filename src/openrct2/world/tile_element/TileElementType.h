@@ -25,5 +25,6 @@ namespace OpenRCT2
         banner = 7,
         stream = 8,
         building = 9,
+        street = 10,
     };
 }

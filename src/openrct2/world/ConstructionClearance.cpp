@@ -400,6 +400,7 @@ void MapGetObstructionErrorText(TileElement* tileElement, GameActions::Result& r
             break;
         case TileElementType::stream:
         case TileElementType::building:
+        case TileElementType::street:
             res.errorMessage = STR_X_IN_THE_WAY;
             break;
     }

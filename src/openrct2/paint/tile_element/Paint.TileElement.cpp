@@ -292,6 +292,9 @@ static void PaintTileElementBase(PaintSession& session, const CoordsXY& origCoor
             case TileElementType::building:
                 PaintBuilding(session, baseZ, *(tile_element->asBuilding()));
                 break;
+            case TileElementType::street:
+                // Streets are drawn by the procedural terrain renderer with the surface (STE-003).
+                break;
         }
         session.MapPosition = mapPosition;
     } while (!(tile_element++)->isLastForTile());

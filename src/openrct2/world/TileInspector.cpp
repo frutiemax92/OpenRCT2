@@ -283,6 +283,7 @@ namespace OpenRCT2::TileInspector
                     break;
                 }
                 case TileElementType::building:
+                case TileElementType::street:
                 case TileElementType::surface:
                 case TileElementType::largeScenery:
                     break;
