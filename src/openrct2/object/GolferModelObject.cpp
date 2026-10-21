@@ -10,9 +10,12 @@
 #include "GolferModelObject.h"
 
 #include "../Context.h"
+#include "../Diagnostic.h"
 #include "../core/Guard.hpp"
 #include "../core/Json.hpp"
 #include "../drawing/Drawing.h"
+#include "../drawing/ModelSpriteStore.h"
+#include "../model/GlbModel.h"
 #include "ObjectCollision.h"
 #include "ObjectManager.h"
 
@@ -28,6 +31,9 @@ namespace OpenRCT2
         if (properties.is_object())
         {
             ModelPath = Json::GetString(properties["model"]);
+            ModelData.clear();
+            if (!ModelPath.empty())
+                ModelData = context->GetData(ModelPath);
             TriangleBudget = Json::GetNumber<int32_t>(properties["triangleBudget"], 800);
             MaterialSlots = Json::GetNumber<int32_t>(properties["materialSlots"], 3);
 
@@ -63,10 +69,28 @@ namespace OpenRCT2
 
     void GolferModelObject::Load()
     {
+        if (ModelData.empty())
+            return;
+        // R3D-003: golfers stay within their triangle budget (twice over is rejected).
+        auto result = Model::loadGlb(ModelData, static_cast<size_t>(TriangleBudget), 128);
+        if (!result.ok)
+        {
+            LOG_ERROR("Golfer model '%s' rejected: %s", std::string(GetIdentifier()).c_str(), result.error.c_str());
+            return;
+        }
+        auto& store = Drawing::ModelSpriteStore::Instance();
+        ModelId = store.RegisterModel(std::make_shared<Model::GlbModel>(std::move(result.model)));
+        ActiveModelId = ModelId;
     }
 
     void GolferModelObject::Unload()
     {
+        if (ModelId == 0)
+            return;
+        Drawing::ModelSpriteStore::Instance().UnregisterModel(ModelId);
+        if (ActiveModelId == ModelId)
+            ActiveModelId = 0;
+        ModelId = 0;
     }
 
     void GolferModelObject::DrawPreview(Drawing::RenderTarget& rt, int32_t width, int32_t height) const

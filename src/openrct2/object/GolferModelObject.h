@@ -47,10 +47,12 @@ namespace OpenRCT2
         uint32_t IconImageId{};
 
         std::string ModelPath;
+        std::vector<uint8_t> ModelData; // the .glb read from the archive
         int32_t TriangleBudget = 800; // R3D-003: golfer <= 800
         int32_t MaterialSlots = 3;    // R3D-007: up to 3 remappable material slots
         std::vector<std::string> Clips;
         ObjectCollision Collision{};
+        uint32_t ModelId = 0; // in the ModelSpriteStore while the object is loaded
 
         void ReadJson(IReadObjectContext* context, json_t& root) override;
         void Load() override;

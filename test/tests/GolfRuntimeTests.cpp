@@ -33,6 +33,7 @@
 #include <openrct2/world/Footpath.h>
 #include <openrct2/entity/GolferEntity.h>
 #include <openrct2/golf/GolfRuntime.h>
+#include <openrct2/drawing/ModelSpriteStore.h>
 #include <openrct2/golf/Hole.h>
 #include <openrct2/object/GolferModelObject.h>
 #include <openrct2/paint/entity/Paint.Golfer.h>
@@ -228,4 +229,33 @@ TEST(GolfRuntimeTests, EveryStateMapsToARequiredAnimationClip)
             found = found || required == name;
         EXPECT_TRUE(found) << "state " << i << " plays '" << name << "', which golfer models are not required to have";
     }
+}
+
+TEST(GolfRuntimeTests, TheStandardGolferModelLoadsWithAllClipsAndRemapMaterials)
+{
+    auto context = startPark();
+    ASSERT_NE(context.get(), nullptr);
+    auto& objectManager = context->GetObjectManager();
+    auto* object = objectManager.LoadObject("golf.golfer_model.standard");
+    if (object == nullptr)
+        GTEST_SKIP() << "the golfer model object is not installed";
+    auto* golferModel = static_cast<GolferModelObject*>(object);
+    ASSERT_NE(golferModel->ModelId, 0u);
+    EXPECT_EQ(GolferModelObject::ActiveModelId, golferModel->ModelId);
+
+    const auto* model = Drawing::ModelSpriteStore::Instance().GetModel(golferModel->ModelId);
+    ASSERT_NE(model, nullptr);
+    EXPECT_LE(model->triangleCount(), static_cast<size_t>(golferModel->TriangleBudget));
+    for (auto required : kRequiredGolferClips)
+        EXPECT_NE(model->findClip(std::string(required)), nullptr) << "missing clip " << required;
+    for (const char* name : Model::kRemapMaterialNames)
+    {
+        bool found = false;
+        for (const auto& material : model->materials)
+            found = found || material.name == name;
+        EXPECT_TRUE(found) << "missing material " << name;
+    }
+    // Every state of a golfer plays a clip the model has.
+    for (int i = 0; i < static_cast<int>(Golf::GolferState::count); i++)
+        EXPECT_NE(model->findClip(golferClipName(static_cast<Golf::GolferState>(i))), nullptr);
 }
