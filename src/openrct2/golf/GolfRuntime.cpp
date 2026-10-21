@@ -14,6 +14,7 @@
 
 #include "../GameState.h"
 #include "../entity/EntityList.h"
+#include "../management/Finance.h"
 #include "../entity/EntityRegistry.h"
 #include "../entity/GolferEntity.h"
 #include "../object/BuildingObject.h"
@@ -147,6 +148,8 @@ namespace OpenRCT2::Golf
             gameState.golfSimulationData.clear();
         }
 
+        _paid = currentLedger();
+
         // Golfer entities from before (a map that was reset or swapped) belong to no golfer.
         std::vector<GolferEntity*> orphans;
         for (auto* entity : EntityList<GolferEntity>())
@@ -197,6 +200,34 @@ namespace OpenRCT2::Golf
 
     GolfRuntime::~GolfRuntime() = default;
 
+    Ledger GolfRuntime::currentLedger() const
+    {
+        Ledger sum = _director->total();
+        sum.add(_director->today());
+        return sum;
+    }
+
+    // ECO-010: the income of the director reaches the cash of the park, under the categories of the finance window.
+    void GolfRuntime::settleAccounts()
+    {
+        const auto now = currentLedger();
+        auto pay = [](int64_t& paid, int64_t current, ExpenditureType type) {
+            if (current != paid)
+            {
+                // A payment is a cost, so income is a negative payment.
+                FinancePayment(-static_cast<money64>(current - paid), type);
+                paid = current;
+            }
+        };
+        pay(_paid.greenFees, now.greenFees, ExpenditureType::parkEntranceTickets);
+        pay(_paid.tournamentRevenue, now.tournamentRevenue, ExpenditureType::parkEntranceTickets);
+        pay(_paid.cartFees, now.cartFees, ExpenditureType::parkRideTickets);
+        pay(_paid.rangeBuckets, now.rangeBuckets, ExpenditureType::parkRideTickets);
+        pay(_paid.miniPuttFees, now.miniPuttFees, ExpenditureType::parkRideTickets);
+        pay(_paid.buildingServices, now.buildingServices, ExpenditureType::foodDrinkSales);
+        pay(_paid.cottageSales, now.cottageSales, ExpenditureType::landPurchase);
+    }
+
     void GolfRuntime::refreshBuildings()
     {
         _scan = scanBuildings();
@@ -240,6 +271,7 @@ namespace OpenRCT2::Golf
             return;
         _director->update(ticks);
         syncEntities();
+        settleAccounts();
     }
 
     GolfRuntime& runtimeOf(GameState_t& gameState)

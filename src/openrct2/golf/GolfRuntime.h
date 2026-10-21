@@ -66,6 +66,8 @@ namespace OpenRCT2::Golf
     private:
         class GameRandom;
         void syncEntities();
+        void settleAccounts();
+        Ledger currentLedger() const;
         std::vector<Bench> mergeBenches() const;
         std::vector<LitterBin> mergeBins() const;
         MapObstacles _obstacles;
@@ -74,6 +76,7 @@ namespace OpenRCT2::Golf
         BuildingScan _scan;
         std::unique_ptr<GolfDirector> _director;
         std::unordered_map<uint32_t, uint16_t> _entityOf; // golfer id -> entity id
+        Ledger _paid; // what of the director's income has reached the cash of the park
     };
 
     // The runtime of a game state, created on first call.

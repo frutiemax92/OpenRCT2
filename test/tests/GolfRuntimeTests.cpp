@@ -34,6 +34,7 @@
 #include <openrct2/entity/GolferEntity.h>
 #include <openrct2/golf/GolfRuntime.h>
 #include <openrct2/drawing/ModelSpriteStore.h>
+#include <openrct2/management/Finance.h>
 #include <openrct2/object/PathAdditionObject.h>
 #include <openrct2/golf/Hole.h>
 #include <openrct2/object/GolferModelObject.h>
@@ -320,4 +321,46 @@ TEST(GolfRuntimeTests, BenchesAndBinsOnThePathAreFoundAndKeepTheirState)
         trash = b.id == bin(scan)->id ? b.trashCount : trash;
     EXPECT_EQ(occupants, 2);
     EXPECT_EQ(trash, 7u);
+}
+
+TEST(GolfRuntimeTests, GreenFeesReachTheCashOfThePark)
+{
+    auto context = startPark();
+    ASSERT_NE(context.get(), nullptr);
+    auto& gameState = getGameState();
+    gameState.cheats.sandboxMode = true;
+    ObjectEntryIndex index{};
+    auto* club = loadClub(*context, index);
+    if (club == nullptr)
+        GTEST_SKIP() << "the club house object is not installed";
+
+    const auto found = findFlatBlock(3, 2);
+    ASSERT_TRUE(found.has_value());
+    insertPath(Building::GetEntrance(*club, *found, 0).outsideTile);
+    GameActions::BuildingPlaceAction place(*found, index, 0);
+    ASSERT_EQ(GameActions::ExecuteNested(&place, gameState).error, GameActions::Status::ok);
+
+    auto* course = gameState.golf.createCourse("Links");
+    course->open = true;
+    course->greenFee = 1000;
+    const auto courseId = course->id;
+    auto* hole = gameState.golf.createHole(courseId);
+    hole->tees[0] = Golf::HolePoint{ found->x + 64, found->y + 200 };
+    hole->cup = Golf::HolePoint{ found->x + 64, found->y + 800 };
+
+    auto& runtime = Golf::runtimeOf(gameState);
+    Golf::GolfSimulation::Spawn spawn;
+    spawn.name = "Payer";
+    spawn.courseId = courseId;
+    spawn.money = 100000;
+    spawn.position = runtime.buildings().club;
+    runtime.director().simulation().spawn(spawn);
+
+    const auto cashBefore = gameState.park.cash;
+    // Five game minutes of 06:00 are enough for the group to check in and pay.
+    uint32_t tick = 6 * 60 * Golf::kTicksPerGameMinute;
+    for (uint32_t i = 0; i < 20 * Golf::kTicksPerGameMinute; i++)
+        runtime.update(tick + i);
+    EXPECT_GT(gameState.park.cash, cashBefore);
+    EXPECT_EQ(gameState.park.cash - cashBefore, runtime.director().total().greenFees + runtime.director().today().greenFees);
 }
