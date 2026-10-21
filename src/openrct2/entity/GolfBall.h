@@ -34,12 +34,17 @@ namespace OpenRCT2
         // Recent positions for the trail drawn while the ball is in flight; cosmetic, not saved.
         std::array<CoordsXYZ, kTrailLength> trail;
         uint8_t trailCount = 0;
+        // A ball that the golf simulation plays (a golfer's or one at the driving range) is only shown here: the simulation
+        // moves it and update() leaves it alone. Not saved.
+        bool mirrored = false;
 
         // Creates a ball at rest at a position (world units, z on the ground). Returns nullptr when the entity limit is hit.
         static GolfBall* create(const FixedVec3& position, Golf::BallState state = Golf::BallState::Teed, uint32_t owner = 0);
         // Hits the ball: sets its velocity and spin from a shot.
         void hit(const Golf::ShotResult& shot);
 
+        // Takes the state of a ball the simulation plays, and follows it on the map.
+        void mirror(const Golf::Ball& source);
         void update();
         void serialise(DataSerialiser& stream);
 

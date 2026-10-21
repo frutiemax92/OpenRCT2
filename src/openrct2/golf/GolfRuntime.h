@@ -87,6 +87,7 @@ namespace OpenRCT2::Golf
         class GameRandom;
         void syncEntities();
         void syncCarts();
+        void syncBalls();
         void refreshRanges();
         // The streets and parking lots of the map, and the cars on them (STE-020 to STE-022).
         void refreshTraffic();
@@ -119,6 +120,7 @@ namespace OpenRCT2::Golf
         std::unordered_map<uint32_t, uint16_t> _carEntities;              // car id -> entity id
         std::unordered_map<uint32_t, std::vector<uint32_t>> _carGolfers;  // car id -> the golfers it brought
         std::unordered_map<uint32_t, uint16_t> _cartEntities;             // cart id -> entity id
+        std::unordered_map<uint64_t, uint16_t> _ballEntities;             // golfer id (range balls: | 1 << 32) -> entity id
         Ledger _paid; // what of the director's income has reached the cash of the park
     };
 

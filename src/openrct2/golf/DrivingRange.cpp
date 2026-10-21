@@ -127,6 +127,18 @@ namespace OpenRCT2::Golf
         _tileTaken = std::move(taken);
     }
 
+    std::vector<RangeSimulation::BallView> RangeSimulation::balls() const
+    {
+        std::vector<BallView> views;
+        for (const auto& [golferId, session] : _sessions)
+        {
+            if (session.phase == Session::Phase::flying)
+                views.push_back({ golferId, session.ball });
+        }
+        std::sort(views.begin(), views.end(), [](const BallView& a, const BallView& b) { return a.golferId < b.golferId; });
+        return views;
+    }
+
     int32_t RangeSimulation::freeTiles() const
     {
         return static_cast<int32_t>(std::count(_tileTaken.begin(), _tileTaken.end(), false));

@@ -102,6 +102,13 @@ namespace OpenRCT2::Golf
         void leave(uint32_t golferId);
 
         int32_t freeTiles() const;
+        // The balls in the air or on the ground that the golfers on the range have hit, one per golfer (for drawing).
+        struct BallView
+        {
+            uint32_t golferId = 0;
+            Ball ball;
+        };
+        std::vector<BallView> balls() const;
         std::vector<RangeEvent> takeEvents();
         int64_t income() const
         {

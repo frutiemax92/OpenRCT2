@@ -29,6 +29,7 @@
 #include "../world/tile_element/BuildingElement.h"
 #include "../world/tile_element/TileElement.h"
 #include "GolfSave.h"
+#include "../entity/GolfBall.h"
 #include "../entity/GolfVehicleEntity.h"
 #include "../world/Parking.h"
 #include "../world/Street.h"
@@ -184,6 +185,16 @@ namespace OpenRCT2::Golf
             orphans.push_back(entity);
         for (auto* entity : orphans)
             entity->remove();
+        // The balls of golfers that were shown before: the simulation shows them again.
+        std::vector<GolfBall*> orphanBalls;
+        for (auto* entity : EntityList<GolfBall>())
+            if (entity->ball.owner != 0)
+                orphanBalls.push_back(entity);
+        for (auto* entity : orphanBalls)
+        {
+            entity->invalidate();
+            getGameState().entities.entityRemove(entity);
+        }
         std::vector<GolfVehicleEntity*> orphanVehicles;
         for (auto* entity : EntityList<GolfVehicleEntity>())
             orphanVehicles.push_back(entity);
@@ -214,6 +225,50 @@ namespace OpenRCT2::Golf
         const int32_t y = known != _known.end() ? known->second.y : 0;
         const uint32_t packedXY = (static_cast<uint32_t>(y) << 16) | static_cast<uint32_t>(x);
         News::AddItemToQueue(getGameState().park.newsItems, News::ItemType::blank, STR_GOLFER_RAGE_QUIT_NEWS, packedXY, ft);
+    }
+
+    // BAL-001: the balls the golfers play, and those hit at the driving ranges, are golf ball entities that follow the
+    // simulation, so they fly, bounce and roll in front of the player.
+    void GolfRuntime::syncBalls()
+    {
+        auto& entities = getGameState().entities;
+        std::unordered_map<uint64_t, Ball> wanted;
+        for (const auto& golfer : _director->simulation().golfers())
+        {
+            if (golfer.ballInPlay && golfer.ball.state != BallState::Holed)
+                wanted[golfer.id] = golfer.ball;
+        }
+        for (const auto& view : _director->simulation().rangeBalls())
+            wanted[(uint64_t{ 1 } << 32) | view.golferId] = view.ball;
+
+        for (const auto& [key, ball] : wanted)
+        {
+            GolfBall* entity = nullptr;
+            if (auto it = _ballEntities.find(key); it != _ballEntities.end())
+                entity = entities.getEntity<GolfBall>(EntityId::FromUnderlying(it->second));
+            if (entity == nullptr)
+            {
+                entity = GolfBall::create(ball.position, ball.state, static_cast<uint32_t>(key & 0xFFFFFFFFu));
+                if (entity == nullptr)
+                    continue;
+                _ballEntities[key] = entity->id.ToUnderlying();
+            }
+            entity->mirror(ball);
+        }
+        for (auto it = _ballEntities.begin(); it != _ballEntities.end();)
+        {
+            if (wanted.find(it->first) != wanted.end())
+            {
+                ++it;
+                continue;
+            }
+            if (auto* entity = entities.getEntity<GolfBall>(EntityId::FromUnderlying(it->second)))
+            {
+                entity->invalidate();
+                entities.entityRemove(entity);
+            }
+            it = _ballEntities.erase(it);
+        }
     }
 
     void GolfRuntime::syncEntities()
@@ -588,6 +643,7 @@ namespace OpenRCT2::Golf
         for (const auto& event : _director->takeEvents())
             announce(event);
         syncEntities();
+        syncBalls();
         settleAccounts();
         payUpkeep();
     }

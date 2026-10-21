@@ -41,6 +41,7 @@
 #include <openrct2/actions/scenery/ParkingRemoveAction.h>
 #include <openrct2/actions/scenery/StreetPlaceAction.h>
 #include <openrct2/actions/scenery/StreetRoadEntranceAction.h>
+#include <openrct2/entity/GolfBall.h>
 #include <openrct2/entity/GolfVehicleEntity.h>
 #include <openrct2/entity/GolferEntity.h>
 #include <openrct2/object/VehicleModelObject.h>
@@ -851,4 +852,91 @@ TEST(GolfRuntimeTests, ARangeFindsItsKioskAndDistanceSignsAndAimsAtTheMiddle)
     ASSERT_EQ(GameActions::ExecuteNested(&automatic, gameState).error, GameActions::Status::ok);
     runtime.update(2 * Golf::kTicksPerGameMinute);
     EXPECT_NE(gameState.golf.findRange(id)->shootingDirectionDegrees, 45);
+}
+
+TEST(GolfRuntimeTests, MirroredBallsFollowTheSimulationAndDoNotMoveOnTheirOwn)
+{
+    auto context = startPark();
+    ASSERT_NE(context.get(), nullptr);
+    auto& gameState = getGameState();
+    Golf::Ball ball;
+    ball.position = { Fixed::fromInt(200), Fixed::fromInt(300), Fixed::fromInt(40) };
+    ball.state = Golf::BallState::InFlight;
+    ball.velocity = { Fixed::fromInt(5), Fixed{}, Fixed{} };
+    auto* entity = GolfBall::create(ball.position, ball.state, 7);
+    ASSERT_NE(entity, nullptr);
+    entity->mirror(ball);
+    EXPECT_TRUE(entity->mirrored);
+    EXPECT_EQ(entity->x, 200);
+    EXPECT_EQ(entity->y, 300);
+
+    // The entity does not step the ball by itself: only the simulation moves it.
+    entity->update();
+    entity->update();
+    EXPECT_EQ(entity->x, 200);
+    EXPECT_EQ(entity->ball.velocity.x, Fixed::fromInt(5));
+
+    // Following the simulation leaves a trail while the ball flies, and none once it rests.
+    ball.position.x = Fixed::fromInt(240);
+    entity->mirror(ball);
+    EXPECT_EQ(entity->x, 240);
+    EXPECT_GE(entity->trailCount, 1);
+    ball.state = Golf::BallState::AtRest;
+    entity->mirror(ball);
+    EXPECT_EQ(entity->trailCount, 0);
+    (void)gameState;
+}
+
+TEST(GolfRuntimeTests, TheBallOfAGolferInPlayIsDrawnAndGoneWhenHoled)
+{
+    auto context = startPark();
+    ASSERT_NE(context.get(), nullptr);
+    auto& gameState = getGameState();
+    gameState.cheats.sandboxMode = true;
+    ObjectEntryIndex index{};
+    auto* club = loadClub(*context, index);
+    if (club == nullptr)
+        GTEST_SKIP() << "the club house object is not installed";
+    const auto found = findFlatBlock(3, 2);
+    ASSERT_TRUE(found.has_value());
+    insertPath(Building::GetEntrance(*club, *found, 0).outsideTile);
+    GameActions::BuildingPlaceAction place(*found, index, 0);
+    ASSERT_EQ(GameActions::ExecuteNested(&place, gameState).error, GameActions::Status::ok);
+
+    auto* course = gameState.golf.createCourse("Links");
+    course->open = true;
+    auto* hole = gameState.golf.createHole(course->id);
+    hole->tees[0] = Golf::HolePoint{ found->x + 64, found->y + 200 };
+    hole->cup = Golf::HolePoint{ found->x + 64, found->y + 700 };
+    auto& runtime = Golf::runtimeOf(gameState);
+    runtime.director().setPopularity(0);
+
+    Golf::GolfSimulation::Spawn spawn;
+    spawn.name = "Player";
+    spawn.courseId = course->id;
+    spawn.money = 100000;
+    spawn.position = runtime.buildings().club;
+    const uint32_t id = runtime.director().simulation().spawn(spawn).id;
+
+    bool sawBall = false, sawBallFly = false;
+    uint32_t t = Golf::kTicksPerGameDay + 7 * 60 * Golf::kTicksPerGameMinute;
+    for (uint32_t end = t + 90 * Golf::kTicksPerGameMinute; t < end; t++)
+    {
+        runtime.update(t);
+        const auto* golfer = runtime.director().simulation().find(id);
+        if (golfer == nullptr)
+            break;
+        const auto balls = gameState.entities.getEntityListCount(EntityType::golfBall);
+        if (golfer->ballInPlay && golfer->ball.state != Golf::BallState::Holed)
+        {
+            sawBall = sawBall || balls == 1;
+            sawBallFly = sawBallFly || golfer->ball.state == Golf::BallState::InFlight;
+            // One ball per golfer in play, and it is where the simulation has it.
+            EXPECT_EQ(balls, 1u);
+        }
+    }
+    EXPECT_TRUE(sawBall);
+    EXPECT_TRUE(sawBallFly);
+    // The round is over: no ball is left on the map.
+    EXPECT_EQ(gameState.entities.getEntityListCount(EntityType::golfBall), 0u);
 }

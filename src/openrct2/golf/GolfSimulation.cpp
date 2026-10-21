@@ -128,6 +128,17 @@ namespace OpenRCT2::Golf
         return nullptr;
     }
 
+    std::vector<RangeSimulation::BallView> GolfSimulation::rangeBalls() const
+    {
+        std::vector<RangeSimulation::BallView> all;
+        for (const auto& [id, range] : _ranges)
+        {
+            auto balls = range->balls();
+            all.insert(all.end(), balls.begin(), balls.end());
+        }
+        return all;
+    }
+
     std::vector<SimEvent> GolfSimulation::takeEvents()
     {
         std::vector<SimEvent> events;

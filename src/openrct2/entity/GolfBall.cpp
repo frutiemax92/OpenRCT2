@@ -86,8 +86,35 @@ namespace OpenRCT2
         trailCount = 0;
     }
 
+    void GolfBall::mirror(const Golf::Ball& source)
+    {
+        mirrored = true;
+        ball = source;
+        restingTicks = 0;
+        const auto before = getLocation();
+        const auto location = toCoords(ball.position);
+        const bool flying = ball.state == Golf::BallState::InFlight || ball.state == Golf::BallState::Bouncing;
+        if (!flying)
+            trailCount = 0;
+        if (location != before)
+        {
+            if (flying)
+            {
+                if (trailCount < kTrailLength)
+                    trailCount++;
+                for (int32_t i = trailCount - 1; i > 0; i--)
+                    trail[i] = trail[i - 1];
+                trail[0] = before;
+            }
+            invalidate();
+            moveToAndUpdateSpatialIndex(location);
+        }
+    }
+
     void GolfBall::update()
     {
+        if (mirrored)
+            return;
         if (Golf::isSettled(ball.state) || ball.state == Golf::BallState::Teed)
         {
             restingTicks++;

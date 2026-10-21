@@ -166,6 +166,9 @@ namespace OpenRCT2::Golf
         // Advances every golfer by one tick. `nowTicks` is the game tick, which gives the game clock.
         void tick(uint32_t nowTicks);
 
+        // The balls hit at the driving ranges, for drawing.
+        std::vector<RangeSimulation::BallView> rangeBalls() const;
+
         std::vector<Golfer>& golfers()
         {
             return _golfers;
