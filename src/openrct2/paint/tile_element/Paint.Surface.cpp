@@ -28,6 +28,7 @@
 #include "../../world/Map.h"
 #include "../../world/MapSelection.h"
 #include "../../world/Stream.h"
+#include "../../world/Parking.h"
 #include "../../world/Street.h"
 #include "../../world/tile_element/Slope.h"
 #include "../../world/tile_element/SurfaceElement.h"
@@ -1025,6 +1026,17 @@ void PaintSurface(PaintSession& session, uint8_t direction, uint16_t height, con
             if (streetImage != kImageIndexUndefined)
             {
                 PaintAttachToPreviousPS(session, ImageId(streetImage), 0, 0);
+            }
+        }
+
+        // Parking spaces likewise (STE-010)
+        const auto* parking = Parking::FindAt(session.MapPosition);
+        if (parking != nullptr)
+        {
+            const auto parkingImage = Drawing::TerrainSpriteStore::Instance().GetParkingImage(tileElement, *parking, rotation);
+            if (parkingImage != kImageIndexUndefined)
+            {
+                PaintAttachToPreviousPS(session, ImageId(parkingImage), 0, 0);
             }
         }
 

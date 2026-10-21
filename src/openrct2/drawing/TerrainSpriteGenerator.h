@@ -165,4 +165,15 @@ namespace OpenRCT2::Drawing
         const TerrainShadeTable& shades,
         int32_t rotation,
         int32_t zoom);
+
+    // Procedural parking surface (STE-010): the road texture over the whole tile with the lines between the two bays, which
+    // open onto the edge `facing`.
+    TerrainSprite GenerateTerrainParkingSprite(
+        const Terrain::TerrainShape& shape,
+        const TerrainTexture& road,
+        uint8_t lineColour,
+        int32_t facing,
+        const TerrainShadeTable& shades,
+        int32_t rotation,
+        int32_t zoom);
 } // namespace OpenRCT2::Drawing

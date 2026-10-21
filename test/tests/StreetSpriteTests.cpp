@@ -172,3 +172,44 @@ TEST(StreetSprite, TheFlowOnlyChangesAOneWayRoad)
     const auto twoWay = makeTextures(false);
     EXPECT_EQ(street(flat, twoWay, 0b0101, false, 2).pixels, street(flat, twoWay, 0b0101, false, 0).pixels);
 }
+
+TEST(ParkingSprite, CoversTheWholeTileWithLinesBetweenTheBays)
+{
+    const TerrainShape flat{ 0, 0, 0, 0 };
+    const auto textures = makeTextures(false);
+    const auto parking = GenerateTerrainParkingSprite(flat, textures.road, kCentre, 3, TerrainShadeTable::Identity(), 0, 0);
+    // A full tile diamond is far more than a road crossing it.
+    const auto cross = street(flat, textures, 0b1111);
+    EXPECT_GT(covered(parking), covered(cross));
+    EXPECT_GT(count(parking, kCentre), 0u);
+    EXPECT_GT(count(parking, kRoad), count(parking, kCentre));
+    // The tile is plain road everywhere else: nothing but road and lines.
+    EXPECT_EQ(covered(parking), count(parking, kRoad) + count(parking, kCentre));
+}
+
+TEST(ParkingSprite, TheLinesRunAcrossTheEdgeThatFacesTheStreet)
+{
+    const TerrainShape flat{ 0, 0, 0, 0 };
+    const auto textures = makeTextures(false);
+    const auto lines = [&](int facing, int rotation) {
+        return GenerateTerrainParkingSprite(flat, textures.road, kCentre, facing, TerrainShadeTable::Identity(), rotation, 0);
+    };
+    // Facing opposite ways draws the same lines mirrored: the same amount of line, in different pixels.
+    EXPECT_NEAR(static_cast<double>(count(lines(0, 0), kCentre)), static_cast<double>(count(lines(2, 0), kCentre)), 6.0);
+    EXPECT_NE(lines(0, 0).pixels, lines(2, 0).pixels);
+    // Facing sideways differs from facing along.
+    EXPECT_NE(lines(0, 0).pixels, lines(1, 0).pixels);
+    // Turning the view by a quarter and the facing by a quarter gives the picture back, up to rasterisation.
+    EXPECT_NEAR(static_cast<double>(count(lines(0, 0), kCentre)), static_cast<double>(count(lines(1, 1), kCentre)), 6.0);
+}
+
+TEST(ParkingSprite, LiesOnTheTerrain)
+{
+    const auto textures = makeTextures(false);
+    for (int rotation = 0; rotation < 4; rotation++)
+    {
+        const auto sprite = GenerateTerrainParkingSprite(
+            TerrainShape{ 1, 1, 0, 0 }, textures.road, kCentre, 0, TerrainShadeTable::Identity(), rotation, 0);
+        EXPECT_GT(covered(sprite), 0u);
+    }
+}

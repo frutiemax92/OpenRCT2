@@ -13,12 +13,14 @@
 
 #include "../GameState.h"
 #include "../config/Config.h"
+#include "HoleMarkerSprites.h"
 #include "../object/StreamObject.h"
 #include "../object/StreetObject.h"
 #include "../object/TerrainEdgeObject.h"
 #include "../object/TerrainSurfaceObject.h"
 #include "../world/Map.h"
 #include "../world/tile_element/StreamElement.h"
+#include "../world/tile_element/ParkingElement.h"
 #include "../world/tile_element/StreetElement.h"
 #include "../world/tile_element/SurfaceElement.h"
 #include "G1Element.h"
@@ -229,6 +231,38 @@ namespace OpenRCT2::Drawing
             return GenerateTerrainStreetSprite(
                 shape, streetObject->Texture, streetObject->Markings, streetObject->markingTable(), street.getConnections(),
                 streetObject->OneWay, flow, kStreetRoadWidth, _shades, rotation, 0);
+        });
+        if (sprite == nullptr || sprite->pixels.empty())
+            return kImageIndexUndefined;
+        return RegisterImage(key, *sprite);
+    }
+
+    ImageIndex TerrainSpriteStore::GetParkingImage(const SurfaceElement& surface, const ParkingElement& parking, int32_t rotation)
+    {
+        const auto shape = surface.getTerrainShape();
+        const auto shapeIndex = Terrain::GetShapeIndex(shape);
+        if (shapeIndex == 0xFFFF)
+            return kImageIndexUndefined;
+
+        const auto* streetObject = parking.getObject();
+        if (streetObject == nullptr || streetObject->Texture.size == 0)
+            return kImageIndexUndefined;
+
+        // The bay lines are white, as the centre line of the street.
+        const uint8_t lineColour = FindPaletteIndex(255, 255, 255);
+        TerrainSpriteKey key{ static_cast<uint16_t>(kParkingShapeIndexBase + shapeIndex), {}, static_cast<uint8_t>(rotation & 3), 0 };
+        key.quadrantSurfaces[0] = static_cast<uint8_t>(parking.getObjectIndex());
+        key.quadrantSurfaces[1] = static_cast<uint8_t>(parking.getFacing());
+        key.quadrantSurfaces[2] = lineColour;
+
+        std::lock_guard lock(_mutex);
+        if (!_shadesBuilt)
+        {
+            _shades = BuildShades();
+            _shadesBuilt = true;
+        }
+        const auto* sprite = _cache.Get(key, [&] {
+            return GenerateTerrainParkingSprite(shape, streetObject->Texture, lineColour, parking.getFacing(), _shades, rotation, 0);
         });
         if (sprite == nullptr || sprite->pixels.empty())
             return kImageIndexUndefined;

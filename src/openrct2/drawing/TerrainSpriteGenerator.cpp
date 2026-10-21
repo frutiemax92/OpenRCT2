@@ -987,19 +987,14 @@ namespace OpenRCT2::Drawing
         }
     } // namespace
 
-    TerrainSprite GenerateTerrainStreetSprite(
-        const TerrainShape& shape,
-        const TerrainTexture& road,
-        const TerrainTexture& markings,
-        const std::array<bool, 256>& isMarking,
-        uint8_t connections,
-        bool oneWay,
-        int32_t flowDirection,
-        int32_t roadWidth,
-        const TerrainShadeTable& shades,
-        int32_t rotation,
-        int32_t zoom)
+    namespace
     {
+        // Draws a pattern onto the surface triangles of a tile. pixelAt(lx, ly) gives the palette index at a point of the
+        // tile, in 1/256 units, or transparent; it is shaded by the slope of the triangle it falls on.
+        template<typename PixelFn>
+        TerrainSprite RasteriseOnSurface(
+            const TerrainShape& shape, const TerrainShadeTable& shades, int32_t rotation, int32_t zoom, PixelFn&& pixelAt)
+        {
         assert(zoom >= 0 && zoom < kTerrainZoomLevels);
         rotation &= 3;
 
@@ -1032,9 +1027,6 @@ namespace OpenRCT2::Drawing
         sprite.width = CeilDiv(maxX, step) - sprite.xOffset;
         sprite.height = CeilDiv(maxY, step) - sprite.yOffset;
         sprite.pixels.assign(static_cast<size_t>(sprite.width) * static_cast<size_t>(sprite.height), kTerrainTransparent);
-
-        constexpr int64_t kOne = 256;
-        const int64_t roadHalf = std::clamp<int64_t>(roadWidth, 2, 32) * kOne / 2;
 
         const int32_t insideX[2] = { northSouth ? 24 : 8, northSouth ? 8 : 24 };
         const int32_t insideY[2] = { 8, 24 };
@@ -1080,8 +1072,7 @@ namespace OpenRCT2::Drawing
                     const int64_t lx = (w0 * a.lx + w1 * b.lx + w2 * c.lx) * 256 / area;
                     const int64_t ly = (w0 * a.ly + w1 * b.ly + w2 * c.ly) * 256 / area;
 
-                    const auto pixel = StreetPixel(
-                        lx, ly, road, markings, isMarking, connections, oneWay, flowDirection, roadHalf, zoom);
+                    const uint8_t pixel = pixelAt(lx, ly);
                     if (pixel == kTerrainTransparent)
                         continue;
 
@@ -1093,5 +1084,69 @@ namespace OpenRCT2::Drawing
             }
         }
         return sprite;
+    }
+    } // namespace
+
+    TerrainSprite GenerateTerrainStreetSprite(
+        const TerrainShape& shape,
+        const TerrainTexture& road,
+        const TerrainTexture& markings,
+        const std::array<bool, 256>& isMarking,
+        uint8_t connections,
+        bool oneWay,
+        int32_t flowDirection,
+        int32_t roadWidth,
+        const TerrainShadeTable& shades,
+        int32_t rotation,
+        int32_t zoom)
+    {
+        const int64_t roadHalf = std::clamp<int64_t>(roadWidth, 2, 32) * 256 / 2;
+        return RasteriseOnSurface(shape, shades, rotation, zoom, [&](int64_t lx, int64_t ly) {
+            return StreetPixel(lx, ly, road, markings, isMarking, connections, oneWay, flowDirection, roadHalf, zoom);
+        });
+    }
+
+    TerrainSprite GenerateTerrainParkingSprite(
+        const TerrainShape& shape,
+        const TerrainTexture& road,
+        uint8_t lineColour,
+        int32_t facing,
+        const TerrainShadeTable& shades,
+        int32_t rotation,
+        int32_t zoom)
+    {
+        facing &= 3;
+        return RasteriseOnSurface(shape, shades, rotation, zoom, [&](int64_t lx, int64_t ly) -> uint8_t {
+            constexpr int64_t kOne = 256;
+            constexpr int64_t kFull = 32 * kOne;
+            // Across the bays (u) and from the street edge inwards (w), in 1/256 units.
+            int64_t u = 0, w = 0;
+            switch (facing)
+            {
+                case 0:
+                    u = ly;
+                    w = lx;
+                    break;
+                case 1:
+                    u = lx;
+                    w = kFull - ly;
+                    break;
+                case 2:
+                    u = ly;
+                    w = kFull - lx;
+                    break;
+                default:
+                    u = lx;
+                    w = ly;
+                    break;
+            }
+            // The lines between and around the two bays, a unit wide, from the street edge to a little short of the back.
+            const auto nearLine = [&](int64_t at) { return std::abs(u - at) < kOne / 2 + kOne / 4; };
+            if (w <= 24 * kOne && (nearLine(kOne) || nearLine(16 * kOne) || nearLine(31 * kOne)))
+                return lineColour;
+            const int32_t ix = static_cast<int32_t>(std::clamp<int64_t>(lx >> 7, 0, 2 * kTile - 1));
+            const int32_t iy = static_cast<int32_t>(std::clamp<int64_t>(ly >> 7, 0, 2 * kTile - 1));
+            return road.Sample(zoom, ix, iy);
+        });
     }
 } // namespace OpenRCT2::Drawing

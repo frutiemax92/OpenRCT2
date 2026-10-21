@@ -23,6 +23,7 @@ namespace OpenRCT2
     struct SurfaceElement;
     struct StreamElement;
     struct StreetElement;
+    struct ParkingElement;
 }
 
 namespace OpenRCT2::Drawing
@@ -61,6 +62,8 @@ namespace OpenRCT2::Drawing
         ImageIndex GetStreamImage(const SurfaceElement& surface, const StreamElement& stream, int32_t rotation);
         // The road of a street tile (STE-003): its texture and markings cut to the connections and laid on the surface.
         ImageIndex GetStreetImage(const SurfaceElement& surface, const StreetElement& street, int32_t rotation);
+        // The parking tile (STE-010): the road texture with the lines between the bays.
+        ImageIndex GetParkingImage(const SurfaceElement& surface, const ParkingElement& parking, int32_t rotation);
 
         size_t GetSpriteCount() const;
 
