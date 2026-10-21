@@ -272,6 +272,9 @@ namespace OpenRCT2::Golf
                 case SimEvent::Type::paidFee:
                     _today.greenFees += e.value;
                     break;
+                case SimEvent::Type::paidRangeFee:
+                    _today.rangeBuckets += e.value;
+                    break;
                 case SimEvent::Type::paidCartFee:
                     _today.cartFees += e.value;
                     break;

@@ -80,6 +80,9 @@ namespace OpenRCT2::Golf
         {
             return _range;
         }
+        // The range as the map has it now (tiles added or taken, a new price): golfers on the tiles that are gone give up
+        // their session.
+        void updateRange(const DrivingRange& range);
 
         // A golfer comes to the range: buys a bucket and gets a hitting tile if there is one free. Returns false when the
         // golfer cannot pay or every tile is taken (the golfer waits and asks again).

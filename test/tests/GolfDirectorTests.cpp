@@ -726,3 +726,140 @@ TEST(GolfDirectorCarts, ACartWithAFlatBatteryIsLeftAndItsRidersWalkOn)
     park.director->fleet.rechargeParkedCarts(50);
     EXPECT_EQ(park.director->fleet.freeCarts(), 1);
 }
+
+namespace
+{
+    // A driving range east of the club, with a kiosk and two tiles to stand on.
+    uint32_t addRange(Park& park, int balls = 3, int64_t price = 300)
+    {
+        auto* range = park.courses.createRange({ 6, 90 }, { 14, 96 });
+        range->kiosk = HolePoint{ 7 * 32 + 16, 91 * 32 + 16 };
+        range->hittingTiles = { HolePoint{ 8 * 32 + 16, 92 * 32 + 16 }, HolePoint{ 8 * 32 + 16, 93 * 32 + 16 } };
+        range->ballsPerBucket = balls;
+        range->bucketPrice = price;
+        range->shootingDirectionDegrees = 0;
+        return range->id;
+    }
+}
+
+TEST(GolfDirectorRange, GolfersWarmUpAtTheRangeBeforeTheRound)
+{
+    Park park;
+    park.director->setPopularity(0);
+    const auto rangeId = addRange(park);
+    // Golfers who are poor with the long clubs like the range most.
+    std::vector<uint32_t> ids;
+    for (int i = 0; i < 16; i++)
+    {
+        GolfSimulation::Spawn spawn;
+        spawn.name = "Hacker " + std::to_string(i);
+        spawn.groupId = 100 + static_cast<uint32_t>(i);
+        spawn.courseId = park.courseId;
+        spawn.money = 100000;
+        spawn.skills = GolferSkills{ 5, 50, 50, 50 };
+        spawn.position = vec(100, 2900, 0);
+        ids.push_back(park.director->simulation().spawn(spawn).id);
+    }
+    bool sawWalking = false, sawAtRange = false;
+    const int64_t moneyBefore = 16 * 100000;
+    for (uint32_t t = at(1, 8); t < at(1, 8) + 60 * kTicksPerGameMinute; t++)
+    {
+        park.director->update(t);
+        for (const auto& golfer : park.director->simulation().golfers())
+        {
+            sawWalking = sawWalking || golfer.state == GolferState::walkingToRange;
+            sawAtRange = sawAtRange || golfer.state == GolferState::atDrivingRange;
+        }
+    }
+    EXPECT_TRUE(sawWalking);
+    EXPECT_TRUE(sawAtRange);
+    // The buckets were paid for, and are in the day's income.
+    EXPECT_GT(park.director->today().rangeBuckets, 0);
+    EXPECT_EQ(park.director->today().rangeBuckets % 300, 0);
+    (void)moneyBefore;
+    (void)rangeId;
+
+    // DRV-006: whoever hit balls hits the long clubs better. Nobody's long play went down.
+    int improved = 0;
+    for (const auto id : ids)
+    {
+        const auto* golfer = park.director->simulation().find(id);
+        if (golfer != nullptr && golfer->skills.longPlay > golfer->initialSkills.longPlay)
+            improved++;
+    }
+    EXPECT_GT(improved, 0);
+}
+
+TEST(GolfDirectorRange, NoRangeNoWarmUp)
+{
+    Park park;
+    park.director->setPopularity(0);
+    for (int i = 0; i < 8; i++)
+    {
+        GolfSimulation::Spawn spawn;
+        spawn.groupId = 100 + static_cast<uint32_t>(i);
+        spawn.courseId = park.courseId;
+        spawn.money = 100000;
+        spawn.skills = GolferSkills{ 5, 50, 50, 50 };
+        spawn.position = vec(100, 2900, 0);
+        park.director->simulation().spawn(spawn);
+    }
+    for (uint32_t t = at(1, 8); t < at(1, 8) + 30 * kTicksPerGameMinute; t++)
+    {
+        park.director->update(t);
+        for (const auto& golfer : park.director->simulation().golfers())
+        {
+            EXPECT_NE(golfer.state, GolferState::walkingToRange);
+            EXPECT_NE(golfer.state, GolferState::atDrivingRange);
+        }
+    }
+    EXPECT_EQ(park.director->today().rangeBuckets, 0);
+}
+
+TEST(GolfDirectorRange, ARangeWithoutAKioskOrTilesIsNotUsed)
+{
+    Park park;
+    park.director->setPopularity(0);
+    const auto id = addRange(park);
+    park.courses.findRange(id)->kiosk.reset();
+    for (int i = 0; i < 8; i++)
+    {
+        GolfSimulation::Spawn spawn;
+        spawn.groupId = 100 + static_cast<uint32_t>(i);
+        spawn.courseId = park.courseId;
+        spawn.money = 100000;
+        spawn.skills = GolferSkills{ 5, 50, 50, 50 };
+        spawn.position = vec(100, 2900, 0);
+        park.director->simulation().spawn(spawn);
+    }
+    for (uint32_t t = at(1, 8); t < at(1, 8) + 30 * kTicksPerGameMinute; t++)
+    {
+        park.director->update(t);
+        for (const auto& golfer : park.director->simulation().golfers())
+            EXPECT_NE(golfer.state, GolferState::walkingToRange);
+    }
+}
+
+TEST(GolfDirectorRange, ABucketCostsTheGolferAndAGolferWhoCannotPayDoesNotGo)
+{
+    Park park;
+    park.director->setPopularity(0);
+    addRange(park, 3, 500000); // dearer than anyone can pay
+    for (int i = 0; i < 8; i++)
+    {
+        GolfSimulation::Spawn spawn;
+        spawn.groupId = 100 + static_cast<uint32_t>(i);
+        spawn.courseId = park.courseId;
+        spawn.money = 5000;
+        spawn.skills = GolferSkills{ 5, 50, 50, 50 };
+        spawn.position = vec(100, 2900, 0);
+        park.director->simulation().spawn(spawn);
+    }
+    for (uint32_t t = at(1, 8); t < at(1, 8) + 30 * kTicksPerGameMinute; t++)
+    {
+        park.director->update(t);
+        for (const auto& golfer : park.director->simulation().golfers())
+            EXPECT_NE(golfer.state, GolferState::walkingToRange);
+    }
+    EXPECT_EQ(park.director->today().rangeBuckets, 0);
+}

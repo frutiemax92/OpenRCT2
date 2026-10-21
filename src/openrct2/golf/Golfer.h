@@ -52,6 +52,7 @@ namespace OpenRCT2::Golf
         leaving,            // walking back to the exit
         rageQuitting,       // storming off (GLF-041)
         inCar,              // still in the car that is driving to a parking space (STE-021)
+        walkingToRange,     // on the way to the kiosk of the driving range to buy a bucket (DRV-005)
         count,
     };
     const char* golferStateName(GolferState state);
@@ -128,6 +129,8 @@ namespace OpenRCT2::Golf
         bool rageQuit = false;
         bool finished = false;           // left the course
         uint32_t arrivalDay = 0;
+        uint32_t rangeId = 0;            // the driving range being visited, 0 for none (DRV-005)
+        bool rangeVisited = false;       // has been to the range this round
         uint32_t cartId = 0;             // the golf cart rented for the round (CRT-003), 0 for none
         bool cartDecided = false;        // the group has decided who takes a cart
         bool onCart = false;             // riding it on this leg

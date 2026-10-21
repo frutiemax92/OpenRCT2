@@ -103,6 +103,30 @@ namespace OpenRCT2::Golf
         _tileTaken.assign(_range.hittingTiles.size(), false);
     }
 
+    void RangeSimulation::updateRange(const DrivingRange& range)
+    {
+        // A tile is the same tile when it is at the same place; the sessions stay on theirs.
+        std::vector<bool> taken(range.hittingTiles.size(), false);
+        for (auto it = _sessions.begin(); it != _sessions.end();)
+        {
+            const auto& old = _range.hittingTiles[it->second.tile];
+            size_t found = range.hittingTiles.size();
+            for (size_t i = 0; i < range.hittingTiles.size(); i++)
+                if (range.hittingTiles[i].x == old.x && range.hittingTiles[i].y == old.y)
+                    found = i;
+            if (found == range.hittingTiles.size())
+            {
+                it = _sessions.erase(it);
+                continue;
+            }
+            it->second.tile = found;
+            taken[found] = true;
+            ++it;
+        }
+        _range = range;
+        _tileTaken = std::move(taken);
+    }
+
     int32_t RangeSimulation::freeTiles() const
     {
         return static_cast<int32_t>(std::count(_tileTaken.begin(), _tileTaken.end(), false));

@@ -12,11 +12,13 @@
 #include "Carts.h"
 #include "CourseManager.h"
 #include "GameClock.h"
+#include "DrivingRange.h"
 #include "Golfer.h"
 #include "HoleDifficulty.h"
 #include "HoleSchedule.h"
 
 #include <deque>
+#include <map>
 #include <functional>
 #include <memory>
 #include <unordered_map>
@@ -81,6 +83,7 @@ namespace OpenRCT2::Golf
             talkedWithGolfer,
             littered,
             paidCartFee,    // value = the fee (CRT-003)
+            paidRangeFee,   // value = the price of the bucket (DRV-005)
         };
         Type type = Type::thought;
         uint32_t golferId = 0;
@@ -203,6 +206,13 @@ namespace OpenRCT2::Golf
         void updateGolfer(Golfer& g);
         void onMinute(Golfer& g);
         bool walk(Golfer& g, const FixedVec3& to);
+        // The driving ranges (section 17).
+        void syncRanges();
+        bool wantsRange(const Golfer& g);
+        void visitRange(Golfer& g, const DrivingRange& range);
+        void beginRound(Golfer& g, const Course& course);
+        void endRangeVisit(Golfer& g);
+        RangeSimulation* rangeOf(const Golfer& g);
         // Carts (section 14).
         void decideCarts(Golfer& g, const Course& course);
         bool ride(Golfer& g, const FixedVec3& to);
@@ -237,6 +247,7 @@ namespace OpenRCT2::Golf
         std::unordered_map<uint64_t, HoleDifficulty> _difficulty;
         // The tee time of a group on a hole, so all members play from the same booking: key = group << 32 | holeIndex.
         std::unordered_map<uint64_t, uint32_t> _groupTeeTime;
+        std::map<uint32_t, std::unique_ptr<RangeSimulation>> _ranges; // by range id (DRV-005)
         uint32_t _now = 0;
         uint32_t _nextId = 1;
         int64_t _income = 0;

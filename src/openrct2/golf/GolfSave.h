@@ -22,7 +22,8 @@ namespace OpenRCT2::Golf
     // The result is one block of bytes that the park file stores in its golf simulation chunk.
     // 2: golfers remember the car they came in (STE-012).
     // 3: the golf carts and who rides them (CRT-002 to CRT-005).
-    constexpr uint32_t kGolfSaveFormat = 3;
+    // 4: golfers remember the driving range they are visiting (DRV-005).
+    constexpr uint32_t kGolfSaveFormat = 4;
 
     std::vector<uint8_t> saveDirector(const GolfDirector& director);
     // Restores the state saved by saveDirector into a director built on the same courses. Returns false (and leaves the

@@ -243,6 +243,11 @@ namespace OpenRCT2::Golf
                 a.io(g.hasExit);
                 a.io(g.exitPosition);
             }
+            if (a.format >= 4)
+            {
+                a.io(g.rangeId);
+                a.io(g.rangeVisited);
+            }
             if (a.format >= 3)
             {
                 a.io(g.cartId);

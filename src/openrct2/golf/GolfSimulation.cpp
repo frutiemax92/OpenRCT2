@@ -24,6 +24,7 @@ namespace OpenRCT2::Golf
             {
                 case GolferState::walkingToCheckIn:
                 case GolferState::goingToCart:
+                case GolferState::walkingToRange:
                 case GolferState::goingToTee:
                 case GolferState::walkingToBall:
                 case GolferState::returningCart:
@@ -270,6 +271,84 @@ namespace OpenRCT2::Golf
             }
         }
         return false;
+    }
+
+    // DRV-005: a driving range with a kiosk and a tile to stand on, for a golfer who can pay for a bucket.
+    void GolfSimulation::syncRanges()
+    {
+        if (_env.courses == nullptr)
+            return;
+        for (const auto& range : _env.courses->ranges())
+        {
+            auto it = _ranges.find(range.id);
+            if (it == _ranges.end())
+            {
+                _ranges.emplace(range.id, std::make_unique<RangeSimulation>(_env.world, _env.rng, range));
+                continue;
+            }
+            it->second->updateRange(range);
+        }
+        for (auto it = _ranges.begin(); it != _ranges.end();)
+        {
+            if (_env.courses->findRange(it->first) == nullptr)
+                it = _ranges.erase(it);
+            else
+                ++it;
+        }
+    }
+
+    RangeSimulation* GolfSimulation::rangeOf(const Golfer& g)
+    {
+        if (g.rangeId == 0)
+            return nullptr;
+        const auto it = _ranges.find(g.rangeId);
+        return it == _ranges.end() ? nullptr : it->second.get();
+    }
+
+    // Golfers who are not yet good with the long clubs like to warm up before a round more than those who are.
+    bool GolfSimulation::wantsRange(const Golfer& g)
+    {
+        if (_env.rng == nullptr || g.rangeVisited)
+            return false;
+        const int32_t longPlay = g.skills.toSkills().longPlay;
+        const int32_t percent = 10 + (100 - std::clamp(longPlay, 0, 100)) / 3;
+        return static_cast<int32_t>(_env.rng->next() % 100) < percent;
+    }
+
+    void GolfSimulation::visitRange(Golfer& g, const DrivingRange& range)
+    {
+        g.rangeId = range.id;
+        g.rangeVisited = true;
+        g.destination = { Fixed::fromInt(range.kiosk->x), Fixed::fromInt(range.kiosk->y), Fixed{} };
+        setState(g, GolferState::walkingToRange);
+    }
+
+    // The visit is over, or never happened: the round begins with the cart, then the first tee.
+    void GolfSimulation::endRangeVisit(Golfer& g)
+    {
+        if (auto* range = rangeOf(g))
+            range->leave(g.id);
+        g.rangeId = 0;
+        const auto* course = courseOf(g);
+        if (course == nullptr)
+        {
+            leave(g);
+            return;
+        }
+        beginRound(g, *course);
+    }
+
+    // The cart is chosen (CRT-003) and fetched, then the golfer goes to the first tee.
+    void GolfSimulation::beginRound(Golfer& g, const Course& course)
+    {
+        decideCarts(g, course);
+        if (auto* cart = cartOf(g))
+        {
+            g.destination = cart->position;
+            setState(g, GolferState::goingToCart);
+            return;
+        }
+        startHole(g);
     }
 
     Cart* GolfSimulation::cartOf(const Golfer& g) const
@@ -594,6 +673,9 @@ namespace OpenRCT2::Golf
         }
         g.rageQuit = true;
         g.ballInPlay = false;
+        if (auto* range = rangeOf(g))
+            range->leave(g.id);
+        g.rangeId = 0;
         if (g.cartId != 0)
             abandonCart(g);
         g.destination = _env.exit;
@@ -624,6 +706,9 @@ namespace OpenRCT2::Golf
             g.restingBenchId = 0;
         }
         g.ballInPlay = false;
+        if (auto* range = rangeOf(g))
+            range->leave(g.id);
+        g.rangeId = 0;
         if (g.cartId != 0)
             abandonCart(g);
         g.destination = g.hasExit ? g.exitPosition : _env.exit;
@@ -882,15 +967,49 @@ namespace OpenRCT2::Golf
                     const auto booking = teeSheet(g.courseId).bookFirstTee(minuteNow(), slotMinutes(course->holes[g.holeIndex]));
                     _groupTeeTime[key] = booking.minute;
                 }
-                // CRT-003: the group decides who takes a cart; riders go and get theirs.
-                decideCarts(g, *course);
-                if (auto* cart = cartOf(g))
+                // DRV-005: some warm up at the driving range first, when there is one to use.
+                if (_env.courses != nullptr && !_env.courses->ranges().empty() && wantsRange(g))
                 {
-                    g.destination = cart->position;
-                    setState(g, GolferState::goingToCart);
+                    syncRanges();
+                    for (const auto& range : _env.courses->ranges())
+                    {
+                        if (range.kiosk.has_value() && !range.hittingTiles.empty() && g.money >= range.bucketPrice + 1)
+                        {
+                            visitRange(g, range);
+                            break;
+                        }
+                    }
+                    if (g.state == GolferState::walkingToRange)
+                        break;
+                }
+                beginRound(g, *course);
+                break;
+            }
+            case GolferState::walkingToRange:
+            {
+                auto* range = rangeOf(g);
+                if (range == nullptr)
+                {
+                    endRangeVisit(g);
                     break;
                 }
-                startHole(g);
+                if (!walk(g, g.destination))
+                    break;
+                // At the kiosk: buy a bucket, and take a tile if there is one (it waits a few minutes if not).
+                const auto result = range->enter(g);
+                if (result == RangeSimulation::Enter::ok)
+                    break; // enter() made the state atDrivingRange
+                if (result == RangeSimulation::Enter::noFreeTile
+                    && g.stateTicks < static_cast<uint32_t>(3 * kTicksPerGameMinute))
+                    break;
+                endRangeVisit(g);
+                break;
+            }
+            case GolferState::atDrivingRange:
+            {
+                auto* range = rangeOf(g);
+                if (range == nullptr || range->tick(g))
+                    endRangeVisit(g);
                 break;
             }
             case GolferState::goingToCart:
@@ -1276,10 +1395,31 @@ namespace OpenRCT2::Golf
     void GolfSimulation::tick(uint32_t nowTicks)
     {
         _now = nowTicks;
+        if (_now % static_cast<uint32_t>(kTicksPerGameMinute) == 0)
+            syncRanges();
         for (size_t i = 0; i < _golfers.size(); i++)
         {
             if (!_golfers[i].finished)
                 updateGolfer(_golfers[i]);
+        }
+        // What happened at the ranges: the buckets are income, the shots make a sound.
+        for (auto& [id, range] : _ranges)
+        {
+            for (const auto& event : range->takeEvents())
+            {
+                const auto* golfer = find(event.golferId);
+                if (golfer == nullptr)
+                    continue;
+                if (event.type == RangeEvent::Type::boughtBucket)
+                {
+                    _income += event.value;
+                    emit(SimEvent::Type::paidRangeFee, *golfer, event.value);
+                }
+                else if (event.type == RangeEvent::Type::ballHit)
+                {
+                    emit(SimEvent::Type::shotHit, *golfer);
+                }
+            }
         }
         for (size_t i = 0; i < _golfers.size();)
         {
