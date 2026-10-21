@@ -368,3 +368,47 @@ TEST(CourseActions, TheActionsSerialiseForNetworkPlayAndReplays)
     ASSERT_EQ(s1.GetLength(), s2.GetLength());
     EXPECT_EQ(std::memcmp(s1.GetData(), s2.GetData(), s1.GetLength()), 0);
 }
+
+TEST(CourseActions, CreateHoleAppendsAnEmptyHoleForTheHoleTool)
+{
+    auto context = startPark();
+    ASSERT_NE(context.get(), nullptr);
+    const auto course = createCourse();
+
+    // The hole construction window makes its "New hole" this way, then fills the hole in with tee and cup edits.
+    CourseEditAction fresh(CourseEditType::createHole, course.courseId);
+    const auto res = run(fresh);
+    ASSERT_EQ(res.error, Status::ok);
+    const auto* found = getGameState().golf.findCourse(course.courseId);
+    ASSERT_EQ(found->holes.size(), 1u);
+    EXPECT_FALSE(found->holes[0].isComplete());
+    EXPECT_EQ(res.getData<CourseEditResult>().holeId, found->holes[0].id);
+
+    // The next one is the second hole, in creation order (HOL-004).
+    CourseEditAction another(CourseEditType::createHole, course.courseId);
+    const auto second = run(another);
+    EXPECT_EQ(second.error, Status::ok);
+    found = getGameState().golf.findCourse(course.courseId);
+    ASSERT_EQ(found->holes.size(), 2u);
+    EXPECT_EQ(found->holes[1].id, second.getData<CourseEditResult>().holeId);
+
+    // The empty hole can be built up by the tool's edits.
+    HoleEditAction cup(course.courseId, found->holes[1].id, HoleEditType::placeAim, 0, { 700, 700 });
+    EXPECT_EQ(run(cup).error, Status::ok);
+}
+
+TEST(CourseActions, CreateHoleFailsOnAFullCourseAndAMissingCourse)
+{
+    auto context = startPark();
+    ASSERT_NE(context.get(), nullptr);
+    const auto course = createCourse();
+    for (size_t i = 0; i < Golf::kMaxHolesPerCourse; i++)
+    {
+        CourseEditAction hole(CourseEditType::createHole, course.courseId);
+        ASSERT_EQ(run(hole).error, Status::ok);
+    }
+    CourseEditAction extra(CourseEditType::createHole, course.courseId);
+    EXPECT_EQ(run(extra).error, Status::disallowed);
+    CourseEditAction missing(CourseEditType::createHole, 999);
+    EXPECT_EQ(run(missing).error, Status::invalidParameters);
+}

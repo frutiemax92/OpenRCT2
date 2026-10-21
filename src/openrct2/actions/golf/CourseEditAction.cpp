@@ -92,6 +92,10 @@ namespace OpenRCT2::GameActions
                 if (_value != 0 && _value != 1)
                     return Result(Status::invalidParameters, STR_COURSE_CANT_CHANGE, kStringIdNone);
                 break;
+            case CourseEditType::createHole:
+                if (course->isFull())
+                    return Result(Status::disallowed, STR_COURSE_CANT_CHANGE, STR_COURSE_FULL);
+                break;
             default:
                 break;
         }
@@ -136,6 +140,14 @@ namespace OpenRCT2::GameActions
             case CourseEditType::setOpen:
                 course->open = _value != 0;
                 break;
+            case CourseEditType::createHole:
+            {
+                const auto* hole = golf.createHole(_courseId);
+                if (hole == nullptr)
+                    return Result(Status::disallowed, STR_COURSE_CANT_CHANGE, STR_COURSE_FULL);
+                data.holeId = hole->id;
+                break;
+            }
             case CourseEditType::moveHole:
                 course->moveHole(static_cast<size_t>(_value), static_cast<size_t>(_index));
                 break;

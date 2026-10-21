@@ -3939,3 +3939,14 @@ STR_7145    :Did a squirrel plan this layout?
 STR_7146    :I would rather putt on a trampoline!
 STR_7147    :Never again! I am taking my clubs home!
 STR_7148    :{STRING} rage quit at hole {COMMA16}: ‘{STRINGID}’
+STR_7149    :Hole Construction
+STR_7150    :New course
+STR_7151    :New hole
+STR_7152    :Men's tee
+STR_7153    :Women's tee
+STR_7154    :Child's tee
+STR_7155    :Cup
+STR_7156    :Aim point 1
+STR_7157    :Aim point 2
+STR_7158    :Remove
+STR_7159    :{SMALLFONT}{BLACK}Click a marker button, then the map, to remove that marker from the hole instead of placing it

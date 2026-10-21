@@ -83,6 +83,8 @@ public:
                 return ShotToolOpen();
             case WindowClass::course:
                 return CourseOpen();
+            case WindowClass::holeTool:
+                return HoleToolOpen();
             case WindowClass::editorInventionList:
                 return EditorInventionsListOpen();
             case WindowClass::editorObjectSelection:

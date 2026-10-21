@@ -101,6 +101,7 @@ namespace OpenRCT2
         shotTool = 143,
         course = 144,
         golfer = 145,
+        holeTool = 146,
 
         // Only used for colour schemes
         staff = 220,
