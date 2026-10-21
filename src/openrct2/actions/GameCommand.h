@@ -109,6 +109,7 @@ namespace OpenRCT2
         editCourseBoundary,
         placeStreet,
         removeStreet,
+        setRoadEntrance,
         count,
     };
 }

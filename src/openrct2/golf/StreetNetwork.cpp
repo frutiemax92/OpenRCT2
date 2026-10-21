@@ -166,6 +166,11 @@ namespace OpenRCT2::Golf
         return bad;
     }
 
+    bool isAtMapEdge(const TileCoordsXY& position, const TileCoordsXY& mapSize)
+    {
+        return position.x <= 1 || position.y <= 1 || position.x >= mapSize.x - 2 || position.y >= mapSize.y - 2;
+    }
+
     bool StreetNetwork::setRoadEntrance(const TileCoordsXY& position, bool entrance, const TileCoordsXY& mapSize)
     {
         auto it = _tiles.find(key(position));
@@ -173,9 +178,7 @@ namespace OpenRCT2::Golf
             return false;
         if (entrance)
         {
-            // The outermost playable ring of tiles (the border ring itself is not buildable).
-            const bool atEdge = position.x <= 1 || position.y <= 1 || position.x >= mapSize.x - 2 || position.y >= mapSize.y - 2;
-            if (!atEdge)
+            if (!isAtMapEdge(position, mapSize))
                 return false;
         }
         it->second.roadEntrance = entrance;

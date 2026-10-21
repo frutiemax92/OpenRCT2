@@ -3951,3 +3951,4 @@ STR_7157    :Aim point 2
 STR_7158    :Remove
 STR_7159    :{SMALLFONT}{BLACK}Click a marker button, then the map, to remove that marker from the hole instead of placing it
 STR_7160    :Streets
+STR_7161    :Road entrances must be on the edge of the map

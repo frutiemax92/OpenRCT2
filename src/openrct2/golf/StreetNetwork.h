@@ -69,6 +69,9 @@ namespace OpenRCT2::Golf
     // facing back (or none at all yet).
     uint8_t autoConnect(uint8_t neighbourMask);
 
+    // STE-005: road entrances sit on the outermost playable ring of tiles (the border ring itself is not buildable).
+    bool isAtMapEdge(const TileCoordsXY& position, const TileCoordsXY& mapSize);
+
     class StreetNetwork
     {
     public:

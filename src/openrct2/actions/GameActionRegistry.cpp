@@ -85,6 +85,7 @@
 #include "scenery/StreamRemoveAction.h"
 #include "scenery/StreetPlaceAction.h"
 #include "scenery/StreetRemoveAction.h"
+#include "scenery/StreetRoadEntranceAction.h"
 #include "scenery/SmallSceneryRemoveAction.h"
 #include "scenery/SmallScenerySetColourAction.h"
 #include "scenery/WallPlaceAction.h"
@@ -199,6 +200,7 @@ namespace OpenRCT2::GameActions
         REGISTER_ACTION(StreamRemoveAction);
         REGISTER_ACTION(StreetPlaceAction);
         REGISTER_ACTION(StreetRemoveAction);
+        REGISTER_ACTION(StreetRoadEntranceAction);
         REGISTER_ACTION(BuildingPlaceAction);
         REGISTER_ACTION(BuildingRemoveAction);
         REGISTER_ACTION(SmallSceneryRemoveAction);

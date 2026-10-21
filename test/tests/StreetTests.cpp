@@ -21,6 +21,7 @@
 #include <openrct2/actions/footpath/FootpathPlaceAction.h>
 #include <openrct2/actions/scenery/StreetPlaceAction.h>
 #include <openrct2/actions/scenery/StreetRemoveAction.h>
+#include <openrct2/actions/scenery/StreetRoadEntranceAction.h>
 #include <openrct2/object/StreetObject.h>
 #include <openrct2/drawing/Drawing.h>
 #include <openrct2/drawing/Palette.h>
@@ -382,4 +383,55 @@ TEST(StreetActions, AGhostPreviewConnectsNothingAndLeavesTheNeighboursAlone)
     ASSERT_EQ(GameActions::ExecuteNested(&remove, gameState).error, GameActions::Status::ok);
     EXPECT_EQ(Street::FindAt(b), nullptr);
     EXPECT_EQ(Street::FindAt(a)->getConnections(), 0);
+}
+
+TEST(StreetActions, RoadEntrancesAreOnStreetsAtTheEdgeOfTheMap)
+{
+    auto context = startPark();
+    ASSERT_NE(context.get(), nullptr);
+    auto& gameState = getGameState();
+    gameState.cheats.sandboxMode = true;
+    const StreetObject* road = nullptr;
+    const auto index = loadStreet(*context, "golf.street.road", &road);
+    if (road == nullptr)
+        GTEST_SKIP() << "the street object is not installed";
+
+    // A street at the edge ring of the map (tile 1) and one further in.
+    const CoordsXY edge{ 1 * 32, 5 * 32 };
+    const CoordsXY inner{ 5 * 32, 5 * 32 };
+    ASSERT_NE(MapGetSurfaceElementAt(edge), nullptr);
+    for (const auto& tile : { edge, inner })
+    {
+        const auto z = MapGetSurfaceElementAt(tile)->getBaseZ();
+        // Flatten nothing: the tile must be bare ground that takes a road.
+        GameActions::StreetPlaceAction place(tile, index);
+        const auto result = GameActions::ExecuteNested(&place, gameState);
+        if (result.error != GameActions::Status::ok)
+            GTEST_SKIP() << "the test park has ground at " << tile.x << "," << tile.y << " that takes no road (z " << z << ")";
+    }
+
+    // Nothing to enter on a tile without a street.
+    GameActions::StreetRoadEntranceAction nothing({ 3 * 32, 9 * 32 }, true);
+    EXPECT_EQ(GameActions::Query(&nothing, gameState).error, GameActions::Status::invalidParameters);
+
+    // Not at the edge.
+    GameActions::StreetRoadEntranceAction tooFarIn(inner, true);
+    EXPECT_EQ(GameActions::Query(&tooFarIn, gameState).error, GameActions::Status::disallowed);
+
+    GameActions::StreetRoadEntranceAction atEdge(edge, true);
+    ASSERT_EQ(GameActions::ExecuteNested(&atEdge, gameState).error, GameActions::Status::ok);
+    EXPECT_TRUE(Street::FindAt(edge)->isRoadEntrance());
+
+    // The network knows it.
+    Golf::StreetNetwork network;
+    Street::BuildNetwork(network);
+    ASSERT_EQ(network.roadEntrances().size(), 1u);
+    EXPECT_EQ(network.roadEntrances()[0], (TileCoordsXY{ 1, 5 }));
+
+    GameActions::StreetRoadEntranceAction remove(edge, false);
+    ASSERT_EQ(GameActions::ExecuteNested(&remove, gameState).error, GameActions::Status::ok);
+    EXPECT_FALSE(Street::FindAt(edge)->isRoadEntrance());
+    // Taking an entrance away works anywhere.
+    GameActions::StreetRoadEntranceAction removeInner(inner, false);
+    EXPECT_EQ(GameActions::Query(&removeInner, gameState).error, GameActions::Status::ok);
 }
