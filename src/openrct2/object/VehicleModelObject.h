@@ -16,6 +16,7 @@
 
 #include <cstdint>
 #include <string>
+#include <vector>
 
 namespace OpenRCT2
 {
@@ -43,6 +44,9 @@ namespace OpenRCT2
         Model::ContactPoints ContactPoints{ 10.0f, 6.0f };
         std::string EngineSound;
         std::string HornSound;
+        std::string ModelPath;
+        std::vector<uint8_t> ModelData; // the .glb read from the archive
+        uint32_t ModelId = 0;           // in the ModelSpriteStore while the object is loaded
         ObjectCollision Collision{};
 
         void ReadJson(IReadObjectContext* context, json_t& root) override;
@@ -50,6 +54,10 @@ namespace OpenRCT2
         void Unload() override;
 
         void DrawPreview(Drawing::RenderTarget& rt, int32_t width, int32_t height) const override;
+
+        // Ids in the ModelSpriteStore of the loaded model of each kind, 0 while none is loaded.
+        static inline uint32_t ActiveCarModelId = 0;
+        static inline uint32_t ActiveCartModelId = 0;
 
         static VehicleModelObject* GetById(ObjectEntryIndex entryIndex);
         static VehicleModelObject* FindFirstByKind(VehicleModelKind kind);

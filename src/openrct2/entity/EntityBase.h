@@ -25,6 +25,7 @@ namespace OpenRCT2
         duck,
         golfBall,
         golfer,
+        golfVehicle,
         count,
         null = 255
     };

@@ -51,6 +51,8 @@ namespace OpenRCT2::Scripting
                     return "duck";
                 case EntityType::golfer:
                     return "golfer";
+                case EntityType::golfVehicle:
+                    return "golf_vehicle";
                 case EntityType::jumpingFountain:
                     return "jumping_fountain";
                 case EntityType::litter:

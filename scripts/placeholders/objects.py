@@ -34,7 +34,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from generate import EDGES, SURFACES, edge_texture, surface_icon, surface_texture  # noqa: E402
-from glb import golfer_glb  # noqa: E402
+from glb import car_glb, cart_glb, golfer_glb  # noqa: E402
 from parkobj import pack  # noqa: E402
 from pixelart import Image, draw_text, shade, text_colour, text_size  # noqa: E402
 
@@ -652,10 +652,14 @@ def vehicle_icon(colour):
 def vehicle_model(name, description, kind, seats, max_speed, accel,
                   contact_half_len, contact_half_width, engine_sound, horn_sound,
                   collision, colour, palette):
-    images = {"images/icon.png": quantise(vehicle_icon(colour), palette).png()}
+    images = {
+        "images/icon.png": quantise(vehicle_icon(colour), palette).png(),
+        "model.glb": car_glb() if kind == "car" else cart_glb(),
+    }
     table = [{"path": "images/icon.png", "x": 0, "y": 0}]
     properties = {
         "kind": kind,
+        "model": "model.glb",
         "seats": seats,
         "maxSpeed": max_speed,
         "acceleration": accel,

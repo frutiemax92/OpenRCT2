@@ -14,6 +14,8 @@
 #include "../core/Guard.hpp"
 #include "../core/Json.hpp"
 #include "../drawing/Drawing.h"
+#include "../drawing/ModelSpriteStore.h"
+#include "../model/GlbModel.h"
 #include "../interface/ScreenCoords.hpp"
 #include "../localisation/LanguagePack.h"
 #include "ObjectLimits.h"
@@ -44,6 +46,10 @@ namespace OpenRCT2
         if (properties.is_object())
         {
             Kind = parseKind(Json::GetString(properties["kind"]));
+            ModelPath = Json::GetString(properties["model"]);
+            ModelData.clear();
+            if (!ModelPath.empty())
+                ModelData = context->GetData(ModelPath);
 
             int32_t defaultHeight = 14;
             int32_t defaultFootprintX = 20;
@@ -143,10 +149,28 @@ namespace OpenRCT2
         {
             IconImageId = LoadImages();
         }
+        if (ModelData.empty())
+            return;
+        auto result = Model::loadGlb(ModelData, 0, 128);
+        if (!result.ok)
+        {
+            LOG_ERROR("Vehicle model '%s' rejected: %s", std::string(GetIdentifier()).c_str(), result.error.c_str());
+            return;
+        }
+        ModelId = Drawing::ModelSpriteStore::Instance().RegisterModel(std::make_shared<Model::GlbModel>(std::move(result.model)));
+        (Kind == VehicleModelKind::car ? ActiveCarModelId : ActiveCartModelId) = ModelId;
     }
 
     void VehicleModelObject::Unload()
     {
+        if (ModelId != 0)
+        {
+            Drawing::ModelSpriteStore::Instance().UnregisterModel(ModelId);
+            auto& active = Kind == VehicleModelKind::car ? ActiveCarModelId : ActiveCartModelId;
+            if (active == ModelId)
+                active = 0;
+            ModelId = 0;
+        }
         LanguageFreeObjectString(NameStringId);
         if (IconImageId != 0)
         {

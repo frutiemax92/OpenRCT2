@@ -751,6 +751,8 @@ struct GameStateSnapshots final : public IGameStateSnapshots
                 return "Misc: Golf ball";
             case EntityType::golfer:
                 return "Misc: Golfer";
+            case EntityType::golfVehicle:
+                return "Misc: Golf vehicle";
             default:
                 break;
         }

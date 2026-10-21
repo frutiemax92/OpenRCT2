@@ -209,6 +209,45 @@ def golfer_glb():
     return b.build(root)
 
 
+def vehicle_glb(length, width, body_height, roof_length, seats_cart):
+    """A car or a golf cart facing -X: a body in the first remappable colour, a roof in the second, four tyres, and glass
+    (cars) or seats (carts). Sizes are in metres."""
+    b = Builder()
+    paint = b.material("remap_primary", (60, 90, 200))
+    roof_paint = b.material("remap_secondary", (235, 235, 235))
+    tyre = b.material("tyre", (25, 25, 28))
+    glass = b.material("glass", (150, 190, 215))
+    seat = b.material("seat", (90, 70, 50))
+
+    wheel_r = 0.17
+    body_y = wheel_r + body_height / 2
+    parts = [b.node("body", mesh=b.box((length, body_height, width), (0, body_y, 0), paint))]
+    if seats_cart:
+        # An open cart: a roof on four posts over two seats.
+        parts.append(b.node("seat", mesh=b.box((0.5, 0.18, width * 0.8), (0.15, body_y + body_height / 2 + 0.09, 0), seat)))
+        parts.append(b.node("roof", mesh=b.box((roof_length, 0.06, width), (0.1, body_y + body_height / 2 + 0.75, 0), roof_paint)))
+        for px in (-roof_length / 2 + 0.1, roof_length / 2 - 0.1):
+            for pz in (-width / 2 + 0.05, width / 2 - 0.05):
+                parts.append(b.node("post", mesh=b.box((0.05, 0.7, 0.05), (0.1 + px, body_y + body_height / 2 + 0.4, pz), tyre)))
+    else:
+        top = body_y + body_height / 2
+        parts.append(b.node("cabin", mesh=b.box((roof_length, 0.28, width * 0.9), (0.15, top + 0.14, 0), glass)))
+        parts.append(b.node("roof", mesh=b.box((roof_length, 0.05, width * 0.92), (0.15, top + 0.305, 0), roof_paint)))
+    for wx in (-length * 0.32, length * 0.32):
+        for wz in (-width / 2, width / 2):
+            parts.append(b.node("wheel", mesh=b.box((wheel_r * 2, wheel_r * 2, 0.1), (wx, wheel_r, wz), tyre)))
+    root = b.node("vehicle", children=parts)
+    return b.build(root)
+
+
+def car_glb():
+    return vehicle_glb(2.4, 1.2, 0.45, 1.2, False)
+
+
+def cart_glb():
+    return vehicle_glb(2.0, 1.1, 0.3, 1.5, True)
+
+
 if __name__ == "__main__":
     import sys
     open(sys.argv[1], "wb").write(golfer_glb())

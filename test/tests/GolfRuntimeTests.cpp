@@ -31,7 +31,10 @@
 #include <openrct2/world/MapAnimation.h>
 #include <openrct2/world/Building.h>
 #include <openrct2/world/Footpath.h>
+#include <openrct2/entity/GolfVehicleEntity.h>
 #include <openrct2/entity/GolferEntity.h>
+#include <openrct2/object/VehicleModelObject.h>
+#include <openrct2/model/Rasteriser.h>
 #include <openrct2/golf/GolfRuntime.h>
 #include <openrct2/drawing/ModelSpriteStore.h>
 #include <openrct2/management/Finance.h>
@@ -442,4 +445,74 @@ TEST(GolfRuntimeTests, ARageQuitIsReportedInTheNews)
     EXPECT_NEAR(static_cast<int>(item.assoc >> 16), 160, 8);
     EXPECT_NE(item.text.find("Grumpy Gary"), std::string::npos);
     EXPECT_NE(item.text.find("hole 7"), std::string::npos);
+}
+
+TEST(GolfRuntimeTests, TheCarAndCartModelsLoadWithTheRemapMaterials)
+{
+    auto context = startPark();
+    ASSERT_NE(context.get(), nullptr);
+    auto& objectManager = context->GetObjectManager();
+    auto* car = static_cast<VehicleModelObject*>(objectManager.LoadObject("golf.vehicle_model.car"));
+    auto* cart = static_cast<VehicleModelObject*>(objectManager.LoadObject("golf.vehicle_model.golf_cart"));
+    if (car == nullptr || cart == nullptr)
+        GTEST_SKIP() << "the vehicle model objects are not installed";
+    ASSERT_NE(car->ModelId, 0u);
+    ASSERT_NE(cart->ModelId, 0u);
+    EXPECT_NE(car->ModelId, cart->ModelId);
+    EXPECT_EQ(VehicleModelObject::ActiveCarModelId, car->ModelId);
+    EXPECT_EQ(VehicleModelObject::ActiveCartModelId, cart->ModelId);
+
+    for (const auto* vehicle : { car, cart })
+    {
+        const auto* model = Drawing::ModelSpriteStore::Instance().GetModel(vehicle->ModelId);
+        ASSERT_NE(model, nullptr);
+        EXPECT_GT(model->triangleCount(), 0u);
+        for (const char* name : { "remap_primary", "remap_secondary" })
+        {
+            bool found = false;
+            for (const auto& material : model->materials)
+                found = found || material.name == name;
+            EXPECT_TRUE(found) << name;
+        }
+        // The model is as long as its contact points say (the car 2.4 m, the cart 2 m, in tenths of a unit).
+        Model::RenderSettings settings;
+        settings.unitsPerMetre = Drawing::ModelSpriteStore::Instance().GetUnitsPerMetre(vehicle->ModelId);
+        const auto bounds = Model::computeBounds(*model, settings);
+        ASSERT_TRUE(bounds.valid);
+        const float length = std::max(bounds.max[0] - bounds.min[0], bounds.max[1] - bounds.min[1]);
+        EXPECT_NEAR(length, vehicle->ContactPoints.halfLength * 2.0f, 5.0f);
+    }
+}
+
+TEST(GolfRuntimeTests, GolfVehicleEntitiesTurnAndMove)
+{
+    auto context = startPark();
+    ASSERT_NE(context.get(), nullptr);
+    auto& gameState = getGameState();
+    auto* entity = GolfVehicleEntity::create(GolfVehicleEntity::Kind::cart, 12, { 100, 100, 8 });
+    ASSERT_NE(entity, nullptr);
+    EXPECT_EQ(entity->vehicle, 12u);
+    EXPECT_EQ(gameState.entities.getEntityListCount(EntityType::golfVehicle), 1u);
+
+    // A heading is a map direction: 0 = -x, 1 = +y, 2 = +x, 3 = -y; the yaw turns counter-clockwise from -x.
+    entity->follow({ 100, 100, 8 }, 0);
+    EXPECT_EQ(entity->yaw, 0);
+    entity->follow({ 100, 100, 8 }, 1);
+    EXPECT_EQ(entity->yaw, 192);
+    entity->follow({ 100, 100, 8 }, 2);
+    EXPECT_EQ(entity->yaw, 128);
+    entity->follow({ 100, 100, 8 }, 3);
+    EXPECT_EQ(entity->yaw, 64);
+    // Without a heading it turns to the way it moves, and that agrees with the headings.
+    entity->follow({ 140, 100, 8 }, -1);
+    EXPECT_EQ(entity->yaw, 128); // towards +x
+    EXPECT_EQ(entity->x, 140);
+    entity->follow({ 140, 140, 8 }, -1);
+    EXPECT_EQ(entity->yaw, 192); // towards +y
+    entity->follow({ 100, 140, 8 }, -1);
+    EXPECT_EQ(entity->yaw, 0); // towards -x
+    entity->follow({ 100, 100, 8 }, -1);
+    EXPECT_EQ(entity->yaw, 64); // towards -y
+    entity->remove();
+    EXPECT_EQ(gameState.entities.getEntityListCount(EntityType::golfVehicle), 0u);
 }

@@ -44,6 +44,7 @@ namespace OpenRCT2
                 break;
             case EntityType::golfBall:
             case EntityType::golfer:
+            case EntityType::golfVehicle:
                 maxZoom = ZoomLevel{ 1 };
                 break;
             case EntityType::steamParticle:

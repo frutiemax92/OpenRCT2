@@ -74,6 +74,7 @@ namespace OpenRCT2
             case EntityType::duck:
             case EntityType::golfBall:
             case EntityType::golfer:
+            case EntityType::golfVehicle:
                 return true;
             default:
                 return false;
@@ -264,7 +265,7 @@ namespace OpenRCT2
         for (auto id : { EntityType::steamParticle, EntityType::moneyEffect, EntityType::crashedVehicleParticle,
                          EntityType::explosionCloud, EntityType::crashSplash, EntityType::explosionFlare,
                          EntityType::jumpingFountain, EntityType::balloon, EntityType::duck, EntityType::golfBall,
-                         EntityType::golfer })
+                         EntityType::golfer, EntityType::golfVehicle })
         {
             count += getEntityListCount(id);
         }
