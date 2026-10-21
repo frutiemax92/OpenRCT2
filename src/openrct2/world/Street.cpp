@@ -62,6 +62,32 @@ namespace OpenRCT2::Street
         }
     }
 
+    std::optional<RoadSlope> SlopeOf(const Terrain::TerrainShape& shape)
+    {
+        // The edges of a tile: -x joins S and W, +y joins N and W, +x joins N and E, -y joins S and E.
+        const int32_t s = shape.south, e = shape.east, n = shape.north, w = shape.west;
+        if (s == e && e == n && n == w)
+            return RoadSlope{ 0, 0 };
+        // A ramp has the two corners of one edge level and the two corners of the opposite edge level, higher.
+        struct Ramp
+        {
+            int32_t low1, low2, high1, high2;
+            Direction towards;
+        };
+        const Ramp ramps[4] = {
+            { e, n, s, w, 0 }, // rises towards -x: S and W are the high corners
+            { s, e, w, n, 1 }, // towards +y
+            { s, w, e, n, 2 }, // towards +x
+            { w, n, s, e, 3 }, // towards -y
+        };
+        for (const auto& ramp : ramps)
+        {
+            if (ramp.low1 == ramp.low2 && ramp.high1 == ramp.high2 && ramp.high1 > ramp.low1)
+                return RoadSlope{ static_cast<uint8_t>(ramp.high1 - ramp.low1), ramp.towards };
+        }
+        return std::nullopt;
+    }
+
     void BuildNetwork(Golf::StreetNetwork& network)
     {
         const auto size = getGameState().mapSize;

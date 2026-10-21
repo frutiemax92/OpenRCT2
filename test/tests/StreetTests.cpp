@@ -19,6 +19,9 @@
 #include <openrct2/ParkImporter.h>
 #include <openrct2/actions/GameActionRunner.h>
 #include <openrct2/actions/footpath/FootpathPlaceAction.h>
+#include <openrct2/actions/scenery/StreetPlaceAction.h>
+#include <openrct2/actions/scenery/StreetRemoveAction.h>
+#include <openrct2/object/StreetObject.h>
 #include <openrct2/drawing/Drawing.h>
 #include <openrct2/drawing/Palette.h>
 #include <openrct2/entity/EntityRegistry.h>
@@ -240,4 +243,143 @@ TEST(Street, TheNetworkIsBuiltFromTheMap)
     EXPECT_FALSE(network.canDrive(ta, 0));
     const auto route = network.findRoute(ta, tc);
     EXPECT_EQ(route.size(), 3u);
+}
+
+namespace
+{
+    ObjectEntryIndex loadStreet(IContext& context, const char* id, const StreetObject** object = nullptr)
+    {
+        auto& objectManager = context.GetObjectManager();
+        auto* loaded = objectManager.LoadObject(id);
+        if (loaded == nullptr)
+            return kObjectEntryIndexNull;
+        if (object != nullptr)
+            *object = static_cast<const StreetObject*>(loaded);
+        return objectManager.GetLoadedObjectEntryIndex(loaded);
+    }
+} // namespace
+
+TEST(Street, SlopeOfARampIsItsRiseAndDirection)
+{
+    using Terrain::TerrainShape;
+    using Street::RoadSlope;
+    // Shapes are {north, east, south, west}.
+    EXPECT_EQ(Street::SlopeOf(TerrainShape{ 0, 0, 0, 0 }), (RoadSlope{ 0, 0 }));
+    // The north and east corners are the +x edge: raised, the road rises towards +x.
+    EXPECT_EQ(Street::SlopeOf(TerrainShape{ 2, 2, 0, 0 }), (RoadSlope{ 2, 2 }));
+    // Raised west and north corners are the +y edge.
+    EXPECT_EQ(Street::SlopeOf(TerrainShape{ 4, 0, 0, 4 }), (RoadSlope{ 4, 1 }));
+    // South and west: the -x edge.
+    EXPECT_EQ(Street::SlopeOf(TerrainShape{ 0, 0, 1, 1 }), (RoadSlope{ 1, 0 }));
+    // South and east: the -y edge.
+    EXPECT_EQ(Street::SlopeOf(TerrainShape{ 0, 3, 3, 0 }), (RoadSlope{ 3, 3 }));
+    // A single raised corner, a saddle and a twisted tile are no road.
+    EXPECT_FALSE(Street::SlopeOf(TerrainShape{ 1, 0, 0, 0 }).has_value());
+    EXPECT_FALSE(Street::SlopeOf(TerrainShape{ 2, 0, 2, 0 }).has_value());
+    EXPECT_FALSE(Street::SlopeOf(TerrainShape{ 2, 1, 0, 0 }).has_value());
+}
+
+TEST(StreetActions, PlacingAndRemovingAStreetConnectsAndDisconnectsTheNeighbours)
+{
+    auto context = startPark();
+    ASSERT_NE(context.get(), nullptr);
+    auto& gameState = getGameState();
+    gameState.cheats.sandboxMode = true;
+    const StreetObject* road = nullptr;
+    const auto index = loadStreet(*context, "golf.street.road", &road);
+    if (road == nullptr)
+        GTEST_SKIP() << "the street object is not installed";
+
+    const auto found = findFlatBlock(3, 2);
+    ASSERT_TRUE(found.has_value());
+    const CoordsXY a = *found, b{ a.x + 32, a.y };
+
+    GameActions::StreetPlaceAction placeA(a, index);
+    const auto resA = GameActions::ExecuteNested(&placeA, gameState);
+    ASSERT_EQ(resA.error, GameActions::Status::ok);
+    EXPECT_EQ(resA.cost, road->BuildCost);
+    ASSERT_NE(Street::FindAt(a), nullptr);
+    EXPECT_EQ(Street::FindAt(a)->getObjectIndex(), index);
+    EXPECT_EQ(Street::FindAt(a)->getRise(), 0);
+    EXPECT_EQ(Street::FindAt(a)->getConnections(), 0);
+
+    GameActions::StreetPlaceAction placeB(b, index);
+    ASSERT_EQ(GameActions::ExecuteNested(&placeB, gameState).error, GameActions::Status::ok);
+    EXPECT_TRUE(Street::FindAt(a)->hasConnection(2));
+    EXPECT_TRUE(Street::FindAt(b)->hasConnection(0));
+
+    // A tile holds one street.
+    GameActions::StreetPlaceAction again(a, index);
+    EXPECT_EQ(GameActions::Query(&again, gameState).error, GameActions::Status::itemAlreadyPlaced);
+
+    GameActions::StreetRemoveAction remove(b);
+    const auto removed = GameActions::ExecuteNested(&remove, gameState);
+    ASSERT_EQ(removed.error, GameActions::Status::ok);
+    EXPECT_EQ(removed.cost, road->RemoveCost);
+    EXPECT_EQ(Street::FindAt(b), nullptr);
+    EXPECT_FALSE(Street::FindAt(a)->hasConnection(2));
+
+    GameActions::StreetRemoveAction missing(b);
+    EXPECT_EQ(GameActions::Query(&missing, gameState).error, GameActions::Status::invalidParameters);
+}
+
+TEST(StreetActions, RejectsBadObjectsOffMapTilesAndBlockedGround)
+{
+    auto context = startPark();
+    ASSERT_NE(context.get(), nullptr);
+    auto& gameState = getGameState();
+    gameState.cheats.sandboxMode = true;
+    const StreetObject* road = nullptr;
+    const auto index = loadStreet(*context, "golf.street.road", &road);
+    if (road == nullptr)
+        GTEST_SKIP() << "the street object is not installed";
+    const auto found = findFlatBlock(3, 2);
+    ASSERT_TRUE(found.has_value());
+
+    GameActions::StreetPlaceAction badObject(*found, 200);
+    EXPECT_EQ(GameActions::Query(&badObject, gameState).error, GameActions::Status::invalidParameters);
+    GameActions::StreetPlaceAction offMap({ -32, 0 }, index);
+    EXPECT_EQ(GameActions::Query(&offMap, gameState).error, GameActions::Status::invalidParameters);
+
+    // A path in the way blocks the road.
+    {
+        const auto baseZ = MapGetSurfaceElementAt(*found)->getBaseZ();
+        auto* path = TileElementInsert<PathElement>({ found->x, found->y, baseZ }, 0b1111);
+        path->setClearanceZ(baseZ + 16);
+    }
+    GameActions::StreetPlaceAction blocked(*found, index);
+    EXPECT_EQ(GameActions::Query(&blocked, gameState).error, GameActions::Status::noClearance);
+}
+
+TEST(StreetActions, AGhostPreviewConnectsNothingAndLeavesTheNeighboursAlone)
+{
+    auto context = startPark();
+    ASSERT_NE(context.get(), nullptr);
+    auto& gameState = getGameState();
+    gameState.cheats.sandboxMode = true;
+    const StreetObject* road = nullptr;
+    const auto index = loadStreet(*context, "golf.street.road", &road);
+    if (road == nullptr)
+        GTEST_SKIP() << "the street object is not installed";
+    const auto found = findFlatBlock(3, 2);
+    ASSERT_TRUE(found.has_value());
+    const CoordsXY a = *found, b{ a.x + 32, a.y };
+
+    GameActions::StreetPlaceAction placeA(a, index);
+    ASSERT_EQ(GameActions::ExecuteNested(&placeA, gameState).error, GameActions::Status::ok);
+
+    GameActions::StreetPlaceAction ghost(b, index);
+    ghost.SetFlags(GameActions::CommandFlag::ghost);
+    ASSERT_EQ(GameActions::ExecuteNested(&ghost, gameState).error, GameActions::Status::ok);
+    ASSERT_NE(Street::FindAt(b), nullptr);
+    EXPECT_TRUE(Street::FindAt(b)->isGhost());
+    EXPECT_EQ(Street::FindAt(b)->getConnections(), 0);
+    EXPECT_FALSE(Street::FindAt(a)->hasConnection(2));
+
+    // Removing the ghost leaves the street next to it as it was.
+    GameActions::StreetRemoveAction remove(b);
+    remove.SetFlags(GameActions::CommandFlag::ghost);
+    ASSERT_EQ(GameActions::ExecuteNested(&remove, gameState).error, GameActions::Status::ok);
+    EXPECT_EQ(Street::FindAt(b), nullptr);
+    EXPECT_EQ(Street::FindAt(a)->getConnections(), 0);
 }

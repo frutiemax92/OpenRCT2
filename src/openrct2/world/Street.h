@@ -10,8 +10,10 @@
 #pragma once
 
 #include "Location.hpp"
+#include "TerrainShape.h"
 
 #include <cstdint>
+#include <optional>
 
 // The street tiles of the map (STE-001 to STE-005): finding them, connecting them to their neighbours and handing them to
 // the street network the cars drive on. Edges are Directions: 0 = -x, 1 = +y, 2 = +x, 3 = -y.
@@ -36,6 +38,16 @@ namespace OpenRCT2::Street
     // Tells the street neighbours of `tile` that a street appeared (or disappeared) next to them, so they connect to it
     // (or let go of it).
     void UpdateNeighbours(const CoordsXY& tile, bool hasStreet);
+    // How a road lies on a terrain shape (STE-003): a flat tile, or a ramp rising by `rise` quarter steps towards
+    // `direction`. Corners raised unevenly (a saddle, a single raised corner) are no road: nullopt.
+    struct RoadSlope
+    {
+        uint8_t rise = 0;
+        Direction direction = 0;
+        bool operator==(const RoadSlope&) const = default;
+    };
+    std::optional<RoadSlope> SlopeOf(const Terrain::TerrainShape& shape);
+
     // Fills a network with every street of the map (STE-001, STE-002, STE-005).
     void BuildNetwork(Golf::StreetNetwork& network);
 } // namespace OpenRCT2::Street
