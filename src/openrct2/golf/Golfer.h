@@ -128,6 +128,10 @@ namespace OpenRCT2::Golf
         bool rageQuit = false;
         bool finished = false;           // left the course
         uint32_t arrivalDay = 0;
+        uint32_t cartId = 0;             // the golf cart rented for the round (CRT-003), 0 for none
+        bool cartDecided = false;        // the group has decided who takes a cart
+        bool onCart = false;             // riding it on this leg
+        FixedVec3 cartStop;              // where the cart stops for the shot (CRT-004)
         bool hasExit = false;            // leaves by their own way out: the car they came in (STE-012, STE-022)
         FixedVec3 exitPosition;
 

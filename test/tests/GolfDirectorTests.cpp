@@ -12,6 +12,7 @@
 #include <cmath>
 #include <gtest/gtest.h>
 #include <map>
+#include <set>
 #include <memory>
 #include <tuple>
 #include <openrct2/golf/GolfDirector.h>
@@ -483,4 +484,245 @@ TEST(GolfDirector, TheCarsOfSavedGolfersComeBack)
                 return true;
         return false;
     }());
+}
+
+namespace
+{
+    // A group of unfit golfers, who all want a cart; they are in the sim before anything else arrives.
+    std::vector<uint32_t> spawnUnfitGroup(Park& park, int count, uint32_t group)
+    {
+        std::vector<uint32_t> ids;
+        for (int i = 0; i < count; i++)
+        {
+            GolfSimulation::Spawn spawn;
+            spawn.name = "Unfit " + std::to_string(group * 10 + i);
+            spawn.groupId = group;
+            spawn.courseId = park.courseId;
+            spawn.money = 100000;
+            spawn.skills = GolferSkills{ 50, 50, 50, 0 };
+            spawn.position = vec(100, 2900, 0);
+            ids.push_back(park.director->simulation().spawn(spawn).id);
+        }
+        return ids;
+    }
+
+    void addCarts(Park& park, int spaces, int carts)
+    {
+        for (int i = 0; i < spaces; i++)
+            park.director->fleet.addSpace(vec(120 + 30 * i, 2950, 0));
+        park.director->fleet.buyCarts(carts);
+    }
+}
+
+TEST(GolfDirectorCarts, AGroupTakesCartsTwoToACartAndPaysTheFee)
+{
+    Park park;
+    park.director->setPopularity(0); // nobody else arrives
+    addCarts(park, 2, 2);
+    ASSERT_EQ(park.director->fleet.cartCount(), 2);
+    const auto ids = spawnUnfitGroup(park, 4, 1);
+
+    // Run until everyone has checked in.
+    uint32_t t = at(1, 8);
+    for (; t < at(1, 8) + 6 * kTicksPerGameMinute; t++)
+        park.director->update(t);
+
+    std::set<uint32_t> carts;
+    for (const auto id : ids)
+    {
+        const auto* golfer = park.director->simulation().find(id);
+        ASSERT_NE(golfer, nullptr);
+        EXPECT_NE(golfer->cartId, 0u) << "golfer " << id;
+        carts.insert(golfer->cartId);
+        // The green fee and the cart fee were both paid.
+        EXPECT_EQ(golfer->money, 100000 - 750 - park.director->fleet.cartFee);
+    }
+    EXPECT_EQ(carts.size(), 2u);
+    for (const auto& cart : park.director->fleet.carts())
+        EXPECT_EQ(cart.riders.size(), 2u);
+    EXPECT_EQ(park.director->fleet.freeCarts(), 0);
+    EXPECT_EQ(park.director->today().cartFees, 4 * park.director->fleet.cartFee);
+    EXPECT_EQ(park.director->today().greenFees, 4 * 750);
+}
+
+TEST(GolfDirectorCarts, ALaterGroupFindsNoCartAndWalks)
+{
+    Park park;
+    park.director->setPopularity(0);
+    addCarts(park, 2, 2);
+    const auto first = spawnUnfitGroup(park, 4, 1);
+    uint32_t t = at(1, 8);
+    for (; t < at(1, 8) + 6 * kTicksPerGameMinute; t++)
+        park.director->update(t);
+    ASSERT_EQ(park.director->fleet.freeCarts(), 0);
+
+    const auto second = spawnUnfitGroup(park, 2, 2);
+    for (uint32_t end = t + 6 * kTicksPerGameMinute; t < end; t++)
+        park.director->update(t);
+    for (const auto id : second)
+    {
+        const auto* golfer = park.director->simulation().find(id);
+        ASSERT_NE(golfer, nullptr);
+        EXPECT_EQ(golfer->cartId, 0u);
+        EXPECT_FALSE(golfer->onCart);
+        // CRT-003: they minded.
+        ASSERT_FALSE(golfer->thoughts.empty());
+        bool minded = false;
+        for (const auto& thought : golfer->thoughts)
+            minded = minded || thought.type == ThoughtType::needCart;
+        EXPECT_TRUE(minded);
+    }
+    EXPECT_EQ(park.director->today().cartFees, 4 * park.director->fleet.cartFee); // the second group paid none
+    (void)first;
+}
+
+TEST(GolfDirectorCarts, TheCartDrivesWithItsRidersAndComesBackAfterTheRound)
+{
+    Park park;
+    park.director->setPopularity(0);
+    addCarts(park, 2, 1);
+    const auto ids = spawnUnfitGroup(park, 2, 1);
+
+    bool sawRidersMoveWithCart = false;
+    uint32_t t = at(1, 8);
+    for (; t < at(1, 8) + 5 * 60 * kTicksPerGameMinute; t++)
+    {
+        park.director->update(t);
+        const auto* leader = park.director->simulation().find(ids[0]);
+        if (leader == nullptr)
+            break;
+        if (leader->onCart)
+        {
+            const auto* cart = park.director->fleet.find(leader->cartId);
+            ASSERT_NE(cart, nullptr);
+            // A rider on the cart is where the cart is.
+            EXPECT_LT(abs(cart->position.x - leader->position.x), Fixed::fromInt(2));
+            EXPECT_LT(abs(cart->position.y - leader->position.y), Fixed::fromInt(2));
+            sawRidersMoveWithCart = true;
+        }
+    }
+    EXPECT_TRUE(sawRidersMoveWithCart);
+
+    // The round is over: both golfers have gone, the cart is parked in a space again and free to rent.
+    for (const auto id : ids)
+        EXPECT_EQ(park.director->simulation().find(id), nullptr);
+    EXPECT_EQ(park.director->fleet.freeCarts(), 1);
+    const auto& cart = park.director->fleet.carts()[0];
+    EXPECT_EQ(cart.state, CartState::parked);
+    EXPECT_TRUE(cart.riders.empty());
+    bool inASpace = false;
+    for (const auto& space : park.director->fleet.spaces())
+        inASpace = inASpace || (space.cartId == cart.id && space.position.x == cart.position.x);
+    EXPECT_TRUE(inASpace);
+}
+
+TEST(GolfDirectorCarts, AGolferWhoRageQuitsGivesTheCartBack)
+{
+    Park park;
+    park.director->setPopularity(0);
+    addCarts(park, 1, 1);
+    const auto ids = spawnUnfitGroup(park, 1, 1);
+    uint32_t t = at(1, 8);
+    for (; t < at(1, 8) + 6 * kTicksPerGameMinute; t++)
+        park.director->update(t);
+    auto* golfer = park.director->simulation().find(ids[0]);
+    ASSERT_NE(golfer, nullptr);
+    ASSERT_NE(golfer->cartId, 0u);
+    EXPECT_EQ(park.director->fleet.freeCarts(), 0);
+
+    // Make them furious about a hole that is too hard.
+    golfer->needs.happiness = 0;
+    golfer->rageCauses = kRageTooHard;
+    for (uint32_t end = t + 3 * kTicksPerGameMinute; t < end; t++)
+        park.director->update(t);
+    EXPECT_EQ(park.director->fleet.freeCarts(), 1);
+    EXPECT_EQ(park.director->fleet.carts()[0].state, CartState::parked);
+}
+
+TEST(GolfDirectorCarts, TheFleetAndItsRidersAreSaved)
+{
+    Park park;
+    park.director->setPopularity(0);
+    addCarts(park, 2, 2);
+    park.director->fleet.cartFee = 900;
+    const auto ids = spawnUnfitGroup(park, 2, 1);
+    uint32_t t = at(1, 8);
+    for (; t < at(1, 8) + 20 * kTicksPerGameMinute; t++)
+        park.director->update(t);
+    const auto* golfer = park.director->simulation().find(ids[0]);
+    ASSERT_NE(golfer, nullptr);
+    ASSERT_NE(golfer->cartId, 0u);
+
+    const auto saved = saveDirector(*park.director);
+    Park other;
+    ASSERT_TRUE(loadDirector(*other.director, saved));
+    EXPECT_EQ(saveDirector(*other.director), saved);
+    EXPECT_EQ(other.director->fleet.cartFee, 900);
+    EXPECT_EQ(other.director->fleet.cartCount(), 2);
+    EXPECT_EQ(other.director->fleet.spaceCount(), 2);
+    const auto* loaded = other.director->simulation().find(ids[0]);
+    ASSERT_NE(loaded, nullptr);
+    EXPECT_EQ(loaded->cartId, golfer->cartId);
+    EXPECT_EQ(loaded->onCart, golfer->onCart);
+    EXPECT_EQ(other.director->fleet.freeCarts(), park.director->fleet.freeCarts());
+    const auto* cart = other.director->fleet.find(golfer->cartId);
+    ASSERT_NE(cart, nullptr);
+    EXPECT_EQ(cart->riders.size(), park.director->fleet.find(golfer->cartId)->riders.size());
+}
+
+TEST(CartFleet, SpacesFollowTheBaysOfTheMap)
+{
+    CartFleet fleet;
+    fleet.addSpace(vec(16, 16, 0));
+    fleet.addSpace(vec(48, 16, 0));
+    EXPECT_EQ(fleet.buyCarts(2).bought, 2);
+
+    // One bay is gone and a new one appears: the cart that stood in the gone bay goes with it.
+    fleet.syncSpaces({ vec(48, 16, 0), vec(80, 16, 0) });
+    EXPECT_EQ(fleet.spaceCount(), 2);
+    EXPECT_EQ(fleet.cartCount(), 1);
+    EXPECT_EQ(fleet.freeCarts(), 1);
+    EXPECT_EQ(fleet.carts()[0].position.x, vec(48, 16, 0).x);
+
+    // Nothing changes when the bays stay as they are, and a new cart goes in the new bay.
+    fleet.syncSpaces({ vec(48, 16, 0), vec(80, 16, 0) });
+    EXPECT_EQ(fleet.cartCount(), 1);
+    EXPECT_EQ(fleet.buyCarts(1).bought, 1);
+    EXPECT_EQ(fleet.cartCount(), 2);
+    EXPECT_EQ(fleet.buyCarts(1).bought, 0); // no free space left
+}
+
+TEST(GolfDirectorCarts, ACartWithAFlatBatteryIsLeftAndItsRidersWalkOn)
+{
+    Park park;
+    park.director->setPopularity(0);
+    addCarts(park, 2, 1);
+    const auto ids = spawnUnfitGroup(park, 2, 1);
+    uint32_t t = at(1, 8);
+    for (; t < at(1, 8) + 8 * kTicksPerGameMinute; t++)
+        park.director->update(t);
+    auto* golfer = park.director->simulation().find(ids[0]);
+    ASSERT_NE(golfer, nullptr);
+    ASSERT_NE(golfer->cartId, 0u);
+    const auto cartId = golfer->cartId;
+
+    // The battery dies while they ride.
+    park.director->fleet.find(cartId)->battery = 0;
+    for (uint32_t end = t + 3 * kTicksPerGameMinute; t < end; t++)
+        park.director->update(t);
+    for (const auto id : ids)
+    {
+        if (const auto* g = park.director->simulation().find(id))
+        {
+            EXPECT_EQ(g->cartId, 0u);
+            EXPECT_FALSE(g->onCart);
+        }
+    }
+    // The cart is back in a space, parked and not rentable until it is charged.
+    const auto* cart = park.director->fleet.find(cartId);
+    ASSERT_NE(cart, nullptr);
+    EXPECT_EQ(cart->state, CartState::parked);
+    EXPECT_EQ(park.director->fleet.freeCarts(), 0);
+    park.director->fleet.rechargeParkedCarts(50);
+    EXPECT_EQ(park.director->fleet.freeCarts(), 1);
 }

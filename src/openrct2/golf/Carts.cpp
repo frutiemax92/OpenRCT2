@@ -57,6 +57,49 @@ namespace OpenRCT2::Golf
         return _spaces.back();
     }
 
+    void CartFleet::syncSpaces(const std::vector<FixedVec3>& positions)
+    {
+        auto samePlace = [](const FixedVec3& a, const FixedVec3& b) { return a.x == b.x && a.y == b.y; };
+        std::vector<CartSpace> kept;
+        for (const auto& space : _spaces)
+        {
+            const bool stays = std::any_of(
+                positions.begin(), positions.end(), [&](const FixedVec3& p) { return samePlace(p, space.position); });
+            if (stays)
+            {
+                kept.push_back(space);
+                continue;
+            }
+            // The cart that stood there goes with its space.
+            _carts.erase(
+                std::remove_if(
+                    _carts.begin(), _carts.end(),
+                    [&](const Cart& c) { return c.state == CartState::parked && c.spaceId == space.id; }),
+                _carts.end());
+        }
+        for (const auto& position : positions)
+        {
+            const bool known = std::any_of(
+                kept.begin(), kept.end(), [&](const CartSpace& s) { return samePlace(s.position, position); });
+            if (known)
+                continue;
+            CartSpace added;
+            added.id = _nextSpaceId++;
+            added.position = position;
+            kept.push_back(added);
+        }
+        _spaces = std::move(kept);
+        // Carts heading for a space that is gone choose again.
+        for (auto& cart : _carts)
+        {
+            if (cart.state != CartState::returning)
+                continue;
+            const bool exists = std::any_of(_spaces.begin(), _spaces.end(), [&](const CartSpace& s) { return s.id == cart.spaceId; });
+            if (!exists)
+                returnCart(cart.id);
+        }
+    }
+
     int32_t CartFleet::freeCarts() const
     {
         return static_cast<int32_t>(std::count_if(_carts.begin(), _carts.end(), [](const Cart& c) {
@@ -245,8 +288,9 @@ namespace OpenRCT2::Golf
         }
         cart.position.x = nextX;
         cart.position.y = nextY;
-        if (cart.battery > 0 && ((cart.id + static_cast<uint32_t>(cart.position.x.raw())) % 8 == 0))
+        if (cart.battery > 0 && ++cart.wearTicks >= kBatteryTicksPerPercent)
         {
+            cart.wearTicks = 0;
             cart.battery--;
         }
         return false;

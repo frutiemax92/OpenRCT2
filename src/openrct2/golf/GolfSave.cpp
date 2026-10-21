@@ -243,6 +243,13 @@ namespace OpenRCT2::Golf
                 a.io(g.hasExit);
                 a.io(g.exitPosition);
             }
+            if (a.format >= 3)
+            {
+                a.io(g.cartId);
+                a.io(g.cartDecided);
+                a.io(g.onCart);
+                a.io(g.cartStop);
+            }
             a.list(g.thoughts, [&](Thought& t) {
                 a.io(t.type);
                 a.io(t.tick);
@@ -385,6 +392,35 @@ namespace OpenRCT2::Golf
                 sim._difficulty.clear();
                 sim._left.clear();
                 sim._events.clear();
+            }
+
+            // The golf carts.
+            if (a.format >= 3)
+            {
+                auto& fleet = d.fleet;
+                a.io(fleet.cartFee);
+                a.io(fleet.cartPrice);
+                a.io(fleet._nextSpaceId);
+                a.io(fleet._nextCartId);
+                a.list(fleet._spaces, [&](CartSpace& s) {
+                    a.io(s.id);
+                    a.io(s.position);
+                    a.io(s.cartId);
+                    a.io(s.reservedBy);
+                });
+                a.list(fleet._carts, [&](Cart& c) {
+                    a.io(c.id);
+                    a.io(c.state);
+                    a.io(c.position);
+                    a.io(c.destination);
+                    a.list(c.riders, [&](uint32_t& rider) { a.io(rider); });
+                    a.io(c.spaceId);
+                    a.io(c.groupId);
+                    a.io(c.speed);
+                    a.io(c.battery);
+                    a.io(c.wearTicks);
+                    a.io(c.condition);
+                });
             }
 
             // The registry.

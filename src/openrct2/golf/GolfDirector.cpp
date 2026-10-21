@@ -19,6 +19,7 @@ namespace OpenRCT2::Golf
         : _sim(std::move(environment))
         , _sources(std::move(sources))
     {
+        _sim.environment().carts = &fleet;
     }
 
     uint32_t GolfDirector::openCourse() const
@@ -270,6 +271,9 @@ namespace OpenRCT2::Golf
             {
                 case SimEvent::Type::paidFee:
                     _today.greenFees += e.value;
+                    break;
+                case SimEvent::Type::paidCartFee:
+                    _today.cartFees += e.value;
                     break;
                 case SimEvent::Type::usedFacility:
                     _today.buildingServices += e.value;

@@ -26,6 +26,7 @@ namespace OpenRCT2::Golf
                 case GolferState::goingToCart:
                 case GolferState::goingToTee:
                 case GolferState::walkingToBall:
+                case GolferState::returningCart:
                 case GolferState::leaving:
                 case GolferState::rageQuitting:
                     return true;
@@ -271,8 +272,188 @@ namespace OpenRCT2::Golf
         return false;
     }
 
+    Cart* GolfSimulation::cartOf(const Golfer& g) const
+    {
+        return g.cartId != 0 && _env.carts != nullptr ? _env.carts->find(g.cartId) : nullptr;
+    }
+
+    // CRT-003: the first of a group to check in decides for all of it who takes a cart; riders pay the cart fee, go two to
+    // a cart, and the others walk.
+    void GolfSimulation::decideCarts(Golfer& first, const Course& course)
+    {
+        // Without carts nobody expects one, so no one minds walking.
+        if (_env.carts == nullptr || _env.carts->cartCount() == 0 || first.cartDecided)
+            return;
+        std::vector<Golfer*> members;
+        for (auto& other : _golfers)
+        {
+            if (other.groupId == first.groupId && !other.finished && other.state != GolferState::leaving
+                && other.state != GolferState::rageQuitting && other.state != GolferState::inCar)
+            {
+                other.cartDecided = true;
+                members.push_back(&other);
+            }
+        }
+        const int32_t yards = course.totalYards(first.tee);
+        std::vector<CartFleet::Rider> riders;
+        std::vector<Golfer*> wanting;
+        for (auto* member : members)
+        {
+            const int32_t jitter = _env.rng != nullptr ? static_cast<int32_t>(_env.rng->next() % 100) : 0;
+            if (wantsCart(
+                    member->needs.energyByte(), member->skills.toSkills().physique, yards, member->money, _env.carts->cartFee, jitter))
+            {
+                riders.push_back({ member->id, member->money });
+                wanting.push_back(member);
+            }
+        }
+        if (riders.empty())
+            return;
+        const auto rental = _env.carts->rent(riders, first.groupId, _env.clubEntrance);
+        for (const auto cartId : rental.cartIds)
+        {
+            const auto* cart = _env.carts->find(cartId);
+            for (const auto rider : cart->riders)
+            {
+                if (auto* g = find(rider))
+                {
+                    g->cartId = cartId;
+                    g->money -= _env.carts->cartFee;
+                    _income += _env.carts->cartFee;
+                    emit(SimEvent::Type::paidCartFee, *g, static_cast<int32_t>(_env.carts->cartFee));
+                }
+            }
+        }
+        // CRT-003: those who wanted a cart and found none walk, and mind it.
+        for (const auto id : rental.walkers)
+        {
+            if (auto* g = find(id))
+            {
+                applyHappiness(g->needs, HappinessEvent::noCart);
+                think(*g, ThoughtType::needCart);
+            }
+        }
+    }
+
+    // The golfer takes the wheel (or sits beside whoever does): the cart is where its first rider stands.
+    void GolfSimulation::board(Golfer& g)
+    {
+        auto* cart = cartOf(g);
+        if (cart == nullptr)
+        {
+            g.onCart = false;
+            return;
+        }
+        g.onCart = true;
+        if (!cart->riders.empty() && cart->riders.front() == g.id)
+        {
+            // The cart leaves its space (if it is in one) and picks the driver up where they stand.
+            _env.carts->depart(cart->id);
+            cart->position = g.position;
+            cart->speed = Fixed{};
+            if (cart->state != CartState::returning)
+                cart->state = CartState::driving;
+        }
+    }
+
+    void GolfSimulation::dismount(Golfer& g)
+    {
+        g.onCart = false;
+        if (auto* cart = cartOf(g))
+        {
+            if (!cart->riders.empty() && cart->riders.front() == g.id)
+            {
+                cart->speed = Fixed{};
+                cart->state = CartState::waitingForGolfers;
+            }
+        }
+    }
+
+    // CRT-004: the cart drives, and its riders go with it. The first rider drives; the other keeps the seat beside them.
+    bool GolfSimulation::ride(Golfer& g, const FixedVec3& to)
+    {
+        auto* cart = cartOf(g);
+        if (cart == nullptr)
+        {
+            g.onCart = false;
+            return walk(g, to);
+        }
+        // CRT-007: a flat battery strands the cart; its riders walk on and the cart goes back to be charged.
+        if (cart->battery == 0)
+        {
+            const auto riders = cart->riders;
+            for (const auto id : riders)
+                if (auto* rider = find(id))
+                    abandonCart(*rider);
+            g.onCart = false;
+            g.cartId = 0;
+            return walk(g, to);
+        }
+        bool arrived = false;
+        if (!cart->riders.empty() && cart->riders.front() == g.id)
+        {
+            cart->destination = to;
+            arrived = _env.carts->drive(*cart, to);
+        }
+        else
+        {
+            arrived = horizontal(cart->position, cart->destination) <= Fixed::fromInt(kArriveDistanceUnits);
+        }
+        g.position = { cart->position.x, cart->position.y, groundZ(cart->position.x, cart->position.y) };
+        return arrived;
+    }
+
+    // CRT-005: after the last hole the cart goes back to the nearest free space; with none free it is simply left.
+    void GolfSimulation::returnCartAndLeave(Golfer& g)
+    {
+        auto* cart = cartOf(g);
+        if (cart == nullptr)
+        {
+            g.cartId = 0;
+            g.onCart = false;
+            leave(g);
+            return;
+        }
+        const bool leader = !cart->riders.empty() && cart->riders.front() == g.id;
+        if (leader && cart->state != CartState::returning && !_env.carts->returnCart(cart->id))
+        {
+            // Every space is taken: the cart stays where it is, and so does its rider's trouble.
+            abandonCart(g);
+            leave(g);
+            return;
+        }
+        board(g);
+        g.destination = cart->destination;
+        setState(g, GolferState::returningCart);
+    }
+
+    // A golfer who leaves for good (rage quit, no space to return the cart to) gives up the cart: it goes back by itself.
+    void GolfSimulation::abandonCart(Golfer& g)
+    {
+        auto* cart = cartOf(g);
+        g.onCart = false;
+        if (cart == nullptr)
+        {
+            g.cartId = 0;
+            return;
+        }
+        cart->riders.erase(std::remove(cart->riders.begin(), cart->riders.end(), g.id), cart->riders.end());
+        g.cartId = 0;
+        if (cart->riders.empty() && cart->state != CartState::parked)
+        {
+            if (cart->state != CartState::returning)
+            {
+                if (!_env.carts->returnCart(cart->id))
+                    return; // every space is taken: it stays where it stands
+            }
+            _env.carts->park(cart->id);
+        }
+    }
+
     bool GolfSimulation::walk(Golfer& g, const FixedVec3& to)
     {
+        if (g.onCart)
+            return ride(g, to);
         const Fixed speed = Fixed::ratio(kWalkSpeedHundredths, 100);
         const FixedVec3 delta{ to.x - g.position.x, to.y - g.position.y, Fixed{} };
         const Fixed distance = length(delta);
@@ -413,6 +594,8 @@ namespace OpenRCT2::Golf
         }
         g.rageQuit = true;
         g.ballInPlay = false;
+        if (g.cartId != 0)
+            abandonCart(g);
         g.destination = _env.exit;
         // GLF-041: an insult for everyone within three tiles, who each lose a little happiness.
         SimEvent e;
@@ -441,6 +624,8 @@ namespace OpenRCT2::Golf
             g.restingBenchId = 0;
         }
         g.ballInPlay = false;
+        if (g.cartId != 0)
+            abandonCart(g);
         g.destination = g.hasExit ? g.exitPosition : _env.exit;
         setState(g, GolferState::leaving);
     }
@@ -605,7 +790,11 @@ namespace OpenRCT2::Golf
                     mutableCourse->stats.satisfactionSamples++;
                 }
             }
-            leave(g);
+            // CRT-005: the cart goes back before the golfer goes home.
+            if (g.cartId != 0)
+                returnCartAndLeave(g);
+            else
+                leave(g);
             return;
         }
         g.holeIndex = next;
@@ -693,16 +882,60 @@ namespace OpenRCT2::Golf
                     const auto booking = teeSheet(g.courseId).bookFirstTee(minuteNow(), slotMinutes(course->holes[g.holeIndex]));
                     _groupTeeTime[key] = booking.minute;
                 }
+                // CRT-003: the group decides who takes a cart; riders go and get theirs.
+                decideCarts(g, *course);
+                if (auto* cart = cartOf(g))
+                {
+                    g.destination = cart->position;
+                    setState(g, GolferState::goingToCart);
+                    break;
+                }
                 startHole(g);
                 break;
             }
             case GolferState::goingToCart:
-                setState(g, GolferState::goingToTee);
-                break;
-            case GolferState::goingToTee:
             {
+                auto* cart = cartOf(g);
+                if (cart == nullptr)
+                {
+                    g.cartId = 0;
+                    startHole(g);
+                    break;
+                }
+                // The cart may have driven off with the other rider already: go where it is.
+                if (!walk(g, cart->position))
+                    break;
+                board(g);
+                startHole(g);
+                break;
+            }
+            case GolferState::returningCart:
+            {
+                auto* cart = cartOf(g);
+                if (cart == nullptr)
+                {
+                    g.cartId = 0;
+                    g.onCart = false;
+                    leave(g);
+                    break;
+                }
                 if (!walk(g, g.destination))
                     break;
+                g.onCart = false;
+                if (cart->state == CartState::returning)
+                    _env.carts->park(cart->id);
+                g.cartId = 0;
+                leave(g);
+                break;
+            }
+            case GolferState::goingToTee:
+            {
+                if (g.cartId != 0 && g.stateTicks == 1)
+                    board(g);
+                if (!walk(g, g.destination))
+                    break;
+                if (g.onCart)
+                    dismount(g);
                 const auto* course = courseOf(g);
                 const auto key = groupKey(g.groupId, g.holeIndex);
                 auto it = _groupTeeTime.find(key);
@@ -816,6 +1049,23 @@ namespace OpenRCT2::Golf
             }
             case GolferState::walkingToBall:
             {
+                // CRT-004: the cart takes the golfer to the path nearest the ball (or near the ball when carts may leave the
+                // paths); the last stretch is on foot.
+                if (g.cartId != 0 && g.stateTicks == 1)
+                {
+                    board(g);
+                    const auto* course = courseOf(g);
+                    const std::vector<FixedVec3> points = _env.pathPoints ? _env.pathPoints() : std::vector<FixedVec3>{};
+                    g.cartStop = CartFleet::stopPoint(
+                        g.ball.position, points, course != nullptr && course->cartsAllowedOffPath);
+                }
+                if (g.onCart)
+                {
+                    if (!walk(g, g.cartStop))
+                        break;
+                    dismount(g);
+                    break;
+                }
                 if (!walk(g, g.ball.position))
                     break;
                 if (!g.searchedBall)

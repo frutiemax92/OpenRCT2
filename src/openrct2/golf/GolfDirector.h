@@ -10,6 +10,7 @@
 #pragma once
 
 #include "Arrivals.h"
+#include "Carts.h"
 #include "GolfObjectives.h"
 #include "GolfSimulation.h"
 #include "Popularity.h"
@@ -54,6 +55,9 @@ namespace OpenRCT2::Golf
         {
             return _registry;
         }
+
+        // CRT-002: the golf carts, owned here so they are saved with the golfers who ride them.
+        CartFleet fleet;
 
         OpeningHours hours;
         int32_t maxGolfers = kDefaultMaxGolfers;

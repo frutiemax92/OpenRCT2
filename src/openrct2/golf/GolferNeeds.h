@@ -116,6 +116,7 @@ namespace OpenRCT2::Golf
         hitByBall,
         crowdedPath,
         highPrices,
+        noCart,             // wanted a cart and had to walk (CRT-003)
         count,
     };
     // Happiness delta on the 0..255 scale for each event.

@@ -9,6 +9,7 @@
 
 #pragma once
 
+#include "Carts.h"
 #include "CourseManager.h"
 #include "GameClock.h"
 #include "Golfer.h"
@@ -16,6 +17,7 @@
 #include "HoleSchedule.h"
 
 #include <deque>
+#include <functional>
 #include <memory>
 #include <unordered_map>
 #include <vector>
@@ -78,6 +80,7 @@ namespace OpenRCT2::Golf
             restedOnBench,
             talkedWithGolfer,
             littered,
+            paidCartFee,    // value = the fee (CRT-003)
         };
         Type type = Type::thought;
         uint32_t golferId = 0;
@@ -115,6 +118,10 @@ namespace OpenRCT2::Golf
             std::vector<Service> services;
             std::vector<Bench> benches;
             std::vector<LitterBin> bins;
+            // CRT-002 to CRT-005: the golf carts. When there is no fleet everyone walks.
+            CartFleet* carts = nullptr;
+            // Positions along the paths, where carts may stop (CRT-004).
+            std::function<std::vector<FixedVec3>()> pathPoints;
         };
 
         explicit GolfSimulation(Environment environment);
@@ -196,6 +203,14 @@ namespace OpenRCT2::Golf
         void updateGolfer(Golfer& g);
         void onMinute(Golfer& g);
         bool walk(Golfer& g, const FixedVec3& to);
+        // Carts (section 14).
+        void decideCarts(Golfer& g, const Course& course);
+        bool ride(Golfer& g, const FixedVec3& to);
+        void board(Golfer& g);
+        void dismount(Golfer& g);
+        void returnCartAndLeave(Golfer& g);
+        void abandonCart(Golfer& g);
+        Cart* cartOf(const Golfer& g) const;
         void setState(Golfer& g, GolferState state);
         const Course* courseOf(const Golfer& g) const;
         const Hole* holeOf(const Golfer& g) const;

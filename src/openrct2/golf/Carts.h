@@ -29,6 +29,8 @@ namespace OpenRCT2::Golf
     constexpr int32_t kCartTopSpeedHundredths = 220; // world units per tick: a bit faster than walking
     constexpr int32_t kCartStopDistanceUnits = 10 * 32 / 5; // CRT-004: stop within ten yards of the ball when off the path
     // Wheel contact points for the terrain tilt (R3D-006, CRT-006), in world units from the centre.
+    // A full battery lasts about six game hours of driving (CRT-007).
+    constexpr uint16_t kBatteryTicksPerPercent = 720;
     constexpr int32_t kCartHalfLength = 10;
     constexpr int32_t kCartHalfWidth = 6;
     Model::ContactPoints cartContactPoints();
@@ -61,6 +63,7 @@ namespace OpenRCT2::Golf
         uint32_t groupId = 0;
         Fixed speed{};
         uint8_t battery = 100;          // CRT-007: 0..100 battery level, recharges when parked
+        uint16_t wearTicks = 0;         // ticks driven since the battery last lost a percent
         uint8_t condition = 100;        // CRT-007: 0..100 maintenance/wear condition
     };
 
@@ -84,6 +87,10 @@ namespace OpenRCT2::Golf
         int64_t cartPrice = kDefaultCartPrice;
 
         CartSpace& addSpace(const FixedVec3& position);
+        // Makes the spaces the ones at the given positions (the cart bays of the map, CRT-002): a space that is still there
+        // keeps its cart, a new one is empty, and a space that is gone takes the cart parked in it along. A cart on its way
+        // back to a space that is gone looks for another.
+        void syncSpaces(const std::vector<FixedVec3>& positions);
         // CRT-002: the player buys carts; each is placed at a free parking space. Returns how many were placed (it can be
         // fewer than asked when the spaces run out) and the price paid.
         struct Purchase
@@ -146,6 +153,7 @@ namespace OpenRCT2::Golf
         void serviceCart(uint32_t cartId);
 
     private:
+        friend struct GolfSaveAccess;
         CartSpace* nearestFreeSpace(const FixedVec3& from);
 
         std::vector<CartSpace> _spaces;
