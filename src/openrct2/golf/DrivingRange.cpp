@@ -22,6 +22,12 @@ namespace OpenRCT2::Golf
         constexpr int32_t kSwingTicks = 30;
         constexpr int32_t kMaxFlightTicks = 2000;
         constexpr int32_t kWalkSpeedHundredths = 288;
+
+        Fixed distanceXY(const FixedVec3& a, const FixedVec3& b)
+        {
+            const FixedVec3 d{ a.x - b.x, a.y - b.y, Fixed{} };
+            return length(d);
+        }
     } // namespace
 
     bool DrivingRange::containsArea(const HolePoint& p) const
@@ -254,6 +260,10 @@ namespace OpenRCT2::Golf
                 }
                 if (isSettled(s.ball.state) || s.phaseTicks > kMaxFlightTicks)
                 {
+                    if (s.landed)
+                    {
+                        _landedBalls.push_back(s.ball.position);
+                    }
                     s.ballsLeft--;
                     if (s.ballsLeft <= 0)
                     {
@@ -267,5 +277,83 @@ namespace OpenRCT2::Golf
             }
         }
         return false;
+    }
+
+    void RangeSimulation::deployPicker()
+    {
+        _picker.active = true;
+        if (_range.kiosk.has_value())
+        {
+            _picker.position = { Fixed::fromInt(_range.kiosk->x), Fixed::fromInt(_range.kiosk->y), Fixed{} };
+        }
+        else if (!_range.hittingTiles.empty())
+        {
+            _picker.position = { Fixed::fromInt(_range.hittingTiles[0].x), Fixed::fromInt(_range.hittingTiles[0].y), Fixed{} };
+        }
+    }
+
+    void RangeSimulation::recallPicker()
+    {
+        _picker.active = false;
+        if (_range.kiosk.has_value())
+        {
+            _picker.target = { Fixed::fromInt(_range.kiosk->x), Fixed::fromInt(_range.kiosk->y), Fixed{} };
+        }
+    }
+
+    void RangeSimulation::tickPicker()
+    {
+        if (!_picker.active)
+            return;
+
+        const Fixed speed = Fixed::ratio(150, 100);
+
+        if (_landedBalls.empty())
+        {
+            if (_range.kiosk.has_value())
+            {
+                _picker.target = { Fixed::fromInt(_range.kiosk->x), Fixed::fromInt(_range.kiosk->y), Fixed{} };
+                const FixedVec3 delta{ _picker.target.x - _picker.position.x, _picker.target.y - _picker.position.y, Fixed{} };
+                const Fixed dist = length(delta);
+                if (dist > speed)
+                {
+                    _picker.position.x += delta.x * speed / dist;
+                    _picker.position.y += delta.y * speed / dist;
+                }
+                else
+                {
+                    _picker.position = _picker.target;
+                }
+            }
+            return;
+        }
+
+        size_t bestIdx = 0;
+        Fixed bestDist{};
+        for (size_t i = 0; i < _landedBalls.size(); i++)
+        {
+            const Fixed d = distanceXY(_picker.position, _landedBalls[i]);
+            if (i == 0 || d < bestDist)
+            {
+                bestDist = d;
+                bestIdx = i;
+            }
+        }
+
+        _picker.target = _landedBalls[bestIdx];
+        const FixedVec3 delta{ _picker.target.x - _picker.position.x, _picker.target.y - _picker.position.y, Fixed{} };
+        const Fixed dist = length(delta);
+
+        if (dist <= Fixed::fromInt(4) || dist <= speed)
+        {
+            _landedBalls.erase(_landedBalls.begin() + bestIdx);
+            _picker.collectedBalls++;
+            _picker.position = _picker.target;
+        }
+        else
+        {
+            _picker.position.x += delta.x * speed / dist;
+            _picker.position.y += delta.y * speed / dist;
+        }
     }
 } // namespace OpenRCT2::Golf

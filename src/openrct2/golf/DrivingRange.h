@@ -43,6 +43,15 @@ namespace OpenRCT2::Golf
         bool containsArea(const HolePoint& p) const;
     };
 
+    // DRV-007: Ball picker staff/vehicle collects balls on the range
+    struct BallPicker
+    {
+        FixedVec3 position{};
+        FixedVec3 target{};
+        bool active = false;
+        int32_t collectedBalls = 0;
+    };
+
     // DRV-004: the distance a sign shows: from the kiosk to the sign, an integer rounded to 5, in yards or metres.
     enum class DistanceUnit : uint8_t
     {
@@ -116,6 +125,23 @@ namespace OpenRCT2::Golf
             return _income;
         }
 
+        // DRV-007: Ball picker staff / vehicle simulation
+        const BallPicker& picker() const
+        {
+            return _picker;
+        }
+        void deployPicker();
+        void recallPicker();
+        void tickPicker();
+        int32_t uncollectedBalls() const
+        {
+            return static_cast<int32_t>(_landedBalls.size());
+        }
+        void addLandedBall(const FixedVec3& pos)
+        {
+            _landedBalls.push_back(pos);
+        }
+
     private:
         struct Session
         {
@@ -143,5 +169,7 @@ namespace OpenRCT2::Golf
         std::vector<bool> _tileTaken;
         std::vector<RangeEvent> _events;
         int64_t _income = 0;
+        BallPicker _picker;
+        std::vector<FixedVec3> _landedBalls;
     };
 } // namespace OpenRCT2::Golf

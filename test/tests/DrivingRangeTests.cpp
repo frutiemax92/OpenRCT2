@@ -305,3 +305,33 @@ TEST(RangeSimulation, LeavingEarlyFreesTheTile)
     rig.sim.leave(99);
     EXPECT_TRUE(rig.sim.tick(g)); // not on the range any more: done
 }
+
+TEST(RangeSimulation, BallPickerCollectsLandedBalls)
+{
+    Rig rig(makeRange(3));
+    EXPECT_FALSE(rig.sim.picker().active);
+    EXPECT_EQ(rig.sim.picker().collectedBalls, 0);
+
+    // Deploy ball picker
+    rig.sim.deployPicker();
+    EXPECT_TRUE(rig.sim.picker().active);
+
+    // Place a couple of landed balls on the range
+    rig.sim.addLandedBall(vec(25 * 32, 25 * 32, 0));
+    rig.sim.addLandedBall(vec(30 * 32, 25 * 32, 0));
+    EXPECT_EQ(rig.sim.uncollectedBalls(), 2);
+
+    // Advance ticks for picker to reach and collect balls
+    for (int t = 0; t < 1000 && rig.sim.uncollectedBalls() > 0; t++)
+    {
+        rig.sim.tickPicker();
+    }
+
+    EXPECT_EQ(rig.sim.uncollectedBalls(), 0);
+    EXPECT_EQ(rig.sim.picker().collectedBalls, 2);
+
+    // Recall picker
+    rig.sim.recallPicker();
+    EXPECT_FALSE(rig.sim.picker().active);
+}
+
