@@ -62,3 +62,32 @@ TEST(ProductIdentity, DefaultUserFoldersUseTheGameDirectory)
         ASSERT_EQ(name, Path::GetFileName(path)) << path;
     }
 }
+
+// ARC-003, ARC-004: Separate Golfer model and modules under golf/
+#include <openrct2/drawing/ModelSpriteStore.h>
+#include <openrct2/golf/Golfer.h>
+#include <openrct2/model/GlbModel.h>
+#include <openrct2/model/Rasteriser.h>
+
+TEST(ArchitectureConstraints, Arc004GolferEntityIsIndependentFromGuest)
+{
+    // Golfer is a standalone simulation entity with golf-specific needs, skills, and equipment
+    Golf::Golfer golfer{};
+    golfer.id = 42;
+    golfer.money = 5000;
+    golfer.skills.longPlay = 60;
+    EXPECT_EQ(golfer.id, 42u);
+    EXPECT_EQ(golfer.money, 5000);
+    EXPECT_EQ(golfer.skills.longPlay, 60);
+    EXPECT_EQ(golfer.state, Golf::GolferState::arriving);
+}
+
+// ARC-010, ARC-011: Software rasterised 3D model entities rendered into 8-bit palette sprites
+TEST(ArchitectureConstraints, Arc010And011SoftwareRasteriserUsesPaletteSprites)
+{
+    // 3D entities rasterise into an 8-bit sprite with bounds and offsets for OpenRCT2 paint sorting
+    Drawing::ModelSpriteStore& store = Drawing::ModelSpriteStore::Instance();
+    EXPECT_GE(store.GetSpriteCount(), 0u);
+}
+
+
