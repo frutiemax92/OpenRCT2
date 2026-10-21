@@ -10,12 +10,14 @@
 #pragma once
 
 #include "../core/Money.hpp"
+#include "../audio/Audio.h"
 #include "GolfDirector.h"
 #include "MapBallWorld.h"
 #include "MapObstacles.h"
 #include "StreetNetwork.h"
 #include "Traffic.h"
 
+#include <functional>
 #include <memory>
 #include <unordered_map>
 
@@ -63,8 +65,18 @@ namespace OpenRCT2::Golf
         {
             return _scan.hasClub;
         }
+        // Where the sounds of the course go (section 21). By default they are played in the world with the spatial audio
+        // model; a test replaces it. `where` is a map position.
+        using SoundSink = std::function<void(Audio::SoundId, const CoordsXYZ& where)>;
+        void setSoundSink(SoundSink sink)
+        {
+            _sound = std::move(sink);
+        }
+
         // Tells the player about what the golfers did (GLF-042): a rage quit becomes a news item.
         void announce(const SimEvent& event);
+        // The sound an event makes, if any (AUD-001, AUD-006).
+        void sound(const SimEvent& event);
 
         // True when the map has streets with a road entrance and a parking lot, so groups arrive by car (STE-021).
         bool hasCarTraffic() const
@@ -121,6 +133,7 @@ namespace OpenRCT2::Golf
         std::unordered_map<uint32_t, std::vector<uint32_t>> _carGolfers;  // car id -> the golfers it brought
         std::unordered_map<uint32_t, uint16_t> _cartEntities;             // cart id -> entity id
         std::unordered_map<uint64_t, uint16_t> _ballEntities;             // golfer id (range balls: | 1 << 32) -> entity id
+        SoundSink _sound;
         Ledger _paid; // what of the director's income has reached the cash of the park
     };
 

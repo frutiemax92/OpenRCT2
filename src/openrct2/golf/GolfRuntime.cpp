@@ -16,6 +16,7 @@
 #include "../localisation/StringIds.h"
 #include "../management/Finance.h"
 #include "../management/NewsItem.h"
+#include "Clubs.h"
 #include "../entity/EntityRegistry.h"
 #include "../entity/GolferEntity.h"
 #include "../object/BuildingObject.h"
@@ -210,8 +211,46 @@ namespace OpenRCT2::Golf
         return getGameState().entities.getEntity<GolferEntity>(EntityId::FromUnderlying(it->second));
     }
 
+    // AUD-006: swings, putts, the ball dropping into the cup, and the crowd.
+    void GolfRuntime::sound(const SimEvent& event)
+    {
+        Audio::SoundId id = Audio::SoundId::null;
+        switch (event.type)
+        {
+            case SimEvent::Type::shotHit:
+            {
+                const auto club = static_cast<ClubId>(event.value);
+                if (club == ClubId::putter || club == ClubId::miniPutter)
+                    id = Audio::SoundId::putt;
+                else if (club == ClubId::driver || club == ClubId::wood3 || club == ClubId::wood5)
+                    id = Audio::SoundId::driverSwing;
+                else
+                    id = Audio::SoundId::ironSwing;
+                break;
+            }
+            case SimEvent::Type::holeFinished:
+                // The ball drops into the cup; a birdie or better gets a hand.
+                id = event.value <= -1 ? Audio::SoundId::crowdClap : Audio::SoundId::cupDrop;
+                break;
+            case SimEvent::Type::rageQuit:
+                id = Audio::SoundId::golferInsultGrumble;
+                break;
+            default:
+                return;
+        }
+        const auto known = _known.find(event.golferId);
+        if (known == _known.end())
+            return;
+        const CoordsXYZ where{ known->second.x, known->second.y, 0 };
+        if (_sound)
+            _sound(id, where);
+        else
+            Audio::PlaySpatial(id, where);
+    }
+
     void GolfRuntime::announce(const SimEvent& event)
     {
+        sound(event);
         if (event.type != SimEvent::Type::rageQuit)
             return;
         const auto known = _known.find(event.golferId);

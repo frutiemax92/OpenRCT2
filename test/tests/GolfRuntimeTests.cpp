@@ -940,3 +940,69 @@ TEST(GolfRuntimeTests, TheBallOfAGolferInPlayIsDrawnAndGoneWhenHoled)
     // The round is over: no ball is left on the map.
     EXPECT_EQ(gameState.entities.getEntityListCount(EntityType::golfBall), 0u);
 }
+
+TEST(GolfRuntimeTests, SwingsPuttsAndTheCupMakeTheirSounds)
+{
+    auto context = startPark();
+    ASSERT_NE(context.get(), nullptr);
+    auto& gameState = getGameState();
+    gameState.cheats.sandboxMode = true;
+    ObjectEntryIndex index{};
+    auto* club = loadClub(*context, index);
+    if (club == nullptr)
+        GTEST_SKIP() << "the club house object is not installed";
+    const auto found = findFlatBlock(3, 2);
+    ASSERT_TRUE(found.has_value());
+    insertPath(Building::GetEntrance(*club, *found, 0).outsideTile);
+    GameActions::BuildingPlaceAction place(*found, index, 0);
+    ASSERT_EQ(GameActions::ExecuteNested(&place, gameState).error, GameActions::Status::ok);
+    gameState.golf.createCourse("Links");
+    auto& runtime = Golf::runtimeOf(gameState);
+
+    Golf::GolfSimulation::Spawn spawn;
+    spawn.name = "Noisy";
+    spawn.position = { Fixed::fromInt(96), Fixed::fromInt(160), Fixed::fromInt(16) };
+    const uint32_t id = runtime.director().simulation().spawn(spawn).id;
+    runtime.update(0); // the runtime learns where the golfer is
+
+    std::vector<std::pair<Audio::SoundId, CoordsXYZ>> heard;
+    runtime.setSoundSink([&](Audio::SoundId sound, const CoordsXYZ& where) { heard.emplace_back(sound, where); });
+    auto event = [&](Golf::SimEvent::Type type, int32_t value) {
+        Golf::SimEvent e;
+        e.type = type;
+        e.golferId = id;
+        e.value = value;
+        runtime.announce(e);
+    };
+    event(Golf::SimEvent::Type::shotHit, static_cast<int32_t>(Golf::ClubId::driver));
+    event(Golf::SimEvent::Type::shotHit, static_cast<int32_t>(Golf::ClubId::wood3));
+    event(Golf::SimEvent::Type::shotHit, static_cast<int32_t>(Golf::ClubId::iron7));
+    event(Golf::SimEvent::Type::shotHit, static_cast<int32_t>(Golf::ClubId::pitchingWedge));
+    event(Golf::SimEvent::Type::shotHit, static_cast<int32_t>(Golf::ClubId::putter));
+    event(Golf::SimEvent::Type::shotHit, static_cast<int32_t>(Golf::ClubId::miniPutter));
+    event(Golf::SimEvent::Type::holeFinished, 0);
+    event(Golf::SimEvent::Type::holeFinished, -2);
+    event(Golf::SimEvent::Type::rageQuit, 4);
+    // Other events are silent.
+    event(Golf::SimEvent::Type::ballSettled, 0);
+    event(Golf::SimEvent::Type::paidFee, 500);
+    event(Golf::SimEvent::Type::thought, 0);
+
+    using Audio::SoundId;
+    const std::vector<SoundId> expected = { SoundId::driverSwing, SoundId::driverSwing, SoundId::ironSwing, SoundId::ironSwing,
+                                            SoundId::putt,        SoundId::putt,        SoundId::cupDrop,   SoundId::crowdClap,
+                                            SoundId::golferInsultGrumble };
+    ASSERT_EQ(heard.size(), expected.size());
+    for (size_t i = 0; i < expected.size(); i++)
+        EXPECT_EQ(heard[i].first, expected[i]) << "sound " << i;
+    // The sounds come from where the golfer is.
+    EXPECT_NEAR(heard[0].second.x, 96, 12);
+    EXPECT_NEAR(heard[0].second.y, 160, 12);
+
+    // An unknown golfer makes no sound.
+    Golf::SimEvent stranger;
+    stranger.type = Golf::SimEvent::Type::shotHit;
+    stranger.golferId = 12345;
+    runtime.announce(stranger);
+    EXPECT_EQ(heard.size(), expected.size());
+}

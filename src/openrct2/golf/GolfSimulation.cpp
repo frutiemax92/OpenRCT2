@@ -1166,7 +1166,7 @@ namespace OpenRCT2::Golf
                 applyShot(g.ball, shot);
                 g.score.addShot();
                 drainSwing(g.needs, r.skills.physique);
-                emit(SimEvent::Type::shotHit, g);
+                emit(SimEvent::Type::shotHit, g, static_cast<int32_t>(r.club));
                 setState(g, GolferState::watchingBall);
                 break;
             }
@@ -1428,7 +1428,7 @@ namespace OpenRCT2::Golf
                 }
                 else if (event.type == RangeEvent::Type::ballHit)
                 {
-                    emit(SimEvent::Type::shotHit, *golfer);
+                    emit(SimEvent::Type::shotHit, *golfer, static_cast<int32_t>(ClubId::driver));
                 }
             }
         }

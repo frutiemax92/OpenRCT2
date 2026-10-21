@@ -69,7 +69,7 @@ namespace OpenRCT2::Golf
         enum class Type : uint8_t
         {
             teedOff,
-            shotHit,        // a golfer hit a ball (sound, animation)
+            shotHit,        // a golfer hit a ball (sound, animation); value = the club (ClubId)
             ballSettled,
             holeFinished,   // value = strokes against par
             thought,
