@@ -218,6 +218,7 @@ void SmallSceneryObject::PerformFixes()
                     { "SMALL_SCENERY_FLAG27", SmallSceneryFlag::flag27 },
                     { "isTree", SmallSceneryFlag::isTree },
                     { "hasTertiaryColour", SmallSceneryFlag::hasTertiaryColour },
+                    { "isDistanceSign", SmallSceneryFlag::isDistanceSign },
                 });
 
             // Determine shape flags from a shape string

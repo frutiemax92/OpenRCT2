@@ -25,6 +25,7 @@ namespace OpenRCT2::GameActions
         setPrice,         // value = the price of a bucket (DRV-005)
         setBalls,         // value = balls in a bucket, 1..100 (DRV-005)
         setDirection,     // value = degrees 0..359 golfers shoot in; the default is towards the middle of the area
+        autoDirection,    // back to aiming towards the middle of the area
     };
 
     struct RangeEditResult

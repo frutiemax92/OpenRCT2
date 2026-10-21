@@ -20,6 +20,9 @@
 #include "../entity/GolferEntity.h"
 #include "../object/BuildingObject.h"
 #include "../object/PathAdditionEntry.h"
+#include "../object/SmallSceneryEntry.h"
+#include "../world/tile_element/SmallSceneryElement.h"
+#include "DrivingRange.h"
 #include "../world/tile_element/PathElement.h"
 #include "../scenario/Scenario.h"
 #include "../world/Map.h"
@@ -86,6 +89,14 @@ namespace OpenRCT2::Golf
                 }
                 continue;
             }
+            if (it.element != nullptr && it.element->getType() == TileElementType::smallScenery)
+            {
+                // DRV-004: distance signs are small scenery with the flag.
+                const auto* entry = it.element->asSmallScenery()->getEntry();
+                if (entry != nullptr && !it.element->isGhost() && entry->flags.has(SmallSceneryFlag::isDistanceSign))
+                    scan.distanceSigns.push_back({ it.x * kTileSize + kTileSize / 2, it.y * kTileSize + kTileSize / 2 });
+                continue;
+            }
             if (it.element == nullptr || it.element->getType() != TileElementType::building)
                 continue;
             const auto* element = it.element->asBuilding();
@@ -93,7 +104,11 @@ namespace OpenRCT2::Golf
             if (object == nullptr)
                 continue;
             if (element->getPartX() == 0 && element->getPartY() == 0)
+            {
                 scan.upkeepPerMonth += object->UpkeepPerMonth;
+                if (object->Kind == BuildingKind::drivingRangeKiosk && !element->isGhost())
+                    scan.kiosks.push_back({ it.x * kTileSize + kTileSize / 2, it.y * kTileSize + kTileSize / 2 });
+            }
             if (!object->HasEntrance)
                 continue;
             // Only the part that holds the entrance is the door.
@@ -479,9 +494,42 @@ namespace OpenRCT2::Golf
         }
     }
 
+    // DRV-001, DRV-004: the kiosk and the distance signs of a range are the ones on the map inside its area; the signs show
+    // the distance from the kiosk. The direction follows the hitting tiles until the player sets one.
+    void GolfRuntime::refreshRanges()
+    {
+        for (auto& range : getGameState().golf.ranges())
+        {
+            std::optional<HolePoint> kiosk;
+            for (const auto& candidate : _scan.kiosks)
+            {
+                if (range.containsArea(candidate))
+                {
+                    kiosk = candidate;
+                    break;
+                }
+            }
+            range.kiosk = kiosk;
+            range.signs.clear();
+            for (const auto& position : _scan.distanceSigns)
+            {
+                if (!range.containsArea(position))
+                    continue;
+                DistanceSign sign;
+                sign.id = static_cast<uint32_t>((position.y >> 5) * 1024 + (position.x >> 5) + 1);
+                sign.position = position;
+                sign.distance = kiosk.has_value() ? signDistance(*kiosk, position) : 0;
+                range.signs.push_back(sign);
+            }
+            if (range.autoDirection)
+                range.shootingDirectionDegrees = defaultShootingDirection(range);
+        }
+    }
+
     void GolfRuntime::refreshBuildings()
     {
         _scan = scanBuildings();
+        refreshRanges();
         // The cart bays of the map are the spaces of the fleet, and parked carts charge.
         {
             std::vector<FixedVec3> positions;

@@ -1011,6 +1011,7 @@ namespace OpenRCT2
                         cs.readWrite(range.bucketPrice);
                         cs.readWrite(range.ballsPerBucket);
                         cs.readWrite(range.shootingDirectionDegrees);
+                        cs.readWrite(range.autoDirection);
                         ReadWriteHolePoint(cs, range.kiosk);
                         uint32_t tileCount = static_cast<uint32_t>(range.hittingTiles.size());
                         cs.readWrite(tileCount);
@@ -1030,6 +1031,7 @@ namespace OpenRCT2
                             cs.readWrite(sign.id);
                             cs.readWrite(sign.position.x);
                             cs.readWrite(sign.position.y);
+                            cs.readWrite(sign.distance);
                         }
                     }
                 }

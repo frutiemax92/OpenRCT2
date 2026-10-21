@@ -32,6 +32,9 @@
 #include <openrct2/world/Building.h>
 #include <openrct2/world/Footpath.h>
 #include <openrct2/actions/golf/CartEditAction.h>
+#include <openrct2/actions/golf/RangeEditAction.h>
+#include <openrct2/actions/scenery/SmallSceneryPlaceAction.h>
+#include <openrct2/golf/DrivingRange.h>
 #include <openrct2/actions/scenery/ParkingPlaceAction.h>
 #include <openrct2/world/Parking.h>
 #include <openrct2/world/Street.h>
@@ -780,4 +783,72 @@ TEST(GolfRuntimeTests, CartsAreBoughtIntoTheBaysOfTheMapAndDrawn)
     EXPECT_EQ(fleet.cartCount(), 0);
     runtime.update(Golf::kTicksPerGameMinute + 1);
     EXPECT_EQ(gameState.entities.getEntityListCount(EntityType::golfVehicle), 0u);
+}
+
+TEST(GolfRuntimeTests, ARangeFindsItsKioskAndDistanceSignsAndAimsAtTheMiddle)
+{
+    auto context = startPark();
+    ASSERT_NE(context.get(), nullptr);
+    auto& gameState = getGameState();
+    gameState.cheats.sandboxMode = true;
+    gameState.mapSize = { 60, 60 };
+    auto& objectManager = context->GetObjectManager();
+    auto* kioskObject = objectManager.LoadObject("golf.building.driving_range_kiosk");
+    auto* signObject = objectManager.LoadObject("golf.scenery_small.distance_sign");
+    if (kioskObject == nullptr || signObject == nullptr)
+        GTEST_SKIP() << "the range objects are not installed";
+    const auto kioskIndex = objectManager.GetLoadedObjectEntryIndex(kioskObject);
+    const auto signIndex = objectManager.GetLoadedObjectEntryIndex(signObject);
+
+    // A strip of bare ground: a 1 x 1 kiosk at the west end and signs along it.
+    const auto found = findFlatBlock(3, 2);
+    ASSERT_TRUE(found.has_value());
+    const auto* kiosk = BuildingObject::GetById(kioskIndex);
+    ASSERT_NE(kiosk, nullptr);
+    insertPath(Building::GetEntrance(*kiosk, *found, 0).outsideTile);
+    GameActions::BuildingPlaceAction placeKiosk(*found, kioskIndex, 0);
+    if (GameActions::ExecuteNested(&placeKiosk, gameState).error != GameActions::Status::ok)
+        GTEST_SKIP() << "no room for the kiosk";
+    const CoordsXY signTile{ found->x + 64, found->y + 32 };
+    const CoordsXYZD signAt{ signTile.x + 16, signTile.y + 16, MapGetSurfaceElementAt(signTile)->getBaseZ(), 0 };
+    GameActions::SmallSceneryPlaceAction placeSign(
+        signAt, 0, signIndex, Drawing::Colour::black, Drawing::Colour::black, Drawing::Colour::black);
+    if (GameActions::ExecuteNested(&placeSign, gameState).error != GameActions::Status::ok)
+        GTEST_SKIP() << "no room for the sign";
+
+    // A range around both, and one that has nothing in it.
+    GameActions::RangeEditAction around(
+        GameActions::RangeEditType::create, 0, { found->x - 32, found->y - 32 }, { found->x + 128, found->y + 96 });
+    const auto id = GameActions::ExecuteNested(&around, gameState).getData<GameActions::RangeEditResult>().rangeId;
+    GameActions::RangeEditAction empty(GameActions::RangeEditType::create, 0, { 0, 0 }, { 0, 0 });
+    const auto emptyId = GameActions::ExecuteNested(&empty, gameState).getData<GameActions::RangeEditResult>().rangeId;
+    GameActions::RangeEditAction tile(GameActions::RangeEditType::addHittingTile, id, { found->x + 96, found->y });
+    ASSERT_EQ(GameActions::ExecuteNested(&tile, gameState).error, GameActions::Status::ok);
+
+    auto& runtime = Golf::runtimeOf(gameState);
+    runtime.update(0);
+    const auto* range = gameState.golf.findRange(id);
+    ASSERT_TRUE(range->kiosk.has_value());
+    EXPECT_EQ(range->kiosk->x, found->x + 16);
+    ASSERT_EQ(range->signs.size(), 1u);
+    EXPECT_EQ(range->signs[0].position.x, signTile.x + 16);
+    // 4 tiles from the kiosk is 20 yards.
+    EXPECT_EQ(range->signs[0].distance, Golf::signDistance(*range->kiosk, range->signs[0].position));
+    EXPECT_GT(range->signs[0].distance, 0);
+    // The hitting tile is east of the middle of the area, so the golfers shoot back west (about 180 degrees).
+    EXPECT_NEAR(range->shootingDirectionDegrees, 180, 90);
+    // The other range found nothing.
+    const auto* other = gameState.golf.findRange(emptyId);
+    EXPECT_FALSE(other->kiosk.has_value());
+    EXPECT_TRUE(other->signs.empty());
+
+    // Once the player sets a direction it stays.
+    GameActions::RangeEditAction aim(GameActions::RangeEditType::setDirection, id, {}, {}, 45);
+    ASSERT_EQ(GameActions::ExecuteNested(&aim, gameState).error, GameActions::Status::ok);
+    runtime.update(Golf::kTicksPerGameMinute);
+    EXPECT_EQ(gameState.golf.findRange(id)->shootingDirectionDegrees, 45);
+    GameActions::RangeEditAction automatic(GameActions::RangeEditType::autoDirection, id);
+    ASSERT_EQ(GameActions::ExecuteNested(&automatic, gameState).error, GameActions::Status::ok);
+    runtime.update(2 * Golf::kTicksPerGameMinute);
+    EXPECT_NE(gameState.golf.findRange(id)->shootingDirectionDegrees, 45);
 }

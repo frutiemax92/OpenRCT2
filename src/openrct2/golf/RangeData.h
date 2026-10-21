@@ -23,6 +23,7 @@ namespace OpenRCT2::Golf
     {
         uint32_t id = 0;
         HolePoint position;
+        int32_t distance = 0; // from the kiosk, in yards rounded to five (DRV-004)
     };
 
     struct DrivingRange
@@ -36,6 +37,7 @@ namespace OpenRCT2::Golf
         int64_t bucketPrice = 300;
         int32_t ballsPerBucket = 30;           // DRV-005
         int32_t shootingDirectionDegrees = 0;  // 0 = +x, 90 = +y: where the golfers aim
+        bool autoDirection = true;             // aim from the hitting tiles towards the middle of the area until the player says otherwise
 
         bool containsArea(const HolePoint& p) const;
         bool containsTile(const TileCoordsXY& tile) const

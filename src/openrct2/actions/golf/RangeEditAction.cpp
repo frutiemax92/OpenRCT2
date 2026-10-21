@@ -188,6 +188,10 @@ namespace OpenRCT2::GameActions
                 break;
             case RangeEditType::setDirection:
                 range->shootingDirectionDegrees = static_cast<int32_t>(_value);
+                range->autoDirection = false;
+                break;
+            case RangeEditType::autoDirection:
+                range->autoDirection = true;
                 break;
             default:
                 break;

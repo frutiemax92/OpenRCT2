@@ -593,7 +593,7 @@ def small_scenery_view(colour, is_cylinder=False):
 
 
 def small_scenery(name, description, shape_str, height, price, removal_price,
-                  collision, colour, palette, rotatable=False):
+                  collision, colour, palette, rotatable=False, distance_sign=False):
     images = {}
     table = []
     num_views = 4 if rotatable else 1
@@ -612,6 +612,8 @@ def small_scenery(name, description, shape_str, height, price, removal_price,
         "isRotatable": rotatable,
         "collision": collision,
     }
+    if distance_sign:
+        properties["isDistanceSign"] = True
     data = manifest("golf.scenery_small." + name, "scenery_small", description, properties, table)
     return object_files(data, images)
 
@@ -804,6 +806,14 @@ def build(layout=None, palette=None):
         small_scenery("ramp", "Mini-putt ramp", "4/4", 1, 80, 20,
                       {"shape": "box", "footprintX": 32, "footprintY": 32, "height": 8, "restitution": 0.50, "friction": 0.20},
                       (0x30, 0x60, 0xC0), palette, rotatable=True))
+    out["scenery_small/golf.scenery_small.distance_sign.parkobj"] = pack(
+        small_scenery("distance_sign", "Driving range distance sign", "1/4", 14, 40, 8,
+                      {"shape": "cylinder", "radius": 2, "height": 14, "restitution": 0.50, "friction": 0.20},
+                      (0xF0, 0xF0, 0xF0), palette, rotatable=False, distance_sign=True))
+    out["wall/golf.wall.fishnet.parkobj"] = pack(
+        wall("fishnet", "Driving range fishnet", 48, 60,
+             {"shape": "box", "height": 48, "restitution": 0.05, "friction": 0.30},
+             (0x40, 0x70, 0x40), palette))
     out["wall/golf.wall.low_wall.parkobj"] = pack(
         wall("low_wall", "Mini-putt border wall", 1, 20,
              {"shape": "box", "height": 8, "restitution": 0.85, "friction": 0.15},

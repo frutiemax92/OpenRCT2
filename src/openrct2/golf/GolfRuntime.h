@@ -33,6 +33,8 @@ namespace OpenRCT2::Golf
         bool hasClub = false;
         FixedVec3 club;                 // the entrance of the first golf club
         std::vector<Service> services;  // food trucks, restrooms, the pro shop of the club
+        std::vector<HolePoint> kiosks;       // driving range kiosks (DRV-001)
+        std::vector<HolePoint> distanceSigns; // driving range distance signs (DRV-004)
         std::vector<FixedVec3> pathPoints; // the middle of every path tile, where carts may stop (CRT-004)
         money64 upkeepPerMonth = 0;     // upkeep of every building (ECO-011)
         std::vector<Bench> benches;     // path additions that are benches (PTH-021)
@@ -85,6 +87,7 @@ namespace OpenRCT2::Golf
         class GameRandom;
         void syncEntities();
         void syncCarts();
+        void refreshRanges();
         // The streets and parking lots of the map, and the cars on them (STE-020 to STE-022).
         void refreshTraffic();
         void driveTraffic();

@@ -158,6 +158,8 @@ class ObjectTests(unittest.TestCase):
         expected.add("scenery_small/golf.scenery_small.bumper.parkobj")
         expected.add("scenery_small/golf.scenery_small.ramp.parkobj")
         expected.add("wall/golf.wall.low_wall.parkobj")
+        expected.add("wall/golf.wall.fishnet.parkobj")
+        expected.add("scenery_small/golf.scenery_small.distance_sign.parkobj")
         expected.add("vehicle_model/golf.vehicle_model.golf_cart.parkobj")
         expected.add("vehicle_model/golf.vehicle_model.car.parkobj")
         expected.add("golfer_model/golf.golfer_model.standard.parkobj")

@@ -56,6 +56,8 @@ namespace OpenRCT2
         // Added by OpenRCT2:
         isTree,
         hasTertiaryColour,
+        // Golf: a driving range distance sign, which shows the distance from the kiosk (DRV-004)
+        isDistanceSign,
     };
     using SmallSceneryFlags = FlagHolder<uint32_t, SmallSceneryFlag>;
 
