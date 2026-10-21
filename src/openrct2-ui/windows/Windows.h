@@ -91,6 +91,9 @@ namespace OpenRCT2::Ui::Windows
     // ShotTool
     WindowBase* ShotToolOpen();
 
+    // Golfer window (section 13.7), opened for the entity that shows the golfer
+    WindowBase* GolferOpen(EntityId golferEntity);
+
     // Course (HOL-012)
     WindowBase* CourseOpen(uint32_t courseId = 0);
 

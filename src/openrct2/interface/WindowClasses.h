@@ -100,6 +100,7 @@ namespace OpenRCT2
         modelViewer = 142,
         shotTool = 143,
         course = 144,
+        golfer = 145,
 
         // Only used for colour schemes
         staff = 220,

@@ -236,6 +236,9 @@ namespace OpenRCT2::Ui
                         }
                     }
                     break;
+                    case EntityType::golfer:
+                        Windows::GolferOpen(entity->id);
+                        break;
                     default:
                         break;
                 }
