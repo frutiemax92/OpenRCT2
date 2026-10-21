@@ -60,14 +60,16 @@ namespace OpenRCT2::Golf
             if (it.element != nullptr && it.element->getType() == TileElementType::path)
             {
                 const auto* path = it.element->asPath();
+                const FixedVec3 centre{ Fixed::fromInt(it.x * kTileSize + kTileSize / 2),
+                                        Fixed::fromInt(it.y * kTileSize + kTileSize / 2),
+                                        Fixed::fromInt(path->getBaseZ()) };
+                if (!path->isGhost())
+                    scan.pathPoints.push_back(centre);
                 const auto* addition = path->hasAddition() && !path->additionIsGhost() ? path->getAdditionEntry() : nullptr;
                 if (addition == nullptr)
                     continue;
                 // The id is the tile, so a bench keeps its occupants and a bin its rubbish from one scan to the next.
                 const uint32_t id = static_cast<uint32_t>(it.y) * 1024u + static_cast<uint32_t>(it.x) + 1u;
-                const FixedVec3 centre{ Fixed::fromInt(it.x * kTileSize + kTileSize / 2),
-                                        Fixed::fromInt(it.y * kTileSize + kTileSize / 2),
-                                        Fixed::fromInt(path->getBaseZ()) };
                 if (addition->flags.has(PathAdditionFlag::isBench))
                 {
                     Bench bench;
@@ -149,6 +151,7 @@ namespace OpenRCT2::Golf
         sources.exitPoint = [this] { return _scan.club; };
         sources.carArrival = [this](const std::vector<uint32_t>& ids, uint32_t group) { return receiveCar(ids, group); };
         sources.weather = [&gameState] { return gameState.weatherCurrent.weatherType; };
+        env.pathPoints = [this] { return _scan.pathPoints; };
         _director = std::make_unique<GolfDirector>(env, sources);
         refreshBuildings();
         if (!gameState.golfSimulationData.empty())
@@ -432,9 +435,61 @@ namespace OpenRCT2::Golf
         }
     }
 
+    // CRT-002: the carts stand in the cart bays of the map; they are always drawn, parked or moving, and they are obstacles
+    // for the balls (CRT-006).
+    void GolfRuntime::syncCarts()
+    {
+        auto& fleet = _director->fleet;
+        auto& entities = getGameState().entities;
+        for (const auto& cart : fleet.carts())
+        {
+            const CoordsXYZ where{ static_cast<int32_t>(cart.position.x.floor()), static_cast<int32_t>(cart.position.y.floor()),
+                                   static_cast<int32_t>(cart.position.z.floor()) };
+            GolfVehicleEntity* entity = nullptr;
+            if (auto it = _cartEntities.find(cart.id); it != _cartEntities.end())
+                entity = entities.getEntity<GolfVehicleEntity>(EntityId::FromUnderlying(it->second));
+            if (entity == nullptr)
+            {
+                entity = GolfVehicleEntity::create(GolfVehicleEntity::Kind::cart, cart.id, where);
+                if (entity == nullptr)
+                    continue;
+                _cartEntities[cart.id] = entity->id.ToUnderlying();
+                // A parked cart faces out of its bay; the bay's facing is not kept, so it starts facing the way it moves.
+                entity->follow(where, 0);
+            }
+            else
+            {
+                // Face the way it drives; a cart standing still keeps its heading.
+                entity->follow(where, -1);
+            }
+            GetMapObstacles().setDynamic(0x50000000u + cart.id, CartFleet::obstacleOf(cart));
+        }
+        // Carts that are gone (a bay was taken away) lose their entity.
+        for (auto it = _cartEntities.begin(); it != _cartEntities.end();)
+        {
+            if (fleet.find(it->first) != nullptr)
+            {
+                ++it;
+                continue;
+            }
+            if (auto* entity = entities.getEntity<GolfVehicleEntity>(EntityId::FromUnderlying(it->second)))
+                entity->remove();
+            GetMapObstacles().removeDynamic(0x50000000u + it->first);
+            it = _cartEntities.erase(it);
+        }
+    }
+
     void GolfRuntime::refreshBuildings()
     {
         _scan = scanBuildings();
+        // The cart bays of the map are the spaces of the fleet, and parked carts charge.
+        {
+            std::vector<FixedVec3> positions;
+            for (const auto& bay : Parking::FindCartBays())
+                positions.push_back({ Fixed::fromInt(bay.x), Fixed::fromInt(bay.y), Fixed::fromInt(bay.z) });
+            _director->fleet.syncSpaces(positions);
+            _director->fleet.rechargeParkedCarts();
+        }
         auto& env = _director->simulation().environment();
         env.clubEntrance = _scan.club;
         env.exit = _scan.club;
@@ -471,6 +526,8 @@ namespace OpenRCT2::Golf
             _world.useGameWind();
             refreshBuildings();
         }
+        // Carts are drawn wherever they stand, club or no club.
+        syncCarts();
         if (!_scan.hasClub)
             return;
         if (ticks % kTicksPerGameMinute == 0)

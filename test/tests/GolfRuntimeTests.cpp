@@ -31,9 +31,11 @@
 #include <openrct2/world/MapAnimation.h>
 #include <openrct2/world/Building.h>
 #include <openrct2/world/Footpath.h>
+#include <openrct2/actions/golf/CartEditAction.h>
 #include <openrct2/actions/scenery/ParkingPlaceAction.h>
 #include <openrct2/world/Parking.h>
 #include <openrct2/world/Street.h>
+#include <openrct2/actions/scenery/ParkingRemoveAction.h>
 #include <openrct2/actions/scenery/StreetPlaceAction.h>
 #include <openrct2/actions/scenery/StreetRoadEntranceAction.h>
 #include <openrct2/entity/GolfVehicleEntity.h>
@@ -708,4 +710,74 @@ TEST(GolfRuntimeTests, EveryCarDrivesAwayOnceItsGroupHasLeft)
         EXPECT_EQ(car.state, Golf::CarState::gone);
     EXPECT_EQ(gameState.entities.getEntityListCount(EntityType::golfVehicle), 0u);
     EXPECT_EQ(runtime.traffic().freeSpaces(), runtime.traffic().capacity());
+}
+
+TEST(GolfRuntimeTests, CartsAreBoughtIntoTheBaysOfTheMapAndDrawn)
+{
+    auto context = startPark();
+    ASSERT_NE(context.get(), nullptr);
+    auto& gameState = getGameState();
+    gameState.cheats.sandboxMode = true;
+    gameState.mapSize = { 60, 60 };
+    auto& objectManager = context->GetObjectManager();
+    auto* road = objectManager.LoadObject("golf.street.road");
+    if (road == nullptr)
+        GTEST_SKIP() << "the street object is not installed";
+    const auto roadIndex = objectManager.GetLoadedObjectEntryIndex(road);
+    const auto found = findFlatBlock(3, 2);
+    ASSERT_TRUE(found.has_value());
+    const CoordsXY bay1{ found->x, found->y }, bay2{ found->x + 32, found->y };
+    for (const auto& bay : { bay1, bay2 })
+    {
+        GameActions::ParkingPlaceAction place(bay, roadIndex, 3, true);
+        ASSERT_EQ(GameActions::ExecuteNested(&place, gameState).error, GameActions::Status::ok);
+    }
+
+    auto& runtime = Golf::runtimeOf(gameState);
+    runtime.update(0); // learns the bays
+    auto& fleet = runtime.director().fleet;
+    ASSERT_EQ(fleet.spaceCount(), 2);
+    EXPECT_EQ(fleet.cartCount(), 0);
+    EXPECT_EQ(fleet.spaces()[0].position.x.floor(), bay1.x + 16);
+
+    // Buying five carts buys two: there are two bays. The price is paid.
+    const auto cash = gameState.park.cash;
+    GameActions::CartEditAction buy(GameActions::CartEditType::buy, 5);
+    const auto bought = GameActions::ExecuteNested(&buy, gameState);
+    ASSERT_EQ(bought.error, GameActions::Status::ok);
+    EXPECT_EQ(fleet.cartCount(), 2);
+    EXPECT_EQ(bought.cost, 2 * fleet.cartPrice);
+    // Another one has nowhere to stand.
+    GameActions::CartEditAction more(GameActions::CartEditType::buy, 1);
+    EXPECT_EQ(GameActions::Query(&more, gameState).error, GameActions::Status::disallowed);
+    GameActions::CartEditAction none(GameActions::CartEditType::buy, 0);
+    EXPECT_EQ(GameActions::Query(&none, gameState).error, GameActions::Status::invalidParameters);
+    (void)cash;
+
+    // CRT-002: parked carts are drawn, one entity each, and the bays do not go away.
+    runtime.update(1);
+    EXPECT_EQ(gameState.entities.getEntityListCount(EntityType::golfVehicle), 2u);
+
+    GameActions::CartEditAction fee(GameActions::CartEditType::setFee, 750);
+    ASSERT_EQ(GameActions::ExecuteNested(&fee, gameState).error, GameActions::Status::ok);
+    EXPECT_EQ(fleet.cartFee, 750);
+    GameActions::CartEditAction badFee(GameActions::CartEditType::setFee, -1);
+    EXPECT_EQ(GameActions::Query(&badFee, gameState).error, GameActions::Status::invalidParameters);
+
+    GameActions::CartEditAction sell(GameActions::CartEditType::sell, 1);
+    ASSERT_EQ(GameActions::ExecuteNested(&sell, gameState).error, GameActions::Status::ok);
+    EXPECT_EQ(fleet.cartCount(), 1);
+    runtime.update(2);
+    EXPECT_EQ(gameState.entities.getEntityListCount(EntityType::golfVehicle), 1u);
+
+    // Taking a bay away takes the cart that stood in it.
+    GameActions::ParkingRemoveAction removeBay1(bay1);
+    GameActions::ParkingRemoveAction removeBay2(bay2);
+    ASSERT_EQ(GameActions::ExecuteNested(&removeBay1, gameState).error, GameActions::Status::ok);
+    ASSERT_EQ(GameActions::ExecuteNested(&removeBay2, gameState).error, GameActions::Status::ok);
+    runtime.update(Golf::kTicksPerGameMinute); // the bays are looked at once a game minute
+    EXPECT_EQ(fleet.spaceCount(), 0);
+    EXPECT_EQ(fleet.cartCount(), 0);
+    runtime.update(Golf::kTicksPerGameMinute + 1);
+    EXPECT_EQ(gameState.entities.getEntityListCount(EntityType::golfVehicle), 0u);
 }

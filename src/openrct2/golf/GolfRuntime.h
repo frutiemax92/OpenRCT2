@@ -33,6 +33,7 @@ namespace OpenRCT2::Golf
         bool hasClub = false;
         FixedVec3 club;                 // the entrance of the first golf club
         std::vector<Service> services;  // food trucks, restrooms, the pro shop of the club
+        std::vector<FixedVec3> pathPoints; // the middle of every path tile, where carts may stop (CRT-004)
         money64 upkeepPerMonth = 0;     // upkeep of every building (ECO-011)
         std::vector<Bench> benches;     // path additions that are benches (PTH-021)
         std::vector<LitterBin> bins;    // path additions that are litter bins (PTH-022)
@@ -83,6 +84,7 @@ namespace OpenRCT2::Golf
     private:
         class GameRandom;
         void syncEntities();
+        void syncCarts();
         // The streets and parking lots of the map, and the cars on them (STE-020 to STE-022).
         void refreshTraffic();
         void driveTraffic();
@@ -113,6 +115,7 @@ namespace OpenRCT2::Golf
         uint32_t _nextSpaceId = 1;
         std::unordered_map<uint32_t, uint16_t> _carEntities;              // car id -> entity id
         std::unordered_map<uint32_t, std::vector<uint32_t>> _carGolfers;  // car id -> the golfers it brought
+        std::unordered_map<uint32_t, uint16_t> _cartEntities;             // cart id -> entity id
         Ledger _paid; // what of the director's income has reached the cash of the park
     };
 

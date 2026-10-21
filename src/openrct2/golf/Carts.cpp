@@ -48,6 +48,27 @@ namespace OpenRCT2::Golf
         return cartDesire(energy, physique, courseYards) + std::clamp(jitter, 0, 99) / 5 >= kWantCartThreshold;
     }
 
+    int32_t CartFleet::sellFreeCarts(int32_t count)
+    {
+        int32_t sold = 0;
+        for (auto it = _carts.begin(); it != _carts.end() && sold < count;)
+        {
+            if (it->state == CartState::parked)
+            {
+                for (auto& space : _spaces)
+                    if (space.cartId == it->id)
+                        space.cartId = 0;
+                it = _carts.erase(it);
+                sold++;
+            }
+            else
+            {
+                ++it;
+            }
+        }
+        return sold;
+    }
+
     CartSpace& CartFleet::addSpace(const FixedVec3& position)
     {
         CartSpace space;

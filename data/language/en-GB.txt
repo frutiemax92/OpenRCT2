@@ -3960,3 +3960,5 @@ STR_7166    :{SMALLFONT}{BLACK}Click a street tile at the edge of the map to mak
 STR_7167    :Turn the flow
 STR_7168    :Parking
 STR_7169    :Remove parking
+STR_7170    :Can't change the golf carts
+STR_7171    :There is no free cart bay

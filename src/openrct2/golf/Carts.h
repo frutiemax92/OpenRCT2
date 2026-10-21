@@ -105,6 +105,8 @@ namespace OpenRCT2::Golf
             return static_cast<int32_t>(_carts.size());
         }
         int32_t freeCarts() const;
+        // Sells up to `count` carts that stand parked and free; returns how many went (ECO-011).
+        int32_t sellFreeCarts(int32_t count);
         int32_t spaceCount() const
         {
             return static_cast<int32_t>(_spaces.size());

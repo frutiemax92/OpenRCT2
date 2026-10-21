@@ -112,6 +112,7 @@ namespace OpenRCT2
         setRoadEntrance,
         placeParking,
         removeParking,
+        editCarts,
         count,
     };
 }
