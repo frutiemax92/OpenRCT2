@@ -9,6 +9,7 @@
 
 #pragma once
 
+#include "../core/Money.hpp"
 #include "GolfDirector.h"
 #include "MapBallWorld.h"
 #include "MapObstacles.h"
@@ -30,6 +31,7 @@ namespace OpenRCT2::Golf
         bool hasClub = false;
         FixedVec3 club;                 // the entrance of the first golf club
         std::vector<Service> services;  // food trucks, restrooms, the pro shop of the club
+        money64 upkeepPerMonth = 0;     // upkeep of every building (ECO-011)
         std::vector<Bench> benches;     // path additions that are benches (PTH-021)
         std::vector<LitterBin> bins;    // path additions that are litter bins (PTH-022)
     };
@@ -67,6 +69,7 @@ namespace OpenRCT2::Golf
         class GameRandom;
         void syncEntities();
         void settleAccounts();
+        void payUpkeep();
         Ledger currentLedger() const;
         std::vector<Bench> mergeBenches() const;
         std::vector<LitterBin> mergeBins() const;
@@ -76,6 +79,7 @@ namespace OpenRCT2::Golf
         BuildingScan _scan;
         std::unique_ptr<GolfDirector> _director;
         std::unordered_map<uint32_t, uint16_t> _entityOf; // golfer id -> entity id
+        uint32_t _upkeepDay = 0xFFFFFFFFu; // the game day the upkeep was last paid
         Ledger _paid; // what of the director's income has reached the cash of the park
     };
 

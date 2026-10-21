@@ -83,7 +83,11 @@ namespace OpenRCT2::Golf
                 continue;
             const auto* element = it.element->asBuilding();
             const auto* object = element->getObject();
-            if (object == nullptr || !object->HasEntrance)
+            if (object == nullptr)
+                continue;
+            if (element->getPartX() == 0 && element->getPartY() == 0)
+                scan.upkeepPerMonth += object->UpkeepPerMonth;
+            if (!object->HasEntrance)
                 continue;
             // Only the part that holds the entrance is the door.
             if (element->getPartX() != object->EntranceTileX || element->getPartY() != object->EntranceTileY)
@@ -228,6 +232,19 @@ namespace OpenRCT2::Golf
         pay(_paid.cottageSales, now.cottageSales, ExpenditureType::landPurchase);
     }
 
+    // ECO-011: the buildings cost their upkeep, a thirtieth of the month each game day.
+    void GolfRuntime::payUpkeep()
+    {
+        const auto day = _director->currentDay();
+        if (day == _upkeepDay)
+            return;
+        const bool first = _upkeepDay == 0xFFFFFFFFu;
+        _upkeepDay = day;
+        if (first || _scan.upkeepPerMonth == 0)
+            return;
+        FinancePayment(_scan.upkeepPerMonth / 30, ExpenditureType::rideRunningCosts);
+    }
+
     void GolfRuntime::refreshBuildings()
     {
         _scan = scanBuildings();
@@ -272,6 +289,7 @@ namespace OpenRCT2::Golf
         _director->update(ticks);
         syncEntities();
         settleAccounts();
+        payUpkeep();
     }
 
     GolfRuntime& runtimeOf(GameState_t& gameState)

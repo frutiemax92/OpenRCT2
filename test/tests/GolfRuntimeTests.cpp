@@ -364,3 +364,34 @@ TEST(GolfRuntimeTests, GreenFeesReachTheCashOfThePark)
     EXPECT_GT(gameState.park.cash, cashBefore);
     EXPECT_EQ(gameState.park.cash - cashBefore, runtime.director().total().greenFees + runtime.director().today().greenFees);
 }
+
+TEST(GolfRuntimeTests, BuildingsCostTheirUpkeepEachGameDay)
+{
+    auto context = startPark();
+    ASSERT_NE(context.get(), nullptr);
+    auto& gameState = getGameState();
+    gameState.cheats.sandboxMode = true;
+    ObjectEntryIndex index{};
+    auto* club = loadClub(*context, index);
+    if (club == nullptr)
+        GTEST_SKIP() << "the club house object is not installed";
+    ASSERT_GT(club->UpkeepPerMonth, 0);
+
+    const auto found = findFlatBlock(3, 2);
+    ASSERT_TRUE(found.has_value());
+    insertPath(Building::GetEntrance(*club, *found, 0).outsideTile);
+    GameActions::BuildingPlaceAction place(*found, index, 0);
+    ASSERT_EQ(GameActions::ExecuteNested(&place, gameState).error, GameActions::Status::ok);
+    gameState.golf.createCourse("Links");
+
+    auto& runtime = Golf::runtimeOf(gameState);
+    EXPECT_EQ(runtime.buildings().upkeepPerMonth, club->UpkeepPerMonth);
+
+    // The first update only notes the day; each new day costs a thirtieth of the month.
+    runtime.update(Golf::kTicksPerGameDay);
+    const auto cash = gameState.park.cash;
+    runtime.update(2 * Golf::kTicksPerGameDay);
+    EXPECT_EQ(cash - gameState.park.cash, club->UpkeepPerMonth / 30);
+    runtime.update(2 * Golf::kTicksPerGameDay + Golf::kTicksPerGameMinute);
+    EXPECT_EQ(cash - gameState.park.cash, club->UpkeepPerMonth / 30); // the same day costs nothing more
+}
