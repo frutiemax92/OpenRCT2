@@ -115,6 +115,8 @@ namespace OpenRCT2::Golf
         if (room <= 0)
             return;
         const uint32_t group = _nextGroup++;
+        std::vector<uint32_t> arrived;          // for the car
+        std::vector<uint32_t> newRegistryIds;   // to take back if the car cannot come
         const int32_t size = tournamentField ? std::min(room, kProfessionalFieldSize) : rollGroupSize(*rng, room);
         // GLF-023: a share of the arriving golfers come back from the registry.
         for (int32_t i = 0; i < size; i++)
@@ -159,6 +161,9 @@ namespace OpenRCT2::Golf
                 spawn.name = rollName(*rng, firstNames, lastNames, _sim.nextGolferId());
             }
             auto& golfer = _sim.spawn(spawn);
+            arrived.push_back(golfer.id);
+            if (_sources.carArrival)
+                _sim.putInCar(golfer.id);
             // Registry: every golfer gets an entry on arrival so skills persist between visits (Q5).
             uint32_t registryId = 0;
             if (returning != nullptr)
@@ -175,10 +180,24 @@ namespace OpenRCT2::Golf
                 entry.equipmentLevel = golfer.equipmentLevel;
                 entry.lastSeenDay = _day;
                 registryId = _registry.remember(entry).id;
+                newRegistryIds.push_back(registryId);
             }
             if (registryId != 0)
                 _registryOf[golfer.id] = registryId;
             _arrivedToday++;
+        }
+        if (_sources.carArrival && !_sources.carArrival(arrived, group))
+        {
+            // No car can come: the group stays away, as if it had never decided to play.
+            for (const auto id : arrived)
+            {
+                _sim.remove(id);
+                _registryOf.erase(id);
+                _arrivedToday--;
+            }
+            for (const auto registryId : newRegistryIds)
+                _registry.forget(registryId);
+            return;
         }
         _groupsArrived++;
     }

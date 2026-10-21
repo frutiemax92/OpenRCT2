@@ -38,6 +38,10 @@ namespace OpenRCT2::Golf
             std::function<FixedVec3()> exitPoint;
             std::function<Weather::Type()> weather;
             std::function<TournamentInputs()> tournamentInputs;   // the checklist figures
+            // STE-021: a group arrives by car. The golfers are in the car (GolferState::inCar) when this is called; return
+            // false when no car can come (no road entrance, no free parking space) and the group stays away. The game gets
+            // them out with GolfSimulation::release once the car has parked.
+            std::function<bool(const std::vector<uint32_t>& golferIds, uint32_t groupId)> carArrival;
         };
 
         GolfDirector(GolfSimulation::Environment environment, Sources sources);

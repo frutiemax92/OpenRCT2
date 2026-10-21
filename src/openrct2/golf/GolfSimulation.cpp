@@ -237,6 +237,40 @@ namespace OpenRCT2::Golf
         return _golfers.back();
     }
 
+    bool GolfSimulation::putInCar(uint32_t id)
+    {
+        auto* g = find(id);
+        if (g == nullptr)
+            return false;
+        setState(*g, GolferState::inCar);
+        return true;
+    }
+
+    bool GolfSimulation::release(uint32_t id, const FixedVec3& position, const FixedVec3& carPosition)
+    {
+        auto* g = find(id);
+        if (g == nullptr || g->state != GolferState::inCar)
+            return false;
+        g->position = position;
+        g->hasExit = true;
+        g->exitPosition = carPosition;
+        setState(*g, GolferState::arriving);
+        return true;
+    }
+
+    bool GolfSimulation::remove(uint32_t id)
+    {
+        for (size_t i = 0; i < _golfers.size(); i++)
+        {
+            if (_golfers[i].id == id)
+            {
+                _golfers.erase(_golfers.begin() + static_cast<std::ptrdiff_t>(i));
+                return true;
+            }
+        }
+        return false;
+    }
+
     bool GolfSimulation::walk(Golfer& g, const FixedVec3& to)
     {
         const Fixed speed = Fixed::ratio(kWalkSpeedHundredths, 100);
@@ -407,7 +441,7 @@ namespace OpenRCT2::Golf
             g.restingBenchId = 0;
         }
         g.ballInPlay = false;
-        g.destination = _env.exit;
+        g.destination = g.hasExit ? g.exitPosition : _env.exit;
         setState(g, GolferState::leaving);
     }
 
@@ -604,6 +638,9 @@ namespace OpenRCT2::Golf
 
     void GolfSimulation::updateGolfer(Golfer& g)
     {
+        // Nothing happens to a golfer who has not got out of the car yet.
+        if (g.state == GolferState::inCar)
+            return;
         g.stateTicks++;
         if (_now % static_cast<uint32_t>(kTicksPerGameMinute) == 0)
             onMinute(g);
@@ -975,7 +1012,7 @@ namespace OpenRCT2::Golf
             }
             case GolferState::leaving:
             case GolferState::rageQuitting:
-                if (walk(g, _env.exit))
+                if (walk(g, g.hasExit ? g.exitPosition : _env.exit))
                 {
                     g.finished = true;
                     emit(SimEvent::Type::roundFinished, g, g.toParSoFar());

@@ -144,6 +144,15 @@ namespace OpenRCT2::Golf
         // GLF-001: a golfer arrives. Returns the new golfer.
         Golfer& spawn(const Spawn& spawn);
 
+        // STE-021: a golfer who is still in the car that is driving to a parking space. They do not move, grow tired or hungry
+        // until they get out (release); a car that never gets to park takes its golfers back (remove).
+        bool putInCar(uint32_t id);
+        // STE-012: the golfer gets out of the car at a position and walks to the club; the car is where they go back to when
+        // they leave (STE-022).
+        bool release(uint32_t id, const FixedVec3& position, const FixedVec3& carPosition);
+        // Takes a golfer off the course without a trace (the car could not come).
+        bool remove(uint32_t id);
+
         // Advances every golfer by one tick. `nowTicks` is the game tick, which gives the game clock.
         void tick(uint32_t nowTicks);
 

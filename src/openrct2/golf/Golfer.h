@@ -51,6 +51,7 @@ namespace OpenRCT2::Golf
         returningCart,
         leaving,            // walking back to the exit
         rageQuitting,       // storming off (GLF-041)
+        inCar,              // still in the car that is driving to a parking space (STE-021)
         count,
     };
     const char* golferStateName(GolferState state);
@@ -127,6 +128,8 @@ namespace OpenRCT2::Golf
         bool rageQuit = false;
         bool finished = false;           // left the course
         uint32_t arrivalDay = 0;
+        bool hasExit = false;            // leaves by their own way out: the car they came in (STE-012, STE-022)
+        FixedVec3 exitPosition;
 
         std::vector<Thought> thoughts;
 

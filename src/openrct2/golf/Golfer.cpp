@@ -57,6 +57,8 @@ namespace OpenRCT2::Golf
                 return "Returning the cart";
             case GolferState::leaving:
                 return "Leaving";
+            case GolferState::inCar:
+                return "In car";
             case GolferState::rageQuitting:
                 return "Rage quitting";
             default:

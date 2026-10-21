@@ -32,7 +32,16 @@ namespace
         std::vector<HolePoint> cups;
         std::unique_ptr<GolfDirector> director;
 
-        Park(int fee = 750, int holes = 3)
+        // STE-021: when set, groups arrive by car. The cars that came are logged; carsCome says whether one can.
+        bool carsCome = true;
+        std::vector<std::vector<uint32_t>> cars;
+
+        explicit Park(bool byCar, int fee = 750, int holes = 3)
+            : Park(fee, holes, byCar)
+        {
+        }
+
+        Park(int fee = 750, int holes = 3, bool byCar = false)
         {
             courseId = courses.createCourse("Links")->id;
             auto* course = courses.findCourse(courseId);
@@ -68,6 +77,15 @@ namespace
             sources.clubEntrance = [] { return vec(160, 3000, 0); };
             sources.exitPoint = [] { return vec(100, 2900, 0); };
             sources.weather = [] { return Weather::Type::sunny; };
+            if (byCar)
+            {
+                sources.carArrival = [this](const std::vector<uint32_t>& ids, uint32_t) {
+                    if (!carsCome)
+                        return false;
+                    cars.push_back(ids);
+                    return true;
+                };
+            }
             director = std::make_unique<GolfDirector>(env, sources);
             director->setPopularity(900);
         }
@@ -363,4 +381,106 @@ TEST(GolfDirector, DamagedSaveDataIsRejectedAndChangesNothing)
 
     EXPECT_FALSE(loadDirector(*park.director, {}));
     EXPECT_EQ(saveDirector(*park.director), before);
+}
+
+TEST(GolfDirector, GroupsArrivingByCarWaitInTheCarUntilTheyGetOut)
+{
+    Park park(true);
+    park.run(at(1, 6), 3 * 60 * kTicksPerGameMinute);
+    ASSERT_FALSE(park.cars.empty());
+    ASSERT_EQ(park.director->simulation().golfers().size(), [&] {
+        size_t n = 0;
+        for (const auto& car : park.cars)
+            n += car.size();
+        return n;
+    }());
+
+    // Everyone is still in a car: no one has moved, eaten, drunk or paid.
+    for (const auto& golfer : park.director->simulation().golfers())
+    {
+        EXPECT_EQ(golfer.state, GolferState::inCar);
+        EXPECT_EQ(golfer.position.x, vec(100, 2900, 0).x);
+    }
+    EXPECT_EQ(park.director->total().greenFees + park.director->today().greenFees, 0);
+
+    // Getting out puts the golfer where the car stands, and they walk to the club from there.
+    const auto id = park.cars.front().front();
+    ASSERT_TRUE(park.director->simulation().release(id, vec(130, 2950, 0), vec(125, 2990, 0)));
+    EXPECT_FALSE(park.director->simulation().release(id, vec(0, 0, 0), vec(0, 0, 0))); // only once
+    const auto* golfer = park.director->simulation().find(id);
+    ASSERT_NE(golfer, nullptr);
+    EXPECT_EQ(golfer->state, GolferState::arriving);
+    EXPECT_EQ(golfer->position.x, vec(130, 2950, 0).x);
+    park.run(at(1, 9), 5 * kTicksPerGameMinute);
+    EXPECT_NE(park.director->simulation().find(id)->state, GolferState::inCar);
+}
+
+TEST(GolfDirector, NoGroupArrivesWhenNoCarCanCome)
+{
+    Park park(true);
+    park.carsCome = false;
+    park.run(at(1, 6), 6 * 60 * kTicksPerGameMinute);
+    EXPECT_EQ(park.director->groupsArrived(), 0u);
+    EXPECT_EQ(park.director->golfersToday(), 0);
+    EXPECT_TRUE(park.director->simulation().golfers().empty());
+    // No one was remembered either.
+    EXPECT_EQ(park.director->registry().size(), 0u);
+
+    // When a car can come again, they do.
+    park.carsCome = true;
+    park.run(at(1, 12), 3 * 60 * kTicksPerGameMinute);
+    EXPECT_GT(park.director->groupsArrived(), 0u);
+    EXPECT_GT(park.director->registry().size(), 0u);
+}
+
+TEST(GolfDirector, GolfersLeaveBackToTheirCar)
+{
+    Park park(true);
+    park.run(at(1, 6), 2 * 60 * kTicksPerGameMinute);
+    ASSERT_FALSE(park.cars.empty());
+    const auto id = park.cars.front().front();
+    const FixedVec3 car = vec(240, 3100, 0);
+    ASSERT_TRUE(park.director->simulation().release(id, vec(160, 3000, 0), car));
+    auto* golfer = park.director->simulation().find(id);
+    ASSERT_NE(golfer, nullptr);
+    EXPECT_TRUE(golfer->hasExit);
+
+    // At closing time everyone walks off; this golfer ends at the car, not at the exit of the course.
+    FixedVec3 last = golfer->position;
+    for (uint32_t t = at(1, 8); t < at(1, 22) && park.director->simulation().find(id) != nullptr; t++)
+    {
+        park.director->update(t);
+        if (auto* g = park.director->simulation().find(id))
+            last = g->position;
+    }
+    EXPECT_EQ(park.director->simulation().find(id), nullptr);
+    EXPECT_LT(abs(last.x - car.x), Fixed::fromInt(8));
+    EXPECT_LT(abs(last.y - car.y), Fixed::fromInt(8));
+}
+
+TEST(GolfDirector, TheCarsOfSavedGolfersComeBack)
+{
+    Park park(true);
+    park.run(at(1, 6), 2 * 60 * kTicksPerGameMinute);
+    ASSERT_FALSE(park.cars.empty());
+    const auto id = park.cars.front().front();
+    ASSERT_TRUE(park.director->simulation().release(id, vec(130, 2950, 0), vec(125, 2990, 0)));
+
+    const auto saved = saveDirector(*park.director);
+    Park other(true);
+    ASSERT_TRUE(loadDirector(*other.director, saved));
+    const auto* golfer = other.director->simulation().find(id);
+    ASSERT_NE(golfer, nullptr);
+    EXPECT_TRUE(golfer->hasExit);
+    EXPECT_EQ(golfer->exitPosition.y, vec(125, 2990, 0).y);
+    // The golfers who never got out are still in their cars.
+    bool someInCar = false;
+    for (const auto& g : other.director->simulation().golfers())
+        someInCar = someInCar || g.state == GolferState::inCar;
+    EXPECT_EQ(someInCar, [&] {
+        for (const auto& g : park.director->simulation().golfers())
+            if (g.state == GolferState::inCar)
+                return true;
+        return false;
+    }());
 }

@@ -38,6 +38,8 @@ namespace OpenRCT2::Golf
             {
                 return _reading;
             }
+            // The format of the data being read or written; the structures read what the format has.
+            uint32_t format = kGolfSaveFormat;
             std::vector<uint8_t> take()
             {
                 return std::move(_out);
@@ -236,6 +238,11 @@ namespace OpenRCT2::Golf
             a.io(g.rageQuit);
             a.io(g.finished);
             a.io(g.arrivalDay);
+            if (a.format >= 2)
+            {
+                a.io(g.hasExit);
+                a.io(g.exitPosition);
+            }
             a.list(g.thoughts, [&](Thought& t) {
                 a.io(t.type);
                 a.io(t.tick);
@@ -314,6 +321,7 @@ namespace OpenRCT2::Golf
             a.io(format);
             if (format > kGolfSaveFormat)
                 throw std::runtime_error("golf save: newer format");
+            a.format = format;
 
             // The simulation.
             auto& sim = d._sim;
