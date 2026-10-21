@@ -213,3 +213,15 @@ TEST(ParkingSprite, LiesOnTheTerrain)
         EXPECT_GT(covered(sprite), 0u);
     }
 }
+
+TEST(ParkingSprite, ACartBayHasOneNarrowBayInTheMiddle)
+{
+    const TerrainShape flat{ 0, 0, 0, 0 };
+    const auto textures = makeTextures(false);
+    const auto cars = GenerateTerrainParkingSprite(flat, textures.road, kCentre, 3, TerrainShadeTable::Identity(), 0, 0, false);
+    const auto cart = GenerateTerrainParkingSprite(flat, textures.road, kCentre, 3, TerrainShadeTable::Identity(), 0, 0, true);
+    EXPECT_GT(count(cart, kCentre), 0u);
+    EXPECT_NE(cars.pixels, cart.pixels);
+    // The same tile of road, with its own lines.
+    EXPECT_EQ(covered(cars), covered(cart));
+}

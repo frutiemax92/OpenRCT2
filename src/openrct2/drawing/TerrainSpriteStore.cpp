@@ -254,6 +254,7 @@ namespace OpenRCT2::Drawing
         key.quadrantSurfaces[0] = static_cast<uint8_t>(parking.getObjectIndex());
         key.quadrantSurfaces[1] = static_cast<uint8_t>(parking.getFacing());
         key.quadrantSurfaces[2] = lineColour;
+        key.quadrantSurfaces[3] = parking.isCartBay() ? 1 : 0;
 
         std::lock_guard lock(_mutex);
         if (!_shadesBuilt)
@@ -262,7 +263,8 @@ namespace OpenRCT2::Drawing
             _shadesBuilt = true;
         }
         const auto* sprite = _cache.Get(key, [&] {
-            return GenerateTerrainParkingSprite(shape, streetObject->Texture, lineColour, parking.getFacing(), _shades, rotation, 0);
+            return GenerateTerrainParkingSprite(
+                shape, streetObject->Texture, lineColour, parking.getFacing(), _shades, rotation, 0, parking.isCartBay());
         });
         if (sprite == nullptr || sprite->pixels.empty())
             return kImageIndexUndefined;

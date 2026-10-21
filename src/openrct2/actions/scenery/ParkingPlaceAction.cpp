@@ -24,10 +24,11 @@
 
 namespace OpenRCT2::GameActions
 {
-    ParkingPlaceAction::ParkingPlaceAction(const CoordsXY& location, ObjectEntryIndex streetType, Direction facing)
+    ParkingPlaceAction::ParkingPlaceAction(const CoordsXY& location, ObjectEntryIndex streetType, Direction facing, bool cartBay)
         : _loc(location)
         , _streetType(streetType)
         , _facing(facing)
+        , _cartBay(cartBay)
     {
     }
 
@@ -36,6 +37,7 @@ namespace OpenRCT2::GameActions
         visitor.Visit(_loc);
         visitor.Visit("object", _streetType);
         visitor.Visit("facing", _facing);
+        visitor.Visit("cartBay", _cartBay);
     }
 
     uint16_t ParkingPlaceAction::GetActionFlags() const
@@ -47,7 +49,7 @@ namespace OpenRCT2::GameActions
     {
         GameAction::Serialise(stream);
 
-        stream << DS_TAG(_loc) << DS_TAG(_streetType) << DS_TAG(_facing);
+        stream << DS_TAG(_loc) << DS_TAG(_streetType) << DS_TAG(_facing) << DS_TAG(_cartBay);
     }
 
     Result ParkingPlaceAction::Query(GameState_t& gameState, Park::ParkData& park) const
@@ -130,6 +132,7 @@ namespace OpenRCT2::GameActions
         element->setClearanceZ(baseZ);
         element->setObjectIndex(_streetType);
         element->setFacing(_facing);
+        element->setCartBay(_cartBay);
         element->setGhost(isGhost);
         MapInvalidateTileFull(_loc);
 

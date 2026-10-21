@@ -1113,7 +1113,8 @@ namespace OpenRCT2::Drawing
         int32_t facing,
         const TerrainShadeTable& shades,
         int32_t rotation,
-        int32_t zoom)
+        int32_t zoom,
+        bool cartBay)
     {
         facing &= 3;
         return RasteriseOnSurface(shape, shades, rotation, zoom, [&](int64_t lx, int64_t ly) -> uint8_t {
@@ -1142,7 +1143,15 @@ namespace OpenRCT2::Drawing
             }
             // The lines between and around the two bays, a unit wide, from the street edge to a little short of the back.
             const auto nearLine = [&](int64_t at) { return std::abs(u - at) < kOne / 2 + kOne / 4; };
-            if (w <= 24 * kOne && (nearLine(kOne) || nearLine(16 * kOne) || nearLine(31 * kOne)))
+            if (cartBay)
+            {
+                // The sides of one narrow bay and its back line.
+                const bool sides = w >= 4 * kOne && w <= 24 * kOne && (nearLine(9 * kOne) || nearLine(23 * kOne));
+                const bool back = u >= 9 * kOne && u <= 23 * kOne && std::abs(w - 24 * kOne) < kOne / 2 + kOne / 4;
+                if (sides || back)
+                    return lineColour;
+            }
+            else if (w <= 24 * kOne && (nearLine(kOne) || nearLine(16 * kOne) || nearLine(31 * kOne)))
                 return lineColour;
             const int32_t ix = static_cast<int32_t>(std::clamp<int64_t>(lx >> 7, 0, 2 * kTile - 1));
             const int32_t iy = static_cast<int32_t>(std::clamp<int64_t>(ly >> 7, 0, 2 * kTile - 1));

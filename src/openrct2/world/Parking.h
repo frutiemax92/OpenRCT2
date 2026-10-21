@@ -39,6 +39,17 @@ namespace OpenRCT2::Parking
         std::vector<Tile> tiles;
     };
 
+    // A cart bay as the map shows it (CRT-002): the tile and the middle of it in world units.
+    struct CartBayDescription
+    {
+        TileCoordsXY tile;
+        int32_t x = 0;
+        int32_t y = 0;
+        int32_t z = 0;
+    };
+    // The cart bays of the map, in raster order. Ghosts are ignored.
+    std::vector<CartBayDescription> FindCartBays();
+
     // Finds the parking lots of the map (STE-010). Parking tiles next to each other, or facing the same street tile, make one
     // lot, which cars drive into from the street tile of its first tile. A lot needs a path next to one of its tiles, on an
     // edge other than the one facing the street. Tiles that face no street, and lots with no path, are left out. Ghosts are

@@ -14,17 +14,18 @@
 namespace OpenRCT2::GameActions
 {
     // Lays a tile of parking on level ground (STE-010): two spaces facing `facing`, the edge the cars drive in through. The
-    // surface is the road texture of `streetType`.
+    // surface is the road texture of `streetType`. With `cartBay` the tile is a bay for one golf cart instead (CRT-002).
     class ParkingPlaceAction final : public GameActionBase<GameCommand::placeParking>
     {
     private:
         CoordsXY _loc;
         ObjectEntryIndex _streetType{};
         Direction _facing{};
+        bool _cartBay{};
 
     public:
         ParkingPlaceAction() = default;
-        ParkingPlaceAction(const CoordsXY& location, ObjectEntryIndex streetType, Direction facing);
+        ParkingPlaceAction(const CoordsXY& location, ObjectEntryIndex streetType, Direction facing, bool cartBay = false);
 
         void AcceptParameters(GameActionParameterVisitor&) final;
 

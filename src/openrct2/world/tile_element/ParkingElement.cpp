@@ -28,6 +28,16 @@ namespace OpenRCT2
         return StreetObject::GetById(objectIndex);
     }
 
+    bool ParkingElement::isCartBay() const
+    {
+        return kind == 1;
+    }
+
+    void ParkingElement::setCartBay(bool on)
+    {
+        kind = on ? 1 : 0;
+    }
+
     Direction ParkingElement::getFacing() const
     {
         return facing & 3;

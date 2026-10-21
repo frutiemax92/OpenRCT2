@@ -630,3 +630,44 @@ TEST(Parking, TilesNextToEachOtherAreOneLotEvenWhenTheyFaceDifferentStreetTiles)
     EXPECT_EQ(lots[0].streetTile, (TileCoordsXY{ s0.x / 32, s0.y / 32 }));
     EXPECT_EQ(lots[0].pathTile, (TileCoordsXY{ (found->x + 64) / 32, (found->y + 32) / 32 }));
 }
+
+TEST(ParkingActions, CartBaysAreNotForCars)
+{
+    auto context = startPark();
+    ASSERT_NE(context.get(), nullptr);
+    auto& gameState = getGameState();
+    gameState.cheats.sandboxMode = true;
+    const StreetObject* road = nullptr;
+    const auto index = loadStreet(*context, "golf.street.road", &road);
+    if (road == nullptr)
+        GTEST_SKIP() << "the street object is not installed";
+    const auto found = findFlatBlock(3, 2);
+    ASSERT_TRUE(found.has_value());
+    const auto lot = lotAt(*found);
+
+    // A street, a path, and a bay for a cart beside the path.
+    GameActions::StreetPlaceAction street(lot.street, index);
+    ASSERT_EQ(GameActions::ExecuteNested(&street, gameState).error, GameActions::Status::ok);
+    layPath(lot.pathTile);
+    GameActions::ParkingPlaceAction bay(lot.parkingBelow, index, 3, true);
+    ASSERT_EQ(GameActions::ExecuteNested(&bay, gameState).error, GameActions::Status::ok);
+    ASSERT_NE(Parking::FindAt(lot.parkingBelow), nullptr);
+    EXPECT_TRUE(Parking::FindAt(lot.parkingBelow)->isCartBay());
+
+    // It is a bay, not a car lot, even though it faces a street and has a path.
+    EXPECT_TRUE(Parking::FindLots().empty());
+    const auto bays = Parking::FindCartBays();
+    ASSERT_EQ(bays.size(), 1u);
+    EXPECT_EQ(bays[0].tile, (TileCoordsXY{ lot.parkingBelow.x / 32, lot.parkingBelow.y / 32 }));
+    EXPECT_EQ(bays[0].x, lot.parkingBelow.x + 16);
+    EXPECT_EQ(bays[0].y, lot.parkingBelow.y + 16);
+
+    // A tile of car parking next to it makes a lot of its own and no bay.
+    const CoordsXY next{ lot.parkingBelow.x + 32, lot.parkingBelow.y };
+    GameActions::StreetPlaceAction streetNext({ lot.street.x + 32, lot.street.y }, index);
+    ASSERT_EQ(GameActions::ExecuteNested(&streetNext, gameState).error, GameActions::Status::ok);
+    GameActions::ParkingPlaceAction cars(next, index, 3);
+    ASSERT_EQ(GameActions::ExecuteNested(&cars, gameState).error, GameActions::Status::ok);
+    EXPECT_EQ(Parking::FindCartBays().size(), 1u);
+    EXPECT_FALSE(Parking::FindAt(next)->isCartBay());
+}

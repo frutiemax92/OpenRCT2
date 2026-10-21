@@ -52,6 +52,25 @@ namespace OpenRCT2::Parking
         }
     } // namespace
 
+    std::vector<CartBayDescription> FindCartBays()
+    {
+        std::vector<CartBayDescription> bays;
+        const auto size = getGameState().mapSize;
+        for (int32_t y = 0; y < size.y; y++)
+        {
+            for (int32_t x = 0; x < size.x; x++)
+            {
+                const CoordsXY tile{ x * kCoordsXYStep, y * kCoordsXYStep };
+                const auto* parking = FindAt(tile);
+                if (parking == nullptr || parking->isGhost() || !parking->isCartBay())
+                    continue;
+                bays.push_back({ TileCoordsXY{ x, y }, tile.x + kCoordsXYStep / 2, tile.y + kCoordsXYStep / 2,
+                                 parking->getBaseZ() });
+            }
+        }
+        return bays;
+    }
+
     std::vector<LotDescription> FindLots()
     {
         // Every parking tile that faces a street, in raster order.
@@ -70,7 +89,8 @@ namespace OpenRCT2::Parking
             {
                 const CoordsXY tile{ x * kCoordsXYStep, y * kCoordsXYStep };
                 const auto* parking = FindAt(tile);
-                if (parking == nullptr || parking->isGhost())
+                // Cart bays are not for cars.
+                if (parking == nullptr || parking->isGhost() || parking->isCartBay())
                     continue;
                 const auto facing = parking->getFacing();
                 const auto streetCoords = neighbourOf(tile, facing);

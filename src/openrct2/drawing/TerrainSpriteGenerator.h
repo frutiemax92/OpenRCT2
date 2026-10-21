@@ -167,7 +167,7 @@ namespace OpenRCT2::Drawing
         int32_t zoom);
 
     // Procedural parking surface (STE-010): the road texture over the whole tile with the lines between the two bays, which
-    // open onto the edge `facing`.
+    // open onto the edge `facing`. A cart bay (CRT-002) has the lines of one narrow bay in the middle instead.
     TerrainSprite GenerateTerrainParkingSprite(
         const Terrain::TerrainShape& shape,
         const TerrainTexture& road,
@@ -175,5 +175,6 @@ namespace OpenRCT2::Drawing
         int32_t facing,
         const TerrainShadeTable& shades,
         int32_t rotation,
-        int32_t zoom);
+        int32_t zoom,
+        bool cartBay = false);
 } // namespace OpenRCT2::Drawing
