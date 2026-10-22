@@ -83,13 +83,13 @@ namespace OpenRCT2
     }
 
     // TODO: make part of EntityList unit?
-    uint16_t EntityRegistry::getEntityListCount(EntityType type)
+    uint16_t EntityRegistry::getEntityListCount(EntityType type) const
     {
         return static_cast<uint16_t>(_entityLists[EnumValue(type)].size());
     }
 
     // TODO: make part of EntityList unit?
-    uint16_t EntityRegistry::getNumFreeEntities()
+    uint16_t EntityRegistry::getNumFreeEntities() const
     {
         return static_cast<uint16_t>(_freeIdList.size());
     }

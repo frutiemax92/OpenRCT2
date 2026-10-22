@@ -65,8 +65,8 @@ namespace OpenRCT2
         std::array<std::vector<EntityId>, kSpatialIndexSize> _entitySpatialIndex;
 
     public:
-        uint16_t getEntityListCount(EntityType type);
-        uint16_t getNumFreeEntities();
+        uint16_t getEntityListCount(EntityType type) const;
+        uint16_t getNumFreeEntities() const;
 
         EntityBase* getEntity(EntityId entityId);
 

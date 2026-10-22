@@ -1055,7 +1055,7 @@ STR_1689    :Block brakes
 STR_1690    :{WINDOW_COLOUR_2}{STRINGID}{NEWLINE}{BLACK}{STRINGID}
 STR_1691    :{WINDOW_COLOUR_2}  Cost: {BLACK}{CURRENCY}
 STR_1692    :{WINDOW_COLOUR_2}  Cost: {BLACK}from {CURRENCY}
-STR_1693    :Guests
+STR_1693    :Golfers
 STR_1694    :Staff
 STR_1695    :Income and costs
 STR_1696    :Customer information
@@ -1227,7 +1227,7 @@ STR_1889    :{WINDOW_COLOUR_2}Down-Time: {MOVE_X}{255}{BLACK}{COMMA16}%
 STR_1890    :Select how often a mechanic should check this ride
 STR_1891    :No {STRINGID} in park yet!
 STR_1894    :{WINDOW_COLOUR_2}{STRINGID} sold: {BLACK}{COMMA32}
-STR_1895    :Construct golf holes
+STR_1895    :Build Golf Holes, Tees, Pins & Aim Points
 STR_1896    :{WINDOW_COLOUR_2}Expenditure/Income
 STR_1897    :{WINDOW_COLOUR_2}Course construction
 STR_1898    :{WINDOW_COLOUR_2}Facility upkeep

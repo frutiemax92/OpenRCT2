@@ -7,6 +7,7 @@
  * OpenRCT2 is licensed under the GNU General Public License version 3.
  *****************************************************************************/
 
+#include <algorithm>
 #include <openrct2-ui/interface/Widget.h>
 #include <openrct2-ui/interface/Window.h>
 #include <openrct2-ui/windows/Windows.h>
@@ -18,6 +19,9 @@
 #include <openrct2/drawing/Drawing.h>
 #include <openrct2/drawing/Rectangle.h>
 #include <openrct2/drawing/Text.h>
+#include <openrct2/entity/GolferEntity.h>
+#include <openrct2/golf/GolfDirector.h>
+#include <openrct2/golf/GolfRuntime.h>
 #include <openrct2/ui/WindowManager.h>
 
 using namespace OpenRCT2::Drawing;
@@ -55,6 +59,25 @@ namespace OpenRCT2::Ui::Windows
                 gHoverWidget.windowClassification == WindowClass::parkInfoPanel && gHoverWidget.widgetIndex == index
                     ? static_cast<Drawing::Colour>(Drawing::Colour::white)
                     : colours[0].colour);
+        }
+
+        static uint32_t GetLiveGolferCount(const GameState_t& gameState)
+        {
+            if (gameState.golfRuntime != nullptr)
+            {
+                return static_cast<uint32_t>(gameState.golfRuntime->director().simulation().golfers().size());
+            }
+            return gameState.entities.getEntityListCount(EntityType::golfer);
+        }
+
+        static uint16_t GetCoursePopularity(const GameState_t& gameState)
+        {
+            if (gameState.golfRuntime != nullptr)
+            {
+                return static_cast<uint16_t>(
+                    std::clamp<int32_t>(gameState.golfRuntime->director().popularity() * 10, 0, 1000));
+            }
+            return gameState.park.rating;
         }
 
         void drawPanel(RenderTarget& rt)
@@ -99,27 +122,29 @@ namespace OpenRCT2::Ui::Windows
                 STR_PARK_INFO_PANEL_NUM_GUESTS_INCREASE_SINGULAR,
             };
 
-            // Draw guests
+            // Draw golfers (UI-002)
             {
                 const auto& widget = widgets[WIDX_GUESTS];
                 auto screenCoords = ScreenCoordsXY{ windowPos.x + widget.midX(), windowPos.y + widget.midY() - 6 };
 
-                StringId stringId = gameState.park.numGuestsInPark == 1
+                const uint32_t numGolfers = GetLiveGolferCount(gameState);
+                StringId stringId = numGolfers == 1
                     ? kGuestCountFormatsSingular[gameState.park.guestChangeModifier]
                     : kGuestCountFormats[gameState.park.guestChangeModifier];
                 auto colour = getHoverWidgetColour(WIDX_GUESTS);
                 auto ft = Formatter();
-                ft.Add<uint32_t>(gameState.park.numGuestsInPark);
+                ft.Add<uint32_t>(numGolfers);
                 drawText(rt, screenCoords, stringId, ft, { colour, TextAlignment::centre });
             }
 
-            // Draw park rating
+            // Draw course popularity (UI-002)
             {
                 const auto& widget = widgets[WIDX_PARK_RATING];
                 auto screenCoords = windowPos + ScreenCoordsXY{ widget.left + 11, widget.midY() - 5 };
 
+                const uint16_t popularity = GetCoursePopularity(gameState);
                 drawParkRating(
-                    rt, colours[1].colour, false, screenCoords, std::max(10, ((gameState.park.rating / 4) * 263) / 256));
+                    rt, colours[1].colour, false, screenCoords, std::max(10, ((popularity / 4) * 263) / 256));
             }
         }
 
@@ -160,10 +185,10 @@ namespace OpenRCT2::Ui::Windows
                         ContextOpenWindow(WindowClass::finances);
                     break;
                 case WIDX_GUESTS:
-                    ContextOpenWindowView(WindowView::parkGuests);
+                    GuestListOpen();
                     break;
                 case WIDX_PARK_RATING:
-                    ContextOpenWindowView(WindowView::parkRating);
+                    CourseOpen();
                     break;
             }
         }
@@ -180,7 +205,7 @@ namespace OpenRCT2::Ui::Windows
                     ft.Add<money64>(gameState.park.value);
                     break;
                 case WIDX_PARK_RATING:
-                    ft.Add<int16_t>(gameState.park.rating);
+                    ft.Add<int16_t>(GetCoursePopularity(gameState));
                     break;
             }
             return { fallback, ft };

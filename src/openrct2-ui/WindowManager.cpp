@@ -93,6 +93,8 @@ public:
                 return ZonesOpen();
             case WindowClass::tournament:
                 return TournamentOpen();
+            case WindowClass::buildingTool:
+                return BuildingToolOpen();
             case WindowClass::editorInventionList:
                 return EditorInventionsListOpen();
             case WindowClass::editorObjectSelection:

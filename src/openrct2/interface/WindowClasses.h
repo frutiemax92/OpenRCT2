@@ -107,6 +107,7 @@ namespace OpenRCT2
         building = 149,
         zones = 150,
         tournament = 151,
+        buildingTool = 152,
 
         // Only used for colour schemes
         staff = 220,

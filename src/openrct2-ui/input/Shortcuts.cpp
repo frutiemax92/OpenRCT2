@@ -95,6 +95,14 @@ static void ShortcutRotateConstructionObject()
         return;
     }
 
+    // Rotate building tool
+    w = windowMgr->FindByClass(WindowClass::buildingTool);
+    if (w != nullptr)
+    {
+        w->onMouseUp(5 /* WIDX_TOOL_ROTATE */);
+        return;
+    }
+
     // Rotate construction track piece
     w = windowMgr->FindByClass(WindowClass::rideConstruction);
     if (w != nullptr && !widgetIsDisabled(*w, WC_RIDE_CONSTRUCTION__WIDX_ROTATE)
@@ -345,6 +353,41 @@ static void ShortcutShowMap()
     if (gLegacyScene != LegacyScene::scenarioEditor || getGameState().editorStep == Editor::Step::landscapeEditor)
         if (!(isInTrackDesignerOrManager()))
             ContextOpenWindow(WindowClass::map);
+}
+
+static void ShortcutOpenStreets()
+{
+    if (gLegacyScene == LegacyScene::titleSequence)
+        return;
+    StreetToolOpen();
+}
+
+static void ShortcutOpenZones()
+{
+    if (gLegacyScene == LegacyScene::titleSequence)
+        return;
+    ZonesOpen();
+}
+
+static void ShortcutOpenTournaments()
+{
+    if (gLegacyScene == LegacyScene::titleSequence)
+        return;
+    TournamentOpen();
+}
+
+static void ShortcutOpenCarts()
+{
+    if (gLegacyScene == LegacyScene::titleSequence)
+        return;
+    CartsOpen();
+}
+
+static void ShortcutOpenShotTool()
+{
+    if (gLegacyScene == LegacyScene::titleSequence)
+        return;
+    ShotToolOpen();
 }
 
 static void ShortcutReduceGameSpeed()
@@ -809,6 +852,11 @@ void ShortcutManager::registerDefaultShortcuts()
             OpenWindow(WindowClass::multiplayer);
         }
     });
+    registerShortcut(ShortcutId::kInterfaceOpenStreets, STR_STREET_TOOL_TITLE, ShortcutOpenStreets);
+    registerShortcut(ShortcutId::kInterfaceOpenZones, STR_ZONES_TITLE, ShortcutOpenZones);
+    registerShortcut(ShortcutId::kInterfaceOpenTournaments, STR_TOURNAMENT_TITLE, ShortcutOpenTournaments);
+    registerShortcut(ShortcutId::kInterfaceOpenCarts, STR_CARTS_TITLE, ShortcutOpenCarts);
+    registerShortcut(ShortcutId::kInterfaceOpenShotTool, STR_SHOT_TOOL_TITLE, ShortcutOpenShotTool);
 
     // View
     registerShortcut(ShortcutId::kViewGeneralZoomOut, STR_SHORTCUT_ZOOM_VIEW_OUT, "PAGEUP", std::bind(MainWindowZoom, false, false));

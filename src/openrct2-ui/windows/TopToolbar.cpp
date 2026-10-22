@@ -182,6 +182,46 @@ namespace OpenRCT2::Ui::Windows
         DDIDX_ROTATE_ANTI_CLOCKWISE,
     };
 
+    enum TopToolbarSceneryDdidx
+    {
+        DDIDX_SCENERY_TREES = 0,
+        DDIDX_SCENERY_BUILDINGS = 1,
+        DDIDX_SCENERY_ZONES = 2,
+        TOP_TOOLBAR_SCENERY_COUNT,
+    };
+
+    enum TopToolbarPathDdidx
+    {
+        DDIDX_PATH_FOOTPATHS = 0,
+        DDIDX_PATH_STREETS = 1,
+        TOP_TOOLBAR_PATH_COUNT,
+    };
+
+    enum TopToolbarConstructDdidx
+    {
+        DDIDX_CONSTRUCT_HOLES = 0,
+        DDIDX_CONSTRUCT_SHOT_TOOL = 1,
+        TOP_TOOLBAR_CONSTRUCT_COUNT,
+    };
+
+    enum TopToolbarRidesDdidx
+    {
+        DDIDX_RIDES_COURSES = 0,
+        DDIDX_RIDES_TOURNAMENTS = 1,
+        DDIDX_RIDES_CARTS = 2,
+        DDIDX_RIDES_ZONES = 3,
+        TOP_TOOLBAR_RIDES_COUNT,
+    };
+
+    enum TopToolbarParkDdidx
+    {
+        DDIDX_PARK_OVERVIEW = 0,
+        DDIDX_PARK_FINANCES = 1,
+        DDIDX_PARK_TOURNAMENTS = 2,
+        DDIDX_PARK_SANDBOX = 3,
+        TOP_TOOLBAR_PARK_COUNT,
+    };
+
 #pragma region Toolbar_widget_ordering
 
     // clang-format off
@@ -817,6 +857,166 @@ namespace OpenRCT2::Ui::Windows
             }
         }
 
+        void initSceneryMenu(Widget& widget)
+        {
+            gDropdown.items[DDIDX_SCENERY_TREES] = Dropdown::PlainMenuLabel("Trees & Scenery");
+            gDropdown.items[DDIDX_SCENERY_BUILDINGS] = Dropdown::PlainMenuLabel("Golf Buildings");
+            gDropdown.items[DDIDX_SCENERY_ZONES] = Dropdown::PlainMenuLabel("Zones (Cottages / Driving Range / OOB)");
+
+            WindowDropdownShowText(
+                { windowPos.x + widget.left, windowPos.y + widget.top }, widget.height(),
+                colours[1].withFlag(ColourFlag::translucent, true), {}, TOP_TOOLBAR_SCENERY_COUNT);
+
+            auto* windowMgr = GetWindowManager();
+            gDropdown.items[DDIDX_SCENERY_TREES].setChecked(windowMgr->FindByClass(WindowClass::scenery) != nullptr);
+            gDropdown.items[DDIDX_SCENERY_BUILDINGS].setChecked(windowMgr->FindByClass(WindowClass::buildingTool) != nullptr);
+            gDropdown.items[DDIDX_SCENERY_ZONES].setChecked(windowMgr->FindByClass(WindowClass::zones) != nullptr);
+        }
+
+        void sceneryMenuDropdown(int16_t dropdownIndex)
+        {
+            switch (dropdownIndex)
+            {
+                case DDIDX_SCENERY_TREES:
+                    ToggleSceneryWindow();
+                    break;
+                case DDIDX_SCENERY_BUILDINGS:
+                    BuildingToolOpen();
+                    break;
+                case DDIDX_SCENERY_ZONES:
+                    ZonesOpen();
+                    break;
+            }
+        }
+
+        void initPathMenu(Widget& widget)
+        {
+            gDropdown.items[DDIDX_PATH_FOOTPATHS] = Dropdown::PlainMenuLabel("Footpaths & Course Paths");
+            gDropdown.items[DDIDX_PATH_STREETS] = Dropdown::PlainMenuLabel("Streets, Parking & Cart Bays");
+
+            WindowDropdownShowText(
+                { windowPos.x + widget.left, windowPos.y + widget.top }, widget.height(),
+                colours[1].withFlag(ColourFlag::translucent, true), {}, TOP_TOOLBAR_PATH_COUNT);
+
+            auto* windowMgr = GetWindowManager();
+            gDropdown.items[DDIDX_PATH_FOOTPATHS].setChecked(windowMgr->FindByClass(WindowClass::footpath) != nullptr);
+            gDropdown.items[DDIDX_PATH_STREETS].setChecked(windowMgr->FindByClass(WindowClass::streetTool) != nullptr);
+        }
+
+        void pathMenuDropdown(int16_t dropdownIndex)
+        {
+            switch (dropdownIndex)
+            {
+                case DDIDX_PATH_FOOTPATHS:
+                    ToggleFootpathWindow();
+                    break;
+                case DDIDX_PATH_STREETS:
+                    StreetToolOpen();
+                    break;
+            }
+        }
+
+        void initConstructMenu(Widget& widget)
+        {
+            gDropdown.items[DDIDX_CONSTRUCT_HOLES] = Dropdown::PlainMenuLabel("Build Golf Holes, Tees, Pins & Aim Points");
+            gDropdown.items[DDIDX_CONSTRUCT_SHOT_TOOL] = Dropdown::PlainMenuLabel("Shot Trajectory Planner");
+
+            WindowDropdownShowText(
+                { windowPos.x + widget.left, windowPos.y + widget.top }, widget.height(),
+                colours[1].withFlag(ColourFlag::translucent, true), {}, TOP_TOOLBAR_CONSTRUCT_COUNT);
+
+            auto* windowMgr = GetWindowManager();
+            gDropdown.items[DDIDX_CONSTRUCT_HOLES].setChecked(windowMgr->FindByClass(WindowClass::holeTool) != nullptr);
+            gDropdown.items[DDIDX_CONSTRUCT_SHOT_TOOL].setChecked(windowMgr->FindByClass(WindowClass::shotTool) != nullptr);
+        }
+
+        void constructMenuDropdown(int16_t dropdownIndex)
+        {
+            switch (dropdownIndex)
+            {
+                case DDIDX_CONSTRUCT_HOLES:
+                    HoleToolOpen();
+                    break;
+                case DDIDX_CONSTRUCT_SHOT_TOOL:
+                    ShotToolOpen();
+                    break;
+            }
+        }
+
+        void initRidesMenu(Widget& widget)
+        {
+            gDropdown.items[DDIDX_RIDES_COURSES] = Dropdown::PlainMenuLabel("Courses & Scorecards");
+            gDropdown.items[DDIDX_RIDES_TOURNAMENTS] = Dropdown::PlainMenuLabel("Tournaments");
+            gDropdown.items[DDIDX_RIDES_CARTS] = Dropdown::PlainMenuLabel("Golf Carts Fleet");
+            gDropdown.items[DDIDX_RIDES_ZONES] = Dropdown::PlainMenuLabel("Zones & Lots");
+
+            WindowDropdownShowText(
+                { windowPos.x + widget.left, windowPos.y + widget.top }, widget.height(),
+                colours[1].withFlag(ColourFlag::translucent, true), {}, TOP_TOOLBAR_RIDES_COUNT);
+
+            auto* windowMgr = GetWindowManager();
+            gDropdown.items[DDIDX_RIDES_COURSES].setChecked(windowMgr->FindByClass(WindowClass::course) != nullptr);
+            gDropdown.items[DDIDX_RIDES_TOURNAMENTS].setChecked(windowMgr->FindByClass(WindowClass::tournament) != nullptr);
+            gDropdown.items[DDIDX_RIDES_CARTS].setChecked(windowMgr->FindByClass(WindowClass::carts) != nullptr);
+            gDropdown.items[DDIDX_RIDES_ZONES].setChecked(windowMgr->FindByClass(WindowClass::zones) != nullptr);
+        }
+
+        void ridesMenuDropdown(int16_t dropdownIndex)
+        {
+            switch (dropdownIndex)
+            {
+                case DDIDX_RIDES_COURSES:
+                    CourseOpen();
+                    break;
+                case DDIDX_RIDES_TOURNAMENTS:
+                    TournamentOpen();
+                    break;
+                case DDIDX_RIDES_CARTS:
+                    CartsOpen();
+                    break;
+                case DDIDX_RIDES_ZONES:
+                    ZonesOpen();
+                    break;
+            }
+        }
+
+        void initParkMenu(Widget& widget)
+        {
+            gDropdown.items[DDIDX_PARK_OVERVIEW] = Dropdown::PlainMenuLabel("Course Overview");
+            gDropdown.items[DDIDX_PARK_FINANCES] = Dropdown::PlainMenuLabel("Finances");
+            gDropdown.items[DDIDX_PARK_TOURNAMENTS] = Dropdown::PlainMenuLabel("Tournaments");
+            gDropdown.items[DDIDX_PARK_SANDBOX] = Dropdown::PlainMenuLabel("Golf Sandbox / Testing Panel");
+
+            WindowDropdownShowText(
+                { windowPos.x + widget.left, windowPos.y + widget.top }, widget.height(),
+                colours[1].withFlag(ColourFlag::translucent, true), {}, TOP_TOOLBAR_PARK_COUNT);
+
+            auto* windowMgr = GetWindowManager();
+            gDropdown.items[DDIDX_PARK_OVERVIEW].setChecked(windowMgr->FindByClass(WindowClass::parkInformation) != nullptr);
+            gDropdown.items[DDIDX_PARK_FINANCES].setChecked(windowMgr->FindByClass(WindowClass::finances) != nullptr);
+            gDropdown.items[DDIDX_PARK_TOURNAMENTS].setChecked(windowMgr->FindByClass(WindowClass::tournament) != nullptr);
+            gDropdown.items[DDIDX_PARK_SANDBOX].setChecked(windowMgr->FindByClass(WindowClass::cheats) != nullptr);
+        }
+
+        void parkMenuDropdown(int16_t dropdownIndex)
+        {
+            switch (dropdownIndex)
+            {
+                case DDIDX_PARK_OVERVIEW:
+                    ParkEntranceOpen();
+                    break;
+                case DDIDX_PARK_FINANCES:
+                    FinancesOpen();
+                    break;
+                case DDIDX_PARK_TOURNAMENTS:
+                    TournamentOpen();
+                    break;
+                case DDIDX_PARK_SANDBOX:
+                    CheatsOpen();
+                    break;
+            }
+        }
+
     public:
         void onMouseUp(WidgetIndex widgetIndex) override
         {
@@ -862,19 +1062,19 @@ namespace OpenRCT2::Ui::Windows
                     ToggleFootpathWindow();
                     break;
                 case WIDX_CONSTRUCT_RIDE:
-                    ContextOpenWindow(WindowClass::constructRide);
+                    HoleToolOpen();
                     break;
                 case WIDX_RIDES:
-                    ContextOpenWindow(WindowClass::rideList);
+                    CourseOpen();
                     break;
                 case WIDX_PARK:
-                    ContextOpenWindow(WindowClass::parkInformation);
+                    ParkEntranceOpen();
                     break;
                 case WIDX_STAFF:
                     ContextOpenWindow(WindowClass::staffList);
                     break;
                 case WIDX_GUESTS:
-                    ContextOpenWindow(WindowClass::guestList);
+                    GuestListOpen();
                     break;
                 case WIDX_FINANCES:
                     ContextOpenWindow(WindowClass::finances);
@@ -918,6 +1118,21 @@ namespace OpenRCT2::Ui::Windows
                     break;
                 case WIDX_MAP:
                     initMapMenu(widget);
+                    break;
+                case WIDX_SCENERY:
+                    initSceneryMenu(widget);
+                    break;
+                case WIDX_PATH:
+                    initPathMenu(widget);
+                    break;
+                case WIDX_CONSTRUCT_RIDE:
+                    initConstructMenu(widget);
+                    break;
+                case WIDX_RIDES:
+                    initRidesMenu(widget);
+                    break;
+                case WIDX_PARK:
+                    initParkMenu(widget);
                     break;
                 case WIDX_FASTFORWARD:
                     initFastforwardMenu(widget);
@@ -1042,6 +1257,21 @@ namespace OpenRCT2::Ui::Windows
                     break;
                 case WIDX_MAP:
                     mapMenuDropdown(selectedIndex);
+                    break;
+                case WIDX_SCENERY:
+                    sceneryMenuDropdown(selectedIndex);
+                    break;
+                case WIDX_PATH:
+                    pathMenuDropdown(selectedIndex);
+                    break;
+                case WIDX_CONSTRUCT_RIDE:
+                    constructMenuDropdown(selectedIndex);
+                    break;
+                case WIDX_RIDES:
+                    ridesMenuDropdown(selectedIndex);
+                    break;
+                case WIDX_PARK:
+                    parkMenuDropdown(selectedIndex);
                     break;
                 case WIDX_FASTFORWARD:
                     fastforwardMenuDropdown(selectedIndex);
@@ -1249,8 +1479,13 @@ namespace OpenRCT2::Ui::Windows
 
         void ApplyFootpathPressed()
         {
-            // Footpath and golf window buttons pressed state
+            // Toolbar buttons pressed state
             auto* windowMgr = GetWindowManager();
+            setWidgetPressed(
+                WIDX_SCENERY,
+                windowMgr->FindByClass(WindowClass::scenery) != nullptr
+                    || windowMgr->FindByClass(WindowClass::buildingTool) != nullptr
+                    || windowMgr->FindByClass(WindowClass::zones) != nullptr);
             setWidgetPressed(
                 WIDX_PATH,
                 windowMgr->FindByClass(WindowClass::footpath) != nullptr
@@ -1258,12 +1493,19 @@ namespace OpenRCT2::Ui::Windows
             setWidgetPressed(
                 WIDX_CONSTRUCT_RIDE,
                 windowMgr->FindByClass(WindowClass::holeTool) != nullptr
-                    || windowMgr->FindByClass(WindowClass::zones) != nullptr);
+                    || windowMgr->FindByClass(WindowClass::shotTool) != nullptr);
             setWidgetPressed(
                 WIDX_RIDES,
                 windowMgr->FindByClass(WindowClass::course) != nullptr
                     || windowMgr->FindByClass(WindowClass::tournament) != nullptr
-                    || windowMgr->FindByClass(WindowClass::carts) != nullptr);
+                    || windowMgr->FindByClass(WindowClass::carts) != nullptr
+                    || windowMgr->FindByClass(WindowClass::zones) != nullptr);
+            setWidgetPressed(
+                WIDX_PARK,
+                windowMgr->FindByClass(WindowClass::parkInformation) != nullptr);
+            setWidgetPressed(
+                WIDX_GUESTS,
+                windowMgr->FindByClass(WindowClass::guestList) != nullptr);
         }
 
         // TODO: look into using std::span

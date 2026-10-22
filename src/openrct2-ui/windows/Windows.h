@@ -104,6 +104,9 @@ namespace OpenRCT2::Ui::Windows
     // The building window (section 9.3), for the building on a position
     WindowBase* BuildingOpen(const CoordsXY& position);
 
+    // The building construction tool (TOOL-001)
+    WindowBase* BuildingToolOpen();
+
     // Golf carts (section 14)
     WindowBase* CartsOpen();
 

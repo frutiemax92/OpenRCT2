@@ -56,6 +56,11 @@ namespace OpenRCT2::Ui::ShortcutId
     constexpr std::string_view kInterfaceOpenCheats = "interface.open.cheats";
     constexpr std::string_view kInterfaceOpenTileInspector = "interface.open.tileinspector";
     constexpr std::string_view kInterfaceMultiplayerShow = "interface.open.multiplayer";
+    constexpr std::string_view kInterfaceOpenStreets = "interface.open.streets";
+    constexpr std::string_view kInterfaceOpenZones = "interface.open.zones";
+    constexpr std::string_view kInterfaceOpenTournaments = "interface.open.tournaments";
+    constexpr std::string_view kInterfaceOpenCarts = "interface.open.carts";
+    constexpr std::string_view kInterfaceOpenShotTool = "interface.open.shot_tool";
 
     // View / general
     constexpr std::string_view kViewGeneralZoomOut = "view.general.zoom_out";
