@@ -113,23 +113,6 @@ TEST_F(GolfNavigationTests, AGolferPlayingAShotFacesTheAimAndOtherwiseItsWalk)
     EXPECT_EQ(golfer->yaw, 128);
 }
 
-// A golfer who waits for the turn follows the group to the ball: it shows the walk while it moves, and rests when it stops.
-TEST_F(GolfNavigationTests, AGolferWaitingForATurnWalksWhileItMoves)
-{
-    auto* golfer = GolferEntity::create(1, { 640, 640, 0 });
-    ASSERT_NE(golfer, nullptr);
-    golfer->follow({ 640, 640, 0 }, Golf::GolferState::waitingForTurn);
-    EXPECT_EQ(golfer->state, Golf::GolferState::waitingForTurn);
-    golfer->follow({ 641, 640, 0 }, Golf::GolferState::waitingForTurn);
-    EXPECT_EQ(golfer->state, Golf::GolferState::walkingToBall);
-    // Between two small steps it keeps walking.
-    golfer->follow({ 641, 640, 0 }, Golf::GolferState::waitingForTurn);
-    EXPECT_EQ(golfer->state, Golf::GolferState::walkingToBall);
-    for (int i = 0; i < 20; i++)
-        golfer->follow({ 641, 640, 0 }, Golf::GolferState::waitingForTurn);
-    EXPECT_EQ(golfer->state, Golf::GolferState::waitingForTurn);
-}
-
 // NAV-004: Editor::CheckPark succeeds on golf courses without legacy theme-park gates
 TEST_F(GolfNavigationTests, EditorCheckParkSucceedsWithoutThemeParkEntrance)
 {

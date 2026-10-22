@@ -28,7 +28,6 @@ namespace OpenRCT2
         uint8_t yaw = 0;     // 0..255 for a full turn counter-clockwise from above: 0 faces -x, 64 faces -y, 128 +x, 192 +y
         CoordsXY facingFrom{}; // where the heading was last taken from (see UpdateFacingFromTravel)
         uint32_t animationTick = 0;
-        uint8_t movedRecently = 0; // counts down from the last step; a golfer who waits for a turn walks while it is above 0
 
         // Creates an entity for a golfer at a position. Returns nullptr when the entity limit is hit.
         static GolferEntity* create(uint32_t golferId, const CoordsXYZ& position);

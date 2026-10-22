@@ -663,6 +663,11 @@ namespace OpenRCT2::Golf
     namespace
     {
         // A group mate in one of these states has a shot to play before the ones waiting aside may go to their balls.
+        bool isWaitingForTurn(GolferState state)
+        {
+            return state == GolferState::waitingForTurn || state == GolferState::followingGroup;
+        }
+
         bool isPlayingState(GolferState state)
         {
             switch (state)
@@ -688,7 +693,7 @@ namespace OpenRCT2::Golf
     {
         for (const auto& other : _golfers)
             if (other.id != g.id && other.groupId == g.groupId && !other.finished && other.courseId == g.courseId
-                && other.holeIndex == g.holeIndex && (isPlayingState(other.state) || other.state == GolferState::waitingForTurn))
+                && other.holeIndex == g.holeIndex && (isPlayingState(other.state) || isWaitingForTurn(other.state)))
                 return true;
         return false;
     }
@@ -705,9 +710,9 @@ namespace OpenRCT2::Golf
             if (other.id == g.id || other.groupId != g.groupId || other.finished || other.courseId != g.courseId
                 || other.holeIndex != g.holeIndex)
                 continue;
-            if (isPlayingState(other.state))
+            if (isPlayingState(other.state) || (isWaitingForTurn(other.state) && !other.ballInPlay))
                 return false;
-            if (other.state == GolferState::waitingForTurn)
+            if (isWaitingForTurn(other.state))
             {
                 // The one farthest from the hole plays first; the lower id breaks a tie.
                 const Fixed theirs = horizontal(other.ball.position, cup);
@@ -722,38 +727,112 @@ namespace OpenRCT2::Golf
     {
         for (const auto& other : _golfers)
             if (other.id != g.id && other.groupId == g.groupId && !other.finished && other.courseId == g.courseId
-                && other.holeIndex == g.holeIndex && other.state == GolferState::waitingForTurn
-                && horizontal(other.position, turnWaitingSpot(other)) > Fixed::fromInt(kArriveDistanceUnits))
+                && other.holeIndex == g.holeIndex && isWaitingForTurn(other.state)
+                && (other.state == GolferState::followingGroup
+                    || (other.hasTurnSpot && horizontal(other.position, other.turnSpot) > Fixed::fromInt(kArriveDistanceUnits))))
                 return false;
         return true;
     }
 
-    FixedVec3 GolfSimulation::turnWaitingSpot(const Golfer& g) const
+    bool GolfSimulation::waitingSpotValid(const FixedVec3& origin, const FixedVec3& spot) const
     {
-        const auto* hole = holeOf(g);
-        for (const auto& other : _golfers)
+        if (_env.world == nullptr)
+            return true;
+        const auto sample = _env.world->surfaceAt(spot.x, spot.y);
+        if (sample.water || sample.outOfBounds)
+            return false;
+        ObstacleContact contact;
+        if (_env.world->obstacleAt({ spot.x, spot.y, sample.height }, Fixed::fromInt(6), contact))
+            return false;
+        const CoordsXY from{ static_cast<int32_t>(origin.x.floor()), static_cast<int32_t>(origin.y.floor()) };
+        const CoordsXY to{ static_cast<int32_t>(spot.x.floor()), static_cast<int32_t>(spot.y.floor()) };
+        return Stream::CanMove(from, to, false);
+    }
+
+    void GolfSimulation::planWaitingSpots(const Golfer& shooter)
+    {
+        const auto* hole = holeOf(shooter);
+        const FixedVec3 origin = shooter.ball.position;
+        // The direction of play: from the ball to the cup. Nobody waits in front of the ball, so the shot is never blocked.
+        FixedVec3 behind{ -Fixed::fromInt(1), Fixed{}, Fixed{} };
+        if (hole != nullptr && hole->cup.has_value())
         {
-            if (other.id == g.id || other.groupId != g.groupId || other.finished || other.courseId != g.courseId
-                || other.holeIndex != g.holeIndex)
-                continue;
-            if (other.state != GolferState::walkingToBall && other.state != GolferState::drivingToBall
-                && other.state != GolferState::searchingBall && other.state != GolferState::preparingShot
-                && other.state != GolferState::swinging && other.state != GolferState::putting)
-                continue;
-            // The group follows the player whose ball is farthest from the hole and waits beside it, off the line of play.
-            FixedVec3 along{ Fixed::fromInt(1), Fixed{}, Fixed{} };
-            if (hole != nullptr && hole->cup.has_value())
-            {
-                const FixedVec3 d{ Fixed::fromInt(hole->cup->x) - other.ball.position.x,
-                                   Fixed::fromInt(hole->cup->y) - other.ball.position.y, Fixed{} };
-                const Fixed dl = length(d);
-                if (dl > Fixed::ratio(1, 2))
-                    along = { d.x / dl, d.y / dl, Fixed{} };
-            }
-            const Fixed side = Fixed::fromInt((g.id % 2 == 0 ? 1 : -1) * (kTurnSideUnits + 16 * static_cast<int32_t>(g.id % 3)));
-            return { other.ball.position.x + along.y * side, other.ball.position.y - along.x * side, Fixed{} };
+            const FixedVec3 d{ Fixed::fromInt(hole->cup->x) - origin.x, Fixed::fromInt(hole->cup->y) - origin.y, Fixed{} };
+            const Fixed dl = length(d);
+            if (dl > Fixed::ratio(1, 2))
+                behind = { -d.x / dl, -d.y / dl, Fixed{} };
         }
-        return g.queueSpot;
+        // Angles from straight behind the ball (cosine and sine in hundredths): beside it, then further back.
+        struct Angle
+        {
+            int32_t cos;
+            int32_t sin;
+        };
+        static constexpr Angle kAngles[] = { { 34, 94 }, { -34, 94 }, { -87, 50 }, { 17, 98 }, { -100, 0 }, { 87, 50 } };
+        static constexpr int32_t kRadii[] = { 2 * 32, 3 * 32, 4 * 32 };
+        constexpr int32_t kApart = 28; // units between two waiting golfers
+
+        std::vector<FixedVec3> taken;
+        int32_t index = 0;
+        for (auto& mate : _golfers)
+        {
+            if (mate.id == shooter.id || mate.groupId != shooter.groupId || mate.finished || mate.courseId != shooter.courseId
+                || mate.holeIndex != shooter.holeIndex)
+                continue;
+            if (!isWaitingForTurn(mate.state) && mate.state != GolferState::waitingForTeeTime
+                && mate.state != GolferState::talking && mate.state != GolferState::goingToTee)
+                continue;
+            const int32_t firstSign = (index++ % 2 == 0) ? 1 : -1;
+            bool found = false;
+            FixedVec3 best = mate.position;
+            for (const auto radius : kRadii)
+            {
+                for (const auto& angle : kAngles)
+                {
+                    for (const int32_t sign : { firstSign, -firstSign })
+                    {
+                        const Fixed c = Fixed::ratio(angle.cos, 100);
+                        const Fixed sn = Fixed::ratio(angle.sin * sign, 100);
+                        const Fixed r = Fixed::fromInt(radius);
+                        const FixedVec3 spot{ origin.x + (behind.x * c - behind.y * sn) * r,
+                                              origin.y + (behind.x * sn + behind.y * c) * r, Fixed{} };
+                        bool free = waitingSpotValid(origin, spot);
+                        for (const auto& other : taken)
+                            free = free && horizontal(other, spot) >= Fixed::fromInt(kApart);
+                        if (!free)
+                            continue;
+                        best = spot;
+                        found = true;
+                        break;
+                    }
+                    if (found)
+                        break;
+                }
+                if (found)
+                    break;
+            }
+            if (!found)
+                best = { origin.x + behind.x * Fixed::fromInt(2 * 32), origin.y + behind.y * Fixed::fromInt(2 * 32), Fixed{} };
+            best.z = groundZ(best.x, best.y);
+            taken.push_back(best);
+            mate.turnSpot = best;
+            mate.hasTurnSpot = true;
+            // Golfers who wait for the turn leave at once for their spot; the ones at the tee go when the tee is needed.
+            const bool movable = mate.state == GolferState::waitingForTurn || mate.state == GolferState::waitingForTeeTime
+                || mate.state == GolferState::talking;
+            if (movable && horizontal(mate.position, best) > Fixed::fromInt(kArriveDistanceUnits))
+                setState(mate, GolferState::followingGroup);
+        }
+    }
+
+    bool GolfSimulation::tryStartTurn(Golfer& g)
+    {
+        if (g.turnWaitTicks < static_cast<uint32_t>(kTurnMaxWaitTicks) && !myTurn(g))
+            return false;
+        planWaitingSpots(g);
+        g.hasTurnSpot = false;
+        setState(g, GolferState::walkingToBall);
+        return true;
     }
 
     void GolfSimulation::goToBall(Golfer& g)
@@ -772,10 +851,23 @@ namespace OpenRCT2::Golf
             }
             else
                 g.queueSpot = g.position;
+            g.hasTurnSpot = false;
+            g.turnWaitTicks = 0;
             setState(g, GolferState::waitingForTurn);
             return;
         }
         setState(g, GolferState::walkingToBall);
+    }
+
+    bool GolfSimulation::groupMateAheadForTee(const Golfer& g) const
+    {
+        for (const auto& other : _golfers)
+            if (other.id < g.id && other.groupId == g.groupId && !other.finished && other.courseId == g.courseId
+                && other.holeIndex == g.holeIndex && !other.ballInPlay
+                && (other.state == GolferState::waitingForTeeTime || other.state == GolferState::talking
+                    || isWaitingForTurn(other.state)))
+                return true;
+        return false;
     }
 
     bool GolfSimulation::groupMateOnTee(const Golfer& g) const
@@ -798,7 +890,7 @@ namespace OpenRCT2::Golf
                 || other.state == GolferState::arriving)
                 continue;
             // A group mate waiting for the turn stands aside on purpose: the shooter does not wait for them to leave.
-            if (other.groupId == g.groupId && other.state == GolferState::waitingForTurn)
+            if (other.groupId == g.groupId && isWaitingForTurn(other.state))
                 continue;
             const Fixed dx = other.position.x - g.ball.position.x;
             const Fixed dy = other.position.y - g.ball.position.y;
@@ -893,6 +985,7 @@ namespace OpenRCT2::Golf
         g.waitedMinutes = 0;
         g.ballInPlay = false;
         g.searchedBall = false;
+        g.hasTurnSpot = false;
         const auto tee = teeFor(*hole, g.tee);
         g.destination = tee.has_value() ? FixedVec3{ Fixed::fromInt(tee->x), Fixed::fromInt(tee->y), Fixed{} } : g.position;
         setState(g, GolferState::goingToTee);
@@ -908,6 +1001,8 @@ namespace OpenRCT2::Golf
         g.holeStartMinute = minuteNow();
         g.position = { at.x, at.y, groundZ(at.x, at.y) };
         emit(SimEvent::Type::teedOff, g);
+        g.hasTurnSpot = false;
+        planWaitingSpots(g);
         setState(g, GolferState::preparingShot);
     }
 
@@ -1462,9 +1557,13 @@ namespace OpenRCT2::Golf
                 break;
             }
             case GolferState::waitingForTeeTime:
-                if (minuteNow() >= g.teeTimeMinute && !groupBusy(g) && !groupMateOnTee(g))
+                if (minuteNow() >= g.teeTimeMinute && !groupBusy(g) && !groupMateOnTee(g) && !groupMateAheadForTee(g))
                 {
-                    teeOff(g);
+                    // Walks back onto the tee first if it stood aside while a group mate played.
+                    if (horizontal(g.position, g.destination) > Fixed::fromInt(kArriveDistanceUnits))
+                        setState(g, GolferState::followingGroup);
+                    else
+                        teeOff(g);
                     break;
                 }
                 // GLF-031: golfers in the same group waiting at the tee chat with each other.
@@ -1691,14 +1790,42 @@ namespace OpenRCT2::Golf
                 break;
             }
             case GolferState::waitingForTurn:
+            case GolferState::followingGroup:
+            {
                 // Stands aside, then goes to the ball once the group mates have played and it is the farthest one's turn.
-                if (g.stateTicks >= static_cast<uint32_t>(kTurnMaxWaitTicks) || myTurn(g))
+                g.turnWaitTicks++;
+                if (!g.ballInPlay)
                 {
-                    setState(g, GolferState::walkingToBall);
+                    // Still to tee off: back to the tee when the group's tee shot is free, else aside on the waiting spot.
+                    const bool teeFree = minuteNow() >= g.teeTimeMinute && !groupBusy(g) && !groupMateOnTee(g)
+                        && !groupMateAheadForTee(g);
+                    const FixedVec3 target = teeFree ? g.destination : (g.hasTurnSpot ? g.turnSpot : g.position);
+                    const bool there = horizontal(g.position, target) <= Fixed::fromInt(kArriveDistanceUnits);
+                    if (there || (g.state == GolferState::followingGroup && walk(g, target)))
+                    {
+                        const auto next = teeFree ? GolferState::waitingForTeeTime : GolferState::waitingForTurn;
+                        if (g.state != next)
+                            setState(g, next);
+                        g.turnWaitTicks = 0;
+                    }
+                    else if (g.state == GolferState::waitingForTurn)
+                        setState(g, GolferState::followingGroup);
                     break;
                 }
-                walk(g, turnWaitingSpot(g));
+                if (tryStartTurn(g))
+                    break;
+                const FixedVec3 spot = g.hasTurnSpot ? g.turnSpot : g.queueSpot;
+                if (g.state == GolferState::waitingForTurn)
+                {
+                    // Walks again when the spot moves away (a new shooter), shown as walking to the ball.
+                    if (horizontal(g.position, spot) > Fixed::fromInt(kArriveDistanceUnits))
+                        setState(g, GolferState::followingGroup);
+                    break;
+                }
+                if (walk(g, spot))
+                    setState(g, GolferState::waitingForTurn);
                 break;
+            }
             case GolferState::holeFinished:
                 finishHole(g);
                 break;

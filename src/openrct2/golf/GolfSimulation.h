@@ -316,16 +316,22 @@ namespace OpenRCT2::Golf
         bool groupBusy(const Golfer& g) const;
         // Whether a group mate is already on the tee getting ready for the tee shot: the group takes the tee one at a time.
         bool groupMateOnTee(const Golfer& g) const;
+        // Whether a group mate with a lower id has yet to tee off and goes first.
+        bool groupMateAheadForTee(const Golfer& g) const;
         // Sends a golfer whose ball lies still towards it: at once when alone, otherwise after the group mates have played.
         void goToBall(Golfer& g);
         // Whether it is the golfer's turn to walk to the ball: no group mate is still playing, and none waiting is farther
         // from the hole.
         bool myTurn(const Golfer& g) const;
         bool hasGroupMates(const Golfer& g) const;
-        // Where a golfer waiting for the turn stands: beside the ball of the group mate who is playing, else aside where the
-        // shot was hit.
-        FixedVec3 turnWaitingSpot(const Golfer& g) const;
-        // Whether the group mates waiting for the turn stand beside the ball of the golfer who is about to play.
+        // When a golfer is about to play from `shooter`'s ball, picks for every group mate a waiting spot beside and behind that
+        // ball (off the line of play, on ground that can be walked, apart from each other) and sends the ones who wait for a
+        // turn there at once.
+        void planWaitingSpots(const Golfer& shooter);
+        bool waitingSpotValid(const FixedVec3& origin, const FixedVec3& spot) const;
+        // Whether the golfer's turn has come and, if so, starts it: the group's waiting spots are planned and it walks to the ball.
+        bool tryStartTurn(Golfer& g);
+        // Whether the group mates waiting for the turn stand on their waiting spots.
         bool groupHasArrived(const Golfer& g) const;
         // Whether another golfer stands near the path the golfer expects the ball to take.
         bool lineOfFireBlocked(const Golfer& g) const;

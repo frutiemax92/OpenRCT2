@@ -33,6 +33,7 @@ namespace OpenRCT2
             case GolferState::arriving:
             case GolferState::leaving:
             case GolferState::returningCart:
+            case GolferState::followingGroup:
                 return "walk";
             case GolferState::swinging:
                 return "swing_full";

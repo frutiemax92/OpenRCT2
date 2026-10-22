@@ -54,6 +54,7 @@ namespace OpenRCT2::Golf
         inCar,              // still in the car that is driving to a parking space (STE-021)
         walkingToRange,     // on the way to the kiosk of the driving range to buy a bucket (DRV-005)
         waitingForTurn,     // the ball lies still; stands aside until the rest of the group has played and it is this golfer's turn
+        followingGroup,     // walking to the waiting spot beside the ball of the group mate who plays (shown as walking to the ball)
         count,
     };
     const char* golferStateName(GolferState state);
@@ -139,6 +140,10 @@ namespace OpenRCT2::Golf
         bool finished = false;           // left the course
         bool queueing = false;           // waiting behind a tee that is taken (not saved: looked at again within a second)
         FixedVec3 queueSpot;
+        // Where to wait while a group mate plays, chosen when that mate's turn starts (see GolfSimulation::planWaitingSpots).
+        FixedVec3 turnSpot;
+        bool hasTurnSpot = false;
+        uint32_t turnWaitTicks = 0;      // time spent waiting for or following the group's turn
         FixedVec3 separation; // the push away from close golfers, looked at a few times a second (see GolfSimulation::walk)
         bool pathBlocked = false;        // someone stands in the way of the planned shot (not saved, looked at again within a second)
         uint32_t arrivalDay = 0;

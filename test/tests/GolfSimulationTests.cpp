@@ -203,11 +203,17 @@ TEST(GolfSimulation, AGolferWaitsAsideForTheGroupAndTheFarthestBallPlaysNext)
     GolfSimulation sim(c.environment());
     for (int i = 0; i < 3; i++)
         sim.spawn(aGolfer(c, 5));
+    auto dist = [](const FixedVec3& a, const FixedVec3& b) {
+        return std::hypot(a.x.toDouble() - b.x.toDouble(), a.y.toDouble() - b.y.toDouble());
+    };
     std::map<uint32_t, GolferState> before;
     int waited = 0;
     int turnsChecked = 0;
     bool twoOnTee = false;
     bool groupNotBeside = false;
+    bool sawFollowing = false;
+    bool waitingAwayFromItsSpot = false;
+    bool mateOnTheBall = false;
     int shotsWithGroupWaiting = 0;
     uint32_t longestPreparing = 0;
     bool walkedWhileMateHit = false;
@@ -251,6 +257,21 @@ TEST(GolfSimulation, AGolferWaitsAsideForTheGroupAndTheFarthestBallPlaysNext)
             }
         }
         twoOnTee |= preparing > 1;
+        // Golfers who walk to a waiting spot show walking, and the ones standing on it show waiting.
+        for (const auto& g : sim.golfers())
+        {
+            if (g.state == GolferState::followingGroup)
+                sawFollowing = true;
+            if (g.state == GolferState::waitingForTurn && g.hasTurnSpot
+                && dist(g.position, g.turnSpot) > 64)
+                waitingAwayFromItsSpot = true;
+            // Nobody stands on the ball of the golfer who is about to swing.
+            if (g.state == GolferState::swinging && g.stateTicks == 1)
+                for (const auto& other : sim.golfers())
+                    if (other.id != g.id && other.holeIndex == g.holeIndex
+                        && dist(other.position, g.ball.position) < 16)
+                        mateOnTheBall = true;
+        }
         // The group waits beside the ball of the golfer who plays.
         for (const auto& g : sim.golfers())
         {
@@ -266,6 +287,9 @@ TEST(GolfSimulation, AGolferWaitsAsideForTheGroupAndTheFarthestBallPlaysNext)
                 }
         }
     }
+    EXPECT_TRUE(sawFollowing);
+    EXPECT_FALSE(waitingAwayFromItsSpot);
+    EXPECT_FALSE(mateOnTheBall);
     EXPECT_FALSE(groupNotBeside);
     EXPECT_GT(shotsWithGroupWaiting, 3);
     EXPECT_FALSE(twoOnTee); // one golfer of the group at a time gets ready on the tee
