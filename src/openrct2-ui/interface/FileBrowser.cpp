@@ -50,7 +50,7 @@ namespace OpenRCT2::Ui::FileBrowser
 #ifdef __EMSCRIPTEN__
         if (action == LoadSaveAction::save)
         {
-            Select("/save.park", action, type);
+            Select("/save.golf", action, type);
             EmscriptenSaveGame(false, false, type);
         }
         else

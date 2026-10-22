@@ -34,6 +34,7 @@
 #include <openrct2/core/Numerics.hpp>
 #include <openrct2/core/String.hpp>
 #include <openrct2/drawing/Drawing.h>
+#include <openrct2/drawing/Drawing.String.h>
 #include <openrct2/drawing/Text.h>
 #include <openrct2/interface/ColourWithFlags.h>
 #include <openrct2/interface/Screenshot.h>
@@ -209,9 +210,8 @@ namespace OpenRCT2::Ui::Windows
     enum TopToolbarRidesDdidx
     {
         DDIDX_RIDES_COURSES = 0,
-        DDIDX_RIDES_TOURNAMENTS = 1,
-        DDIDX_RIDES_CARTS = 2,
-        DDIDX_RIDES_ZONES = 3,
+        DDIDX_RIDES_CARTS = 1,
+        DDIDX_RIDES_ZONES = 2,
         TOP_TOOLBAR_RIDES_COUNT,
     };
 
@@ -943,7 +943,6 @@ namespace OpenRCT2::Ui::Windows
         void initRidesMenu(Widget& widget)
         {
             gDropdown.items[DDIDX_RIDES_COURSES] = Dropdown::PlainMenuLabel("Courses & Scorecards");
-            gDropdown.items[DDIDX_RIDES_TOURNAMENTS] = Dropdown::PlainMenuLabel("Tournaments");
             gDropdown.items[DDIDX_RIDES_CARTS] = Dropdown::PlainMenuLabel("Golf Carts Fleet");
             gDropdown.items[DDIDX_RIDES_ZONES] = Dropdown::PlainMenuLabel("Zones & Lots");
 
@@ -953,7 +952,6 @@ namespace OpenRCT2::Ui::Windows
 
             auto* windowMgr = GetWindowManager();
             gDropdown.items[DDIDX_RIDES_COURSES].setChecked(windowMgr->FindByClass(WindowClass::course) != nullptr);
-            gDropdown.items[DDIDX_RIDES_TOURNAMENTS].setChecked(windowMgr->FindByClass(WindowClass::tournament) != nullptr);
             gDropdown.items[DDIDX_RIDES_CARTS].setChecked(windowMgr->FindByClass(WindowClass::carts) != nullptr);
             gDropdown.items[DDIDX_RIDES_ZONES].setChecked(windowMgr->FindByClass(WindowClass::zones) != nullptr);
         }
@@ -964,9 +962,6 @@ namespace OpenRCT2::Ui::Windows
             {
                 case DDIDX_RIDES_COURSES:
                     CourseOpen();
-                    break;
-                case DDIDX_RIDES_TOURNAMENTS:
-                    TournamentOpen();
                     break;
                 case DDIDX_RIDES_CARTS:
                     CartsOpen();
@@ -1631,8 +1626,8 @@ namespace OpenRCT2::Ui::Windows
                 case WIDX_SCENERY: return "Build";
                 case WIDX_PATH: return "Paths";
                 case WIDX_CONSTRUCT_RIDE: return "Holes";
-                case WIDX_RIDES: return "Course";
-                case WIDX_PARK: return "Park";
+                case WIDX_RIDES: return "Play";
+                case WIDX_PARK: return "Golf Course";
                 case WIDX_STAFF: return "Staff";
                 case WIDX_GUESTS: return "Golfers";
                 case WIDX_CLEAR_SCENERY: return "Clear";
@@ -1651,6 +1646,7 @@ namespace OpenRCT2::Ui::Windows
         void ApplyTextLabels()
         {
             constexpr int16_t kButtonWidth = 56;
+            constexpr int16_t kLabelPadding = 8;
             for (WidgetIndex i = 0; i < WIDX_SEPARATOR; i++)
             {
                 const auto* label = ButtonLabel(i);
@@ -1659,7 +1655,9 @@ namespace OpenRCT2::Ui::Windows
                 auto& widget = widgets[i];
                 widget.type = WidgetType::button;
                 widget.setString(label);
-                widget.setWidth(kButtonWidth);
+                // A label wider than the standard button sets its own width instead of being cut off
+                const auto textWidth = static_cast<int16_t>(OpenRCT2::Drawing::getStringWidth(label, FontStyle::medium));
+                widget.setWidth(std::max<int16_t>(kButtonWidth, textWidth + kLabelPadding));
             }
             if (gGameSpeed > 1)
             {

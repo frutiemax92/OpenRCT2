@@ -458,10 +458,10 @@ void SaveGame()
     if (!gFirstTimeSaving && !gIsAutosaveLoaded)
     {
 #ifndef __EMSCRIPTEN__
-        const auto savePath = Path::WithExtension(gScenarioSavePath, ".park");
+        const auto savePath = Path::WithExtension(gScenarioSavePath, ".golf");
         SaveGameWithName(savePath);
 #else
-        const auto savePath = Path::WithExtension("save", ".park");
+        const auto savePath = Path::WithExtension("save", ".golf");
         SaveGameWithName(savePath);
         EmscriptenSaveGame(false, false, LoadSaveType::park);
 #endif
@@ -476,7 +476,7 @@ void SaveGameCmd(u8string_view name /* = {} */)
 {
     if (name.empty())
     {
-        const auto savePath = Path::WithExtension(gScenarioSavePath, ".park");
+        const auto savePath = Path::WithExtension(gScenarioSavePath, ".golf");
 
         SaveGameWithName(savePath);
     }
@@ -490,7 +490,7 @@ void SaveGameCmd(u8string_view name /* = {} */)
 
         auto& env = GetContext()->GetPlatformEnvironment();
         auto savesDir = fs::canonical(env.GetDirectoryPath(DirBase::user, DirId::saves));
-        auto savePath = savesDir / fs::u8path(u8string(name) + u8".park");
+        auto savePath = savesDir / fs::u8path(u8string(name) + u8".golf");
 
         if (!fs::weakly_canonical(savePath).u8string().starts_with(savesDir.u8string()))
         {
@@ -547,11 +547,11 @@ static void LimitAutosaveCount(const size_t numberOfFilesToKeep, bool processLan
 
     auto& environment = GetContext()->GetPlatformEnvironment();
     auto folderDirectory = environment.GetDirectoryPath(DirBase::user, DirId::saves);
-    char const* fileFilter = "autosave_*.park";
+    char const* fileFilter = "autosave_*.golf";
     if (processLandscapeFolder)
     {
         folderDirectory = environment.GetDirectoryPath(DirBase::user, DirId::landscapes);
-        fileFilter = "autosave_*.park";
+        fileFilter = "autosave_*.golf";
     }
 
     const u8string filter = Path::Combine(folderDirectory, "autosave", fileFilter);
@@ -602,12 +602,12 @@ static void LimitAutosaveCount(const size_t numberOfFilesToKeep, bool processLan
 void GameAutosave()
 {
     auto subDirectory = DirId::saves;
-    const char* fileExtension = ".park";
+    const char* fileExtension = ".golf";
     SaveFlags saveFlags = { SaveFlag::automatic };
     if (isInEditorMode())
     {
         subDirectory = DirId::landscapes;
-        fileExtension = ".park";
+        fileExtension = ".golf";
         saveFlags.set(SaveFlag::scenario);
     }
 
@@ -644,7 +644,7 @@ void GameAutosave()
 #else
 void GameAutosave()
 {
-    const auto savePath = Path::WithExtension("save", ".park");
+    const auto savePath = Path::WithExtension("save", ".golf");
     SaveGameWithName(savePath);
     EmscriptenSaveGame(false, true, LoadSaveType::park);
 }

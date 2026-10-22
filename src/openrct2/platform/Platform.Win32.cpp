@@ -338,7 +338,7 @@ namespace OpenRCT2::Platform
     void SetUpFileAssociations()
     {
         // Setup file extensions
-        SetUpFileAssociation(".park", "OpenRCT2 park (.park)", "Play", "\"%1\"", 0);
+        SetUpFileAssociation(".golf", "Open Golf Simulator save (.golf)", "Play", "\"%1\"", 0);
         SetUpFileAssociation(".td6", "RCT2 Track Design (.td6)", "Install", "\"%1\"", 0);
         SetUpFileAssociation(".td7", "OpenRCT2 Track Design (.td7)", "Install", "\"%1\"", 0);
 
@@ -463,7 +463,7 @@ namespace OpenRCT2::Platform
     void RemoveFileAssociations()
     {
         // Remove file extensions
-        RemoveFileAssociation(".park");
+        RemoveFileAssociation(".golf");
         RemoveFileAssociation(".td6");
         RemoveFileAssociation(".td7");
 

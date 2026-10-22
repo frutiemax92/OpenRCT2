@@ -249,7 +249,7 @@ namespace OpenRCT2::Ui::Windows
             // Course title bar / switcher
             if (course == nullptr)
             {
-                text(14, 48, "No golf courses created in this park.");
+                text(14, 48, "No golf courses have been created yet.");
                 return;
             }
 
