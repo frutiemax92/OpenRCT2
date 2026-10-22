@@ -423,7 +423,7 @@ STR_1049    :Landscape save failed!
 STR_1050    :Failed to load…{NEWLINE}File contains invalid data!
 STR_1051    :Invisible Supports
 STR_1052    :Invisible People
-STR_1053    :Rides/attractions in park
+STR_1053    :Golf courses and holes
 STR_1054    :Name ride/attraction
 STR_1055    :Name person
 STR_1056    :Name staff member
@@ -1227,7 +1227,7 @@ STR_1889    :{WINDOW_COLOUR_2}Down-Time: {MOVE_X}{255}{BLACK}{COMMA16}%
 STR_1890    :Select how often a mechanic should check this ride
 STR_1891    :No {STRINGID} in park yet!
 STR_1894    :{WINDOW_COLOUR_2}{STRINGID} sold: {BLACK}{COMMA32}
-STR_1895    :Build new ride/attraction
+STR_1895    :Construct golf holes
 STR_1896    :{WINDOW_COLOUR_2}Expenditure/Income
 STR_1897    :{WINDOW_COLOUR_2}Course construction
 STR_1898    :{WINDOW_COLOUR_2}Facility upkeep

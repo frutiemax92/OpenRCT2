@@ -118,7 +118,7 @@ public:
             case WindowClass::multiplayer:
                 return MultiplayerOpen();
             case WindowClass::constructRide:
-                return nullptr; // Ride windows are removed (ARC-002).
+                return HoleToolOpen();
             case WindowClass::parkInformation:
                 return ParkEntranceOpen();
             case WindowClass::parkInfoPanel:
@@ -130,7 +130,7 @@ public:
             case WindowClass::research:
                 return ResearchOpen();
             case WindowClass::rideList:
-                return nullptr; // Ride windows are removed (ARC-002).
+                return CourseOpen();
             case WindowClass::options:
                 return OptionsOpen();
             case WindowClass::savePrompt:

@@ -1095,9 +1095,9 @@ namespace OpenRCT2::Ui::Windows
             widgets[WIDX_ZOOM_OUT].setVisible(config.toolbarShowZoom);
             widgets[WIDX_ROTATE_ANTI_CLOCKWISE].setVisible(config.toolbarShowRotateAnticlockwise);
 
-            // Ride windows are removed (ARC-002).
-            widgets[WIDX_CONSTRUCT_RIDE].setHidden();
-            widgets[WIDX_RIDES].setHidden();
+            // Golf hole construction and courses windows
+            widgets[WIDX_CONSTRUCT_RIDE].setVisible(true);
+            widgets[WIDX_RIDES].setVisible(true);
 
             const bool hasPauseButton = !(
                 gLegacyScene == LegacyScene::scenarioEditor || gLegacyScene == LegacyScene::trackDesignsManager);
@@ -1219,9 +1219,11 @@ namespace OpenRCT2::Ui::Windows
 
         void ApplyFootpathPressed()
         {
-            // Footpath button pressed down
+            // Footpath and golf window buttons pressed state
             auto* windowMgr = GetWindowManager();
             setWidgetPressed(WIDX_PATH, windowMgr->FindByClass(WindowClass::footpath) != nullptr);
+            setWidgetPressed(WIDX_CONSTRUCT_RIDE, windowMgr->FindByClass(WindowClass::holeTool) != nullptr);
+            setWidgetPressed(WIDX_RIDES, windowMgr->FindByClass(WindowClass::course) != nullptr);
         }
 
         // TODO: look into using std::span
