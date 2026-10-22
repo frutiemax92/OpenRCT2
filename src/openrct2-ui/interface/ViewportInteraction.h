@@ -9,11 +9,14 @@
 
 #pragma once
 
+#include <openrct2/interface/Viewport.h>
+
 struct CoordsXY;
 struct ScreenCoordsXY;
 
 namespace OpenRCT2::Ui
 {
+    InteractionInfo ViewportInteractionGetItemLeft(const ScreenCoordsXY& screenCoords);
     bool ViewportInteractionLeftOver(const ScreenCoordsXY& screenCoords);
     bool ViewportInteractionLeftClick(const ScreenCoordsXY& screenCoords);
     bool ViewportInteractionRightOver(const ScreenCoordsXY& screenCoords);

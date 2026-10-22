@@ -32,9 +32,9 @@ namespace OpenRCT2
         entity->yaw = 0;
         entity->animationTick = 0;
         // About 6 feet tall: a golfer is drawn as a 3D model, this is the box used for picking and sorting.
-        entity->spriteData.width = 4;
-        entity->spriteData.heightMin = 0;
-        entity->spriteData.heightMax = 16;
+        entity->spriteData.width = 16;
+        entity->spriteData.heightMin = 28;
+        entity->spriteData.heightMax = 8;
         entity->moveToAndUpdateSpatialIndex(position);
         return entity;
     }

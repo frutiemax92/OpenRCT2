@@ -31,9 +31,9 @@ namespace OpenRCT2
         entity->vehicle = vehicleId;
         entity->yaw = 0;
         // About the size of a car (24 x 12 units) and 16 tall: the box used for picking and sorting.
-        entity->spriteData.width = 12;
-        entity->spriteData.heightMin = 0;
-        entity->spriteData.heightMax = 16;
+        entity->spriteData.width = 24;
+        entity->spriteData.heightMin = 20;
+        entity->spriteData.heightMax = 12;
         entity->moveToAndUpdateSpatialIndex(position);
         return entity;
     }

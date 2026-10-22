@@ -32,9 +32,9 @@ namespace OpenRCT2
         entity->state = Golf::AnimalState::idle;
         entity->yaw = 0;
         entity->animationTick = 0;
-        entity->spriteData.width = 4;
-        entity->spriteData.heightMin = 0;
-        entity->spriteData.heightMax = 8;
+        entity->spriteData.width = 14;
+        entity->spriteData.heightMin = 16;
+        entity->spriteData.heightMax = 6;
         entity->moveToAndUpdateSpatialIndex(position);
         return entity;
     }

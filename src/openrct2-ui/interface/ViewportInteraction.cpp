@@ -26,14 +26,19 @@
 #include <openrct2/actions/scenery/LargeSceneryRemoveAction.h>
 #include <openrct2/actions/scenery/SmallSceneryRemoveAction.h>
 #include <openrct2/actions/scenery/WallRemoveAction.h>
+#include <openrct2/entity/AnimalEntity.h>
 #include <openrct2/entity/Balloon.h>
 #include <openrct2/entity/Duck.h>
 #include <openrct2/entity/EntityList.h>
+#include <openrct2/entity/GolfVehicleEntity.h>
+#include <openrct2/entity/GolferEntity.h>
 #include <openrct2/entity/Staff.h>
+#include <openrct2/golf/GolfRuntime.h>
 #include <openrct2/interface/Viewport.h>
 #include <openrct2/interface/WindowBase.h>
 #include <openrct2/localisation/Formatter.h>
 #include <openrct2/object/BannerSceneryEntry.h>
+#include <openrct2/object/BuildingObject.h>
 #include <openrct2/object/LargeSceneryEntry.h>
 #include <openrct2/object/ObjectEntryManager.h>
 #include <openrct2/object/PathAdditionEntry.h>
@@ -46,9 +51,11 @@
 #include <openrct2/ui/WindowManager.h>
 #include <openrct2/windows/Intent.h>
 #include <openrct2/world/Banner.h>
+#include <openrct2/world/Building.h>
 #include <openrct2/world/Map.h>
 #include <openrct2/world/TileElementsView.h>
 #include <openrct2/world/tile_element/BannerElement.h>
+#include <openrct2/world/tile_element/BuildingElement.h>
 #include <openrct2/world/tile_element/EntranceElement.h>
 #include <openrct2/world/tile_element/LargeSceneryElement.h>
 #include <openrct2/world/tile_element/PathElement.h>
@@ -69,13 +76,13 @@ namespace OpenRCT2::Ui
     static void ViewportInteractionRemoveLargeScenery(
         const LargeSceneryElement& largeSceneryElement, const CoordsXY& mapCoords);
     static void ViewportInteractionRemoveParkEntrance(const EntranceElement& entranceElement, CoordsXY mapCoords);
-    static Peep* ViewportInteractionGetClosestPeep(ScreenCoordsXY screenCoords, int32_t maxDistance);
+    static EntityBase* ViewportInteractionGetClosestPeep(ScreenCoordsXY screenCoords, int32_t maxDistance);
 
     /**
      *
      *  rct2: 0x006ED9D0
      */
-    static InteractionInfo ViewportInteractionGetItemLeft(const ScreenCoordsXY& screenCoords)
+    InteractionInfo ViewportInteractionGetItemLeft(const ScreenCoordsXY& screenCoords)
     {
         InteractionInfo info{};
         // No click input for scenario editor or track manager
@@ -133,6 +140,46 @@ namespace OpenRCT2::Ui
                         }
                     }
                     break;
+                    case EntityType::golfer:
+                    {
+                        auto golferEntity = sprite->as<GolferEntity>();
+                        if (golferEntity != nullptr)
+                        {
+                            auto& gameState = getGameState();
+                            const auto* golfer = gameState.golfRuntime != nullptr
+                                ? gameState.golfRuntime->director().simulation().find(golferEntity->golfer)
+                                : nullptr;
+                            if (golfer != nullptr)
+                            {
+                                auto ft = Formatter();
+                                ft.Add<StringId>(STR_STRING);
+                                ft.Add<const char*>(golfer->name.c_str());
+                                SetMapTooltip(ft);
+                            }
+                        }
+                        else
+                        {
+                            info.interactionType = ViewportInteractionItem::none;
+                        }
+                    }
+                    break;
+                    case EntityType::golfVehicle:
+                    {
+                        auto vehicleEntity = sprite->as<GolfVehicleEntity>();
+                        if (vehicleEntity != nullptr)
+                        {
+                            auto ft = Formatter();
+                            ft.Add<StringId>(STR_STRING);
+                            const char* vname = vehicleEntity->kind == GolfVehicleEntity::Kind::cart ? "Golf Cart" : "Vehicle";
+                            ft.Add<const char*>(vname);
+                            SetMapTooltip(ft);
+                        }
+                        else
+                        {
+                            info.interactionType = ViewportInteractionItem::none;
+                        }
+                    }
+                    break;
                     default:
                         break;
                 }
@@ -152,22 +199,58 @@ namespace OpenRCT2::Ui
                 SetMapTooltip(ft);
                 break;
             }
+            case ViewportInteractionItem::building:
+            {
+                const auto* buildingElement = (tileElement != nullptr && tileElement->getType() == TileElementType::building)
+                    ? tileElement->as<BuildingElement>()
+                    : Building::FindAt(info.Loc);
+                if (buildingElement != nullptr)
+                {
+                    const auto* object = buildingElement->getObject();
+                    if (object != nullptr)
+                    {
+                        auto ft = Formatter();
+                        ft.Add<StringId>(STR_STRING);
+                        auto name = std::string(object->GetName());
+                        ft.Add<const char*>(name.c_str());
+                        SetMapTooltip(ft);
+                    }
+                }
+                break;
+            }
             default:
                 info.interactionType = ViewportInteractionItem::none;
                 break;
         }
 
-        // If nothing is under cursor, find a close by peep
+        // If nothing is under cursor, find a close by peep or golfer
         if (info.interactionType == ViewportInteractionItem::none)
         {
-            auto peep = ViewportInteractionGetClosestPeep(screenCoords, 32);
-            if (peep != nullptr)
+            auto entity = ViewportInteractionGetClosestPeep(screenCoords, 32);
+            if (entity != nullptr)
             {
-                info.Entity = peep;
+                info.Entity = entity;
                 info.interactionType = ViewportInteractionItem::entity;
-                info.Loc.x = peep->x;
-                info.Loc.y = peep->y;
-                PeepSetMapTooltip(peep);
+                info.Loc.x = entity->x;
+                info.Loc.y = entity->y;
+                if (auto* peep = entity->as<Peep>(); peep != nullptr)
+                {
+                    PeepSetMapTooltip(peep);
+                }
+                else if (auto* golferEntity = entity->as<GolferEntity>(); golferEntity != nullptr)
+                {
+                    auto& gameState = getGameState();
+                    const auto* golfer = gameState.golfRuntime != nullptr
+                        ? gameState.golfRuntime->director().simulation().find(golferEntity->golfer)
+                        : nullptr;
+                    if (golfer != nullptr)
+                    {
+                        auto ft = Formatter();
+                        ft.Add<StringId>(STR_STRING);
+                        ft.Add<const char*>(golfer->name.c_str());
+                        SetMapTooltip(ft);
+                    }
+                }
             }
         }
 
@@ -240,6 +323,9 @@ namespace OpenRCT2::Ui
                     break;
                     case EntityType::golfer:
                         Windows::GolferOpen(entity->id);
+                        break;
+                    case EntityType::golfVehicle:
+                        Windows::CartsOpen();
                         break;
                     default:
                         break;
@@ -735,41 +821,41 @@ namespace OpenRCT2::Ui
         }
     }
 
-    struct PeepDistance
+    struct EntityDistance
     {
-        Peep* peep = nullptr;
+        EntityBase* entity = nullptr;
         int32_t distance = std::numeric_limits<decltype(distance)>::max();
     };
 
     template<typename T>
-    static PeepDistance GetClosestPeep(
-        const ScreenCoordsXY& viewportCoords, uint8_t rotation, const int32_t maxDistance, PeepDistance goal)
+    static EntityDistance GetClosestEntity(
+        const ScreenCoordsXY& viewportCoords, uint8_t rotation, const int32_t maxDistance, EntityDistance goal)
     {
-        for (auto peep : EntityList<T>())
+        for (auto entity : EntityList<T>())
         {
-            if (peep->x == kLocationNull)
+            if (entity->x == kLocationNull)
                 continue;
 
-            auto screenCoords = Translate3DTo2DWithZ(rotation, peep->getLocation());
+            auto screenCoords = Translate3DTo2DWithZ(rotation, entity->getLocation());
             auto spriteRect = ScreenRect(
-                screenCoords - ScreenCoordsXY{ peep->spriteData.width, peep->spriteData.heightMin },
-                screenCoords + ScreenCoordsXY{ peep->spriteData.width, peep->spriteData.heightMax });
+                screenCoords - ScreenCoordsXY{ entity->spriteData.width, entity->spriteData.heightMin },
+                screenCoords + ScreenCoordsXY{ entity->spriteData.width, entity->spriteData.heightMax });
 
-            auto distance = abs(((spriteRect.getLeft() + spriteRect.getRight()) / 2) - viewportCoords.x)
-                + abs(((spriteRect.getTop() + spriteRect.getBottom()) / 2) - viewportCoords.y);
+            auto distance = std::abs(((spriteRect.getLeft() + spriteRect.getRight()) / 2) - viewportCoords.x)
+                + std::abs(((spriteRect.getTop() + spriteRect.getBottom()) / 2) - viewportCoords.y);
             if (distance > maxDistance)
                 continue;
 
             if (distance < goal.distance)
             {
-                goal.peep = peep;
+                goal.entity = entity;
                 goal.distance = distance;
             }
         }
         return goal;
     }
 
-    static Peep* ViewportInteractionGetClosestPeep(ScreenCoordsXY screenCoords, int32_t maxDistance)
+    static EntityBase* ViewportInteractionGetClosestPeep(ScreenCoordsXY screenCoords, int32_t maxDistance)
     {
         auto* windowMgr = GetWindowManager();
         auto* w = windowMgr->FindFromPoint(screenCoords);
@@ -782,12 +868,13 @@ namespace OpenRCT2::Ui
 
         auto viewportCoords = viewport->ScreenToViewportCoord(screenCoords);
 
-        PeepDistance goal;
+        EntityDistance goal;
         if (!viewport->flags.has(ViewportFlag::hideGuests))
-            goal = GetClosestPeep<Guest>(viewportCoords, viewport->rotation, maxDistance, goal);
+            goal = GetClosestEntity<Guest>(viewportCoords, viewport->rotation, maxDistance, goal);
         if (!viewport->flags.has(ViewportFlag::hideStaff))
-            goal = GetClosestPeep<Staff>(viewportCoords, viewport->rotation, maxDistance, goal);
-        return goal.peep;
+            goal = GetClosestEntity<Staff>(viewportCoords, viewport->rotation, maxDistance, goal);
+        goal = GetClosestEntity<GolferEntity>(viewportCoords, viewport->rotation, maxDistance, goal);
+        return goal.entity;
     }
 
     /**
