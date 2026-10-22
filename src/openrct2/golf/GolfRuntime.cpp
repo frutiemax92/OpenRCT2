@@ -1239,6 +1239,11 @@ namespace OpenRCT2::Golf
         return *gameState.golfRuntime;
     }
 
+    GolfRuntime* GetGolfRuntime()
+    {
+        return &runtimeOf(getGameState());
+    }
+
     void resetRuntime(GameState_t& gameState)
     {
         gameState.golfRuntime.reset();

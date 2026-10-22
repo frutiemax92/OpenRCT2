@@ -117,6 +117,8 @@ namespace OpenRCT2::GameActions
             auto* course = golf.createCourse(_name.empty() ? "Course" : _name);
             if (course == nullptr)
                 return Result(Status::disallowed, STR_COURSE_CANT_CHANGE, STR_COURSE_TOO_MANY);
+            if (_value == 1)
+                course->kind = Golf::CourseKind::miniPutt;
             data.courseId = course->id;
             res.setData(std::move(data));
             return res;

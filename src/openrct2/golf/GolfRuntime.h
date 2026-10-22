@@ -104,6 +104,15 @@ namespace OpenRCT2::Golf
             return _scan;
         }
 
+        bool holeOverlayEnabled() const
+        {
+            return _holeOverlayEnabled;
+        }
+        void setHoleOverlayEnabled(bool enabled)
+        {
+            _holeOverlayEnabled = enabled;
+        }
+
     private:
         class GameRandom;
         void syncEntities();
@@ -160,10 +169,13 @@ namespace OpenRCT2::Golf
         std::unordered_map<uint64_t, uint16_t> _ballEntities;             // golfer id (range balls: | 1 << 32) -> entity id
         SoundSink _sound;
         Ledger _paid; // what of the director's income has reached the cash of the park
+        bool _holeOverlayEnabled = false;
     };
 
     // The runtime of a game state, created on first call.
     GolfRuntime& runtimeOf(GameState_t& gameState);
+    // Gets the current GolfRuntime from gameState if initialized, or nullptr.
+    GolfRuntime* GetGolfRuntime();
     // Forgets the runtime (a new map or park was loaded).
     void resetRuntime(GameState_t& gameState);
     // Called from the game logic update: ticks the runtime when the park is in play.

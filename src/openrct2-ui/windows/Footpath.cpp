@@ -23,6 +23,7 @@
 #include <openrct2/OpenRCT2.h>
 #include <openrct2/SpriteIds.h>
 #include <openrct2/actions/GameActionRunner.h>
+#include <openrct2/actions/footpath/FootpathLayoutPlaceAction.h>
 #include <openrct2/actions/footpath/FootpathPlaceAction.h>
 #include <openrct2/actions/footpath/FootpathRemoveAction.h>
 #include <openrct2/audio/Audio.h>
@@ -145,7 +146,7 @@ namespace OpenRCT2::Ui::Windows
 #pragma region Measurements
 
     static constexpr StringId kWindowTitle = STR_FOOTPATHS;
-    static constexpr ScreenSize kWindowSize = { 106, 461 };
+    static constexpr ScreenSize kWindowSize = { 106, 510 };
 
 #pragma endregion
 
@@ -179,6 +180,8 @@ namespace OpenRCT2::Ui::Windows
         WIDX_CONSTRUCT_ON_LAND,
         WIDX_CONSTRUCT_BRIDGE_OR_TUNNEL,
         WIDX_CONSTRUCT_DRAG_AREA,
+        WIDX_HALF_TILE_TOGGLE,
+        WIDX_OPEN_STREET_TOOL,
     };
 
     // clang-format off
@@ -207,10 +210,12 @@ namespace OpenRCT2::Ui::Windows
         makeWidget({30, 335}, { 46, 24}, WidgetType::flatBtn,  WindowColour::secondary, ImageId(SPR_DEMOLISH_CURRENT_SECTION),      STR_REMOVE_PREVIOUS_FOOTPATH_SECTION_TIP       ),
 
         // Mode group
-        makeWidget({ 3, 361}, {100, 99}, WidgetType::groupbox, WindowColour::primary                                                                                               ),
+        makeWidget({ 3, 361}, {100, 144}, WidgetType::groupbox, WindowColour::primary                                                                                               ),
         makeWidget({13, 372}, { 36, 36}, WidgetType::flatBtn,  WindowColour::secondary, ImageId(SPR_CONSTRUCTION_FOOTPATH_LAND),    STR_CONSTRUCT_FOOTPATH_ON_LAND_TIP             ),
         makeWidget({57, 372}, { 36, 36}, WidgetType::flatBtn,  WindowColour::secondary, ImageId(SPR_CONSTRUCTION_FOOTPATH_BRIDGE),  STR_CONSTRUCT_BRIDGE_OR_TUNNEL_FOOTPATH_TIP    ),
-        makeWidget({35, 416}, { 36, 36}, WidgetType::flatBtn,  WindowColour::secondary, ImageId(SPR_G2_ICON_PATH_DRAG_TOOL),        STR_DRAG_AREA_OF_FOOTPATH_TIP                  )
+        makeWidget({35, 412}, { 36, 32}, WidgetType::flatBtn,  WindowColour::secondary, ImageId(SPR_G2_ICON_PATH_DRAG_TOOL),        STR_DRAG_AREA_OF_FOOTPATH_TIP                  ),
+        makeWidget({ 8, 448}, { 90, 24}, WidgetType::button,   WindowColour::secondary, kStringIdNone                                                                              ),
+        makeWidget({ 8, 476}, { 90, 24}, WidgetType::button,   WindowColour::secondary, kStringIdNone                                                                              )
     );
 
 #pragma endregion
@@ -249,6 +254,7 @@ namespace OpenRCT2::Ui::Windows
         int32_t _footpathPlaceZ;
 
         CoordsXY _dragStartPos;
+        bool _halfTileMode = false;
 
     public:
 #pragma region Window Override Events
@@ -271,6 +277,7 @@ namespace OpenRCT2::Ui::Windows
 
             _footpathPlaceCtrlState = false;
             _footpathPlaceShiftState = false;
+            _halfTileMode = false;
         }
 
         void onClose() override
@@ -422,6 +429,13 @@ namespace OpenRCT2::Ui::Windows
                     _footpathErrorOccurred = false;
                     WindowFootpathSetEnabledAndPressedWidgets();
                     break;
+                case WIDX_HALF_TILE_TOGGLE:
+                    _halfTileMode = !_halfTileMode;
+                    invalidate();
+                    break;
+                case WIDX_OPEN_STREET_TOOL:
+                    StreetToolOpen();
+                    break;
             }
         }
 
@@ -561,6 +575,7 @@ namespace OpenRCT2::Ui::Windows
 #endif
 
             widgets[WIDX_RAILINGS_TYPE].setVisible(gFootpathSelection.legacyPath == kObjectEntryIndexNull);
+            setWidgetPressed(WIDX_HALF_TILE_TOGGLE, _halfTileMode);
         }
 
         void onDraw(Drawing::RenderTarget& rt) override
@@ -568,6 +583,12 @@ namespace OpenRCT2::Ui::Windows
             ScreenCoordsXY screenCoords;
             WindowDrawWidgets(*this, rt);
             WindowFootpathDrawDropdownButtons(rt);
+
+            auto drawLabel = [&](int32_t x, int32_t y, const std::string& s, Drawing::Colour colour = Drawing::Colour::black) {
+                drawText(rt, windowPos + ScreenCoordsXY{ x, y }, s, { colour });
+            };
+            drawLabel(widgets[WIDX_HALF_TILE_TOGGLE].left + 16, widgets[WIDX_HALF_TILE_TOGGLE].top + 6, _halfTileMode ? "Half-Tile" : "Full Tile");
+            drawLabel(widgets[WIDX_OPEN_STREET_TOOL].left + 22, widgets[WIDX_OPEN_STREET_TOOL].top + 6, "Streets");
 
             if (!isWidgetDisabled(WIDX_CONSTRUCT))
             {
@@ -1458,6 +1479,54 @@ namespace OpenRCT2::Ui::Windows
             // Try and place path
             auto selectedType = gFootpathSelection.getSelectedSurface();
             PathConstructFlags constructFlags = FootpathCreateConstructFlags(selectedType);
+
+            if (_halfTileMode)
+            {
+                int32_t subX = (mapPos->x % kCoordsXYStep + kCoordsXYStep) % kCoordsXYStep;
+                int32_t subY = (mapPos->y % kCoordsXYStep + kCoordsXYStep) % kCoordsXYStep;
+
+                uint8_t subQuad = 0;
+                if (subX < 16 && subY < 16)
+                    subQuad = 0;
+                else if (subX >= 16 && subY < 16)
+                    subQuad = 1;
+                else if (subX >= 16 && subY >= 16)
+                    subQuad = 2;
+                else
+                    subQuad = 3;
+
+                uint8_t edgeMask = static_cast<uint8_t>(1u << subQuad);
+                for (auto* element : TileElementsView<PathElement>(*mapPos))
+                {
+                    if (element->getBaseZ() == placement.baseZ)
+                    {
+                        edgeMask |= element->getEdges();
+                        element->setEdges(edgeMask);
+                        MapInvalidateTileFull(*mapPos);
+                        Audio::Play3D(Audio::SoundId::placeItem, { mapPos->x + 16, mapPos->y + 16, placement.baseZ });
+                        return;
+                    }
+                }
+
+                auto layoutPlaceAction = GameActions::FootpathLayoutPlaceAction(
+                    { *mapPos, placement.baseZ }, placement.slope, selectedType, gFootpathSelection.railings, edgeMask,
+                    constructFlags);
+                layoutPlaceAction.SetCallback([this](const GameActions::GameAction* ga, const GameActions::Result* result) {
+                    if (result->error == GameActions::Status::ok)
+                    {
+                        if (result->cost != 0)
+                        {
+                            Audio::Play3D(Audio::SoundId::placeItem, result->position);
+                        }
+                    }
+                    else
+                    {
+                        _footpathErrorOccurred = true;
+                    }
+                });
+                GameActions::Execute(&layoutPlaceAction, getGameState());
+                return;
+            }
 
             auto footpathPlaceAction = GameActions::FootpathPlaceAction(
                 { *mapPos, placement.baseZ }, placement.slope, selectedType, gFootpathSelection.railings, kInvalidDirection,

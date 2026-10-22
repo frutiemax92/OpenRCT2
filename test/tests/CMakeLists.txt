@@ -71,6 +71,7 @@ set(test_files
    "${CMAKE_CURRENT_SOURCE_DIR}/GolfRuntimeTests.cpp"
    "${CMAKE_CURRENT_SOURCE_DIR}/GolfNavigationTests.cpp"
    "${CMAKE_CURRENT_SOURCE_DIR}/GolfUITests.cpp"
+   "${CMAKE_CURRENT_SOURCE_DIR}/GolfToolTests.cpp"
    "${CMAKE_CURRENT_SOURCE_DIR}/StreetTests.cpp"
    "${CMAKE_CURRENT_SOURCE_DIR}/StreetSpriteTests.cpp"
    "${CMAKE_CURRENT_SOURCE_DIR}/HoleMarkerTests.cpp"

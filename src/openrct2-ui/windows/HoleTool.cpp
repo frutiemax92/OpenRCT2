@@ -23,6 +23,7 @@
 #include <openrct2/drawing/RenderTarget.h>
 #include <openrct2/drawing/Text.h>
 #include <openrct2/golf/CourseManager.h>
+#include <openrct2/golf/GolfRuntime.h>
 #include <openrct2/golf/HoleMarkers.h>
 #include <openrct2/interface/Viewport.h>
 #include <openrct2/localisation/StringIds.h>
@@ -45,6 +46,7 @@ namespace OpenRCT2::Ui::Windows
         WIDX_COURSE_PREV,
         WIDX_COURSE_NEXT,
         WIDX_NEW_COURSE,
+        WIDX_NEW_MINI_PUTT,
         WIDX_HOLE_PREV,
         WIDX_HOLE_NEXT,
         WIDX_NEW_HOLE,
@@ -55,6 +57,7 @@ namespace OpenRCT2::Ui::Windows
         WIDX_AIM_1,
         WIDX_AIM_2,
         WIDX_REMOVE,
+        WIDX_SHOT_PLANNER,
         WIDX_OPEN_COURSE,
         WIDX_OPEN_ZONES,
     };
@@ -68,17 +71,19 @@ namespace OpenRCT2::Ui::Windows
         makeWindowShim(STR_HOLE_TOOL_TITLE, kWindowSize),
         makeWidget({  10, 20 }, {  20, 14 }, WidgetType::button, WindowColour::secondary, kStringIdNone),
         makeWidget({  34, 20 }, {  20, 14 }, WidgetType::button, WindowColour::secondary, kStringIdNone),
-        makeWidget({ 180, 20 }, {  90, 14 }, WidgetType::button, WindowColour::secondary, STR_HOLE_TOOL_NEW_COURSE),
+        makeWidget({ 135, 20 }, {  68, 14 }, WidgetType::button, WindowColour::secondary, kStringIdNone),
+        makeWidget({ 206, 20 }, {  68, 14 }, WidgetType::button, WindowColour::secondary, kStringIdNone),
         makeWidget({  10, 40 }, {  20, 14 }, WidgetType::button, WindowColour::secondary, kStringIdNone),
         makeWidget({  34, 40 }, {  20, 14 }, WidgetType::button, WindowColour::secondary, kStringIdNone),
-        makeWidget({ 180, 40 }, {  90, 14 }, WidgetType::button, WindowColour::secondary, STR_HOLE_TOOL_NEW_HOLE),
+        makeWidget({ 180, 40 }, {  94, 14 }, WidgetType::button, WindowColour::secondary, STR_HOLE_TOOL_NEW_HOLE),
         makeWidget({  10, 64 }, {  84, 18 }, WidgetType::button, WindowColour::secondary, STR_HOLE_TOOL_MEN_TEE),
         makeWidget({  98, 64 }, {  84, 18 }, WidgetType::button, WindowColour::secondary, STR_HOLE_TOOL_WOMEN_TEE),
         makeWidget({ 186, 64 }, {  84, 18 }, WidgetType::button, WindowColour::secondary, STR_HOLE_TOOL_CHILD_TEE),
         makeWidget({  10, 86 }, {  84, 18 }, WidgetType::button, WindowColour::secondary, STR_HOLE_TOOL_CUP),
         makeWidget({  98, 86 }, {  84, 18 }, WidgetType::button, WindowColour::secondary, STR_HOLE_TOOL_AIM_1),
         makeWidget({ 186, 86 }, {  84, 18 }, WidgetType::button, WindowColour::secondary, STR_HOLE_TOOL_AIM_2),
-        makeWidget({  10, 110 }, { 120, 12 }, WidgetType::checkbox, WindowColour::secondary, STR_HOLE_TOOL_REMOVE, STR_HOLE_TOOL_REMOVE_TIP),
+        makeWidget({  10, 110 }, { 120, 14 }, WidgetType::checkbox, WindowColour::secondary, STR_HOLE_TOOL_REMOVE, STR_HOLE_TOOL_REMOVE_TIP),
+        makeWidget({ 145, 108 }, { 125, 18 }, WidgetType::button, WindowColour::secondary, kStringIdNone),
         makeWidget({  10, 196 }, { 125, 20 }, WidgetType::button, WindowColour::secondary, STR_COURSE_WINDOW_TITLE),
         makeWidget({ 145, 196 }, { 125, 20 }, WidgetType::button, WindowColour::secondary, STR_ZONES_TITLE)
     );
@@ -150,11 +155,19 @@ namespace OpenRCT2::Ui::Windows
             setWidgets(kHoleToolWidgets);
             // The aim points are only drawn while holes are being built.
             GetHoleMarkers().setShowAimPoints(true);
+            if (auto* rt = Golf::GetGolfRuntime())
+                rt->setHoleOverlayEnabled(true);
         }
 
         void onClose() override
         {
             GetHoleMarkers().setShowAimPoints(false);
+            auto* windowMgr = GetWindowManager();
+            if (windowMgr->FindByClass(WindowClass::shotTool) == nullptr)
+            {
+                if (auto* rt = Golf::GetGolfRuntime())
+                    rt->setHoleOverlayEnabled(false);
+            }
             if (activeMarkerWidget() != kWidgetIndexNull)
                 ToolCancel();
         }
@@ -196,6 +209,20 @@ namespace OpenRCT2::Ui::Windows
                         _status = result.getErrorMessage();
                     break;
                 }
+                case WIDX_NEW_MINI_PUTT:
+                {
+                    CourseEditAction action(
+                        CourseEditType::create, 0, "Mini-Putt " + std::to_string(gameState.golf.courses().size() + 1), 1);
+                    const auto result = Execute(&action, gameState);
+                    if (result.error == Status::ok)
+                        selectCourse(gameState.golf.courses().size() - 1);
+                    else
+                        _status = result.getErrorMessage();
+                    break;
+                }
+                case WIDX_SHOT_PLANNER:
+                    ShotToolOpen();
+                    break;
                 case WIDX_HOLE_PREV:
                 case WIDX_HOLE_NEXT:
                 {
@@ -285,8 +312,11 @@ namespace OpenRCT2::Ui::Windows
             };
             text(widgets[WIDX_COURSE_PREV].left + 6, widgets[WIDX_COURSE_PREV].top + 1, "<");
             text(widgets[WIDX_COURSE_NEXT].left + 6, widgets[WIDX_COURSE_NEXT].top + 1, ">");
+            text(widgets[WIDX_NEW_COURSE].left + 6, widgets[WIDX_NEW_COURSE].top + 1, "+Course");
+            text(widgets[WIDX_NEW_MINI_PUTT].left + 6, widgets[WIDX_NEW_MINI_PUTT].top + 1, "+Mini");
             text(widgets[WIDX_HOLE_PREV].left + 6, widgets[WIDX_HOLE_PREV].top + 1, "<");
             text(widgets[WIDX_HOLE_NEXT].left + 6, widgets[WIDX_HOLE_NEXT].top + 1, ">");
+            text(widgets[WIDX_SHOT_PLANNER].left + 22, widgets[WIDX_SHOT_PLANNER].top + 3, "Shot Planner");
 
             auto* c = course();
             if (c == nullptr)

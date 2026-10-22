@@ -17,35 +17,59 @@
 #include <openrct2/Input.h>
 #include <openrct2/SpriteIds.h>
 #include <openrct2/actions/GameActionRunner.h>
+#include <openrct2/actions/scenery/StreamPlaceAction.h>
+#include <openrct2/actions/scenery/StreamRemoveAction.h>
 #include <openrct2/actions/terraform/WaterLowerAction.h>
 #include <openrct2/actions/terraform/WaterRaiseAction.h>
 #include <openrct2/drawing/Text.h>
 #include <openrct2/interface/Viewport.h>
 #include <openrct2/localisation/Formatter.h>
+#include <openrct2/object/ObjectLimits.h>
+#include <openrct2/object/ObjectManager.h>
+#include <openrct2/object/StreamObject.h>
 #include <openrct2/ui/WindowManager.h>
 #include <openrct2/world/MapSelection.h>
+#include <string>
 
 namespace OpenRCT2::Ui::Windows
 {
+    using namespace GameActions;
+
     static constexpr StringId kWindowTitle = STR_WATER;
-    static constexpr ScreenSize kWindowSize = { 76, 77 };
+    static constexpr ScreenSize kWindowSize = { 144, 115 };
+    static constexpr const char* kFlowDirections[4] = { "North (-y)", "East (+x)", "South (+y)", "West (-x)" };
+
+    enum class WaterToolMode : uint8_t
+    {
+        water,
+        streamPlace,
+        streamRemove,
+    };
 
     enum WindowWaterWidgetIdx : WidgetIndex
     {
         WIDX_BACKGROUND,
         WIDX_TITLE,
         WIDX_CLOSE,
+        WIDX_MODE_WATER,
+        WIDX_MODE_STREAM_PLACE,
+        WIDX_MODE_STREAM_REMOVE,
+        WIDX_STREAM_FLOW,
         WIDX_PREVIEW,
         WIDX_DECREMENT,
-        WIDX_INCREMENT
+        WIDX_INCREMENT,
     };
 
     // clang-format off
     static constexpr auto _waterWidgets = makeWidgets(
         makeWindowShim(kWindowTitle, kWindowSize),
-        makeWidget     ({16, 17}, {44, 32}, WidgetType::imgBtn, WindowColour::primary , ImageId(SPR_LAND_TOOL_SIZE_0),   kStringIdNone),            // preview box
-        makeRemapWidget({17, 18}, {16, 16}, WidgetType::trnBtn, WindowColour::tertiary, SPR_LAND_TOOL_DECREASE, STR_ADJUST_SMALLER_WATER_TIP), // decrement size
-        makeRemapWidget({43, 32}, {16, 16}, WidgetType::trnBtn, WindowColour::tertiary, SPR_LAND_TOOL_INCREASE, STR_ADJUST_LARGER_WATER_TIP) // increment size
+        makeWidget     ({ 6, 19}, {42, 20}, WidgetType::button, WindowColour::secondary, kStringIdNone),
+        makeWidget     ({50, 19}, {44, 20}, WidgetType::button, WindowColour::secondary, kStringIdNone),
+        makeWidget     ({96, 19}, {42, 20}, WidgetType::button, WindowColour::secondary, kStringIdNone),
+        makeWidget     ({10, 48}, {124, 20}, WidgetType::button, WindowColour::secondary, kStringIdNone),
+        makeWidget     ({50, 44}, {44, 32}, WidgetType::imgBtn, WindowColour::primary , ImageId(SPR_LAND_TOOL_SIZE_0),   kStringIdNone),            // preview box
+        makeRemapWidget({51, 45}, {16, 16}, WidgetType::trnBtn, WindowColour::tertiary, SPR_LAND_TOOL_DECREASE, STR_ADJUST_SMALLER_WATER_TIP), // decrement size
+        makeRemapWidget({77, 59}, {16, 16}, WidgetType::trnBtn, WindowColour::tertiary, SPR_LAND_TOOL_INCREASE, STR_ADJUST_LARGER_WATER_TIP) // increment size
     );
     // clang-format on
 
@@ -54,6 +78,57 @@ namespace OpenRCT2::Ui::Windows
     private:
         money64 _waterToolRaiseCost = kMoney64Undefined;
         money64 _waterToolLowerCost = kMoney64Undefined;
+        WaterToolMode _mode = WaterToolMode::water;
+        Direction _flowDirection = 0;
+        std::string _status;
+
+        static ObjectEntryIndex getFirstLoadedStreamObject()
+        {
+            auto& objMgr = GetContext()->GetObjectManager();
+            for (ObjectEntryIndex i = 0; i < kMaxStreamObjects; ++i)
+            {
+                if (objMgr.GetLoadedObject<StreamObject>(i) != nullptr)
+                    return i;
+            }
+            return kObjectEntryIndexNull;
+        }
+
+        void applyStreamPlace(const ScreenCoordsXY& screenCoords)
+        {
+            const auto position = ScreenGetMapXY(screenCoords, nullptr);
+            if (!position.has_value())
+                return;
+            const auto tile = position->toTileStart();
+            const auto streamType = getFirstLoadedStreamObject();
+            if (streamType == kObjectEntryIndexNull)
+            {
+                _status = "No stream loaded.";
+                invalidate();
+                return;
+            }
+            StreamPlaceAction action(tile, streamType, _flowDirection);
+            auto res = Execute(&action, getGameState());
+            if (res.error != Status::ok)
+                _status = res.getErrorMessage();
+            else
+                _status.clear();
+            invalidate();
+        }
+
+        void applyStreamRemove(const ScreenCoordsXY& screenCoords)
+        {
+            const auto position = ScreenGetMapXY(screenCoords, nullptr);
+            if (!position.has_value())
+                return;
+            const auto tile = position->toTileStart();
+            StreamRemoveAction action(tile);
+            auto res = Execute(&action, getGameState());
+            if (res.error != Status::ok)
+                _status = res.getErrorMessage();
+            else
+                _status.clear();
+            invalidate();
+        }
 
     public:
         void onOpen() override
@@ -83,14 +158,40 @@ namespace OpenRCT2::Ui::Windows
                 case WIDX_CLOSE:
                     close();
                     break;
+                case WIDX_MODE_WATER:
+                    _mode = WaterToolMode::water;
+                    ToolSet(*this, WIDX_BACKGROUND, Tool::waterDown);
+                    _status.clear();
+                    invalidate();
+                    break;
+                case WIDX_MODE_STREAM_PLACE:
+                    _mode = WaterToolMode::streamPlace;
+                    ToolSet(*this, WIDX_BACKGROUND, Tool::crosshair);
+                    _status.clear();
+                    invalidate();
+                    break;
+                case WIDX_MODE_STREAM_REMOVE:
+                    _mode = WaterToolMode::streamRemove;
+                    ToolSet(*this, WIDX_BACKGROUND, Tool::crosshair);
+                    _status.clear();
+                    invalidate();
+                    break;
+                case WIDX_STREAM_FLOW:
+                    _flowDirection = (_flowDirection + 1) & 3;
+                    invalidate();
+                    break;
                 case WIDX_PREVIEW:
-                    InputSize();
+                    if (_mode == WaterToolMode::water)
+                        InputSize();
                     break;
             }
         }
 
         void onMouseDown(WidgetIndex widgetIndex) override
         {
+            if (_mode != WaterToolMode::water)
+                return;
+
             switch (widgetIndex)
             {
                 case WIDX_DECREMENT:
@@ -124,7 +225,7 @@ namespace OpenRCT2::Ui::Windows
             int32_t size;
             char* end;
 
-            if (widgetIndex != WIDX_PREVIEW)
+            if (widgetIndex != WIDX_PREVIEW || _mode != WaterToolMode::water)
             {
                 return;
             }
@@ -143,90 +244,176 @@ namespace OpenRCT2::Ui::Windows
 
         void onPrepareDraw() override
         {
-            // Set the preview image button to be pressed down
-            setWidgetPressed(WIDX_PREVIEW, true);
+            setWidgetPressed(WIDX_MODE_WATER, _mode == WaterToolMode::water);
+            setWidgetPressed(WIDX_MODE_STREAM_PLACE, _mode == WaterToolMode::streamPlace);
+            setWidgetPressed(WIDX_MODE_STREAM_REMOVE, _mode == WaterToolMode::streamRemove);
 
-            // Update the preview image
-            widgets[WIDX_PREVIEW].image = ImageId(LandTool::SizeToSpriteIndex(gLandToolSize));
+            widgets[WIDX_PREVIEW].setVisible(_mode == WaterToolMode::water);
+            widgets[WIDX_DECREMENT].setVisible(_mode == WaterToolMode::water);
+            widgets[WIDX_INCREMENT].setVisible(_mode == WaterToolMode::water);
+            widgets[WIDX_STREAM_FLOW].setVisible(_mode == WaterToolMode::streamPlace);
+
+            if (_mode == WaterToolMode::water)
+            {
+                // Set the preview image button to be pressed down
+                setWidgetPressed(WIDX_PREVIEW, true);
+
+                // Update the preview image
+                widgets[WIDX_PREVIEW].image = ImageId(LandTool::SizeToSpriteIndex(gLandToolSize));
+            }
         }
 
         void onDraw(Drawing::RenderTarget& rt) override
         {
-            auto screenCoords = ScreenCoordsXY{ windowPos.x + widgets[WIDX_PREVIEW].midX(),
-                                                windowPos.y + widgets[WIDX_PREVIEW].midY() };
-
             drawWidgets(rt);
-            // Draw number for tool sizes bigger than 7
-            if (gLandToolSize > kLandToolMaximumSizeWithSprite)
+
+            auto text = [&](int32_t x, int32_t y, const std::string& s, Drawing::Colour colour = Drawing::Colour::black) {
+                drawText(rt, windowPos + ScreenCoordsXY{ x, y }, s, { colour });
+            };
+
+            text(widgets[WIDX_MODE_WATER].left + 5, widgets[WIDX_MODE_WATER].top + 4, "Water");
+            text(widgets[WIDX_MODE_STREAM_PLACE].left + 4, widgets[WIDX_MODE_STREAM_PLACE].top + 4, "Stream");
+            text(widgets[WIDX_MODE_STREAM_REMOVE].left + 3, widgets[WIDX_MODE_STREAM_REMOVE].top + 4, "Remove");
+
+            if (_mode == WaterToolMode::water)
             {
-                auto ft = Formatter();
-                ft.Add<uint16_t>(gLandToolSize);
-                drawText(rt, screenCoords - ScreenCoordsXY{ 0, 2 }, STR_LAND_TOOL_SIZE_VALUE, ft, { TextAlignment::centre });
+                auto screenCoords = ScreenCoordsXY{ windowPos.x + widgets[WIDX_PREVIEW].midX(),
+                                                    windowPos.y + widgets[WIDX_PREVIEW].midY() };
+                // Draw number for tool sizes bigger than 7
+                if (gLandToolSize > kLandToolMaximumSizeWithSprite)
+                {
+                    auto ft = Formatter();
+                    ft.Add<uint16_t>(gLandToolSize);
+                    drawText(rt, screenCoords - ScreenCoordsXY{ 0, 2 }, STR_LAND_TOOL_SIZE_VALUE, ft, { TextAlignment::centre });
+                }
+
+                if (!getGameState().park.flags.has(ParkFlag::noMoney))
+                {
+                    // Draw raise cost amount
+                    screenCoords = { widgets[WIDX_PREVIEW].midX() + windowPos.x, widgets[WIDX_PREVIEW].bottom + windowPos.y + 5 };
+                    if (_waterToolRaiseCost != kMoney64Undefined && _waterToolRaiseCost != 0)
+                    {
+                        auto ft = Formatter();
+                        ft.Add<money64>(_waterToolRaiseCost);
+                        drawText(rt, screenCoords, STR_RAISE_COST_AMOUNT, ft, { TextAlignment::centre });
+                    }
+                    screenCoords.y += 10;
+
+                    // Draw lower cost amount
+                    if (_waterToolLowerCost != kMoney64Undefined && _waterToolLowerCost != 0)
+                    {
+                        auto ft = Formatter();
+                        ft.Add<money64>(_waterToolLowerCost);
+                        drawText(rt, screenCoords, STR_LOWER_COST_AMOUNT, ft, { TextAlignment::centre });
+                    }
+                }
             }
-
-            if (!getGameState().park.flags.has(ParkFlag::noMoney))
+            else if (_mode == WaterToolMode::streamPlace)
             {
-                // Draw raise cost amount
-                screenCoords = { widgets[WIDX_PREVIEW].midX() + windowPos.x, widgets[WIDX_PREVIEW].bottom + windowPos.y + 5 };
-                if (_waterToolRaiseCost != kMoney64Undefined && _waterToolRaiseCost != 0)
-                {
-                    auto ft = Formatter();
-                    ft.Add<money64>(_waterToolRaiseCost);
-                    drawText(rt, screenCoords, STR_RAISE_COST_AMOUNT, ft, { TextAlignment::centre });
-                }
-                screenCoords.y += 10;
+                text(widgets[WIDX_STREAM_FLOW].left + 6, widgets[WIDX_STREAM_FLOW].top + 4, std::string("Flow: ") + kFlowDirections[_flowDirection & 3]);
+                const auto streamType = getFirstLoadedStreamObject();
+                if (streamType == kObjectEntryIndexNull)
+                    text(10, 74, "No stream object loaded", Drawing::Colour::grey);
+                else
+                    text(10, 74, "Click / drag to place stream", Drawing::Colour::darkGreen);
 
-                // Draw lower cost amount
-                if (_waterToolLowerCost != kMoney64Undefined && _waterToolLowerCost != 0)
-                {
-                    auto ft = Formatter();
-                    ft.Add<money64>(_waterToolLowerCost);
-                    drawText(rt, screenCoords, STR_LOWER_COST_AMOUNT, ft, { TextAlignment::centre });
-                }
+                if (!_status.empty())
+                    text(10, 92, _status, Drawing::Colour::brightRed);
+            }
+            else if (_mode == WaterToolMode::streamRemove)
+            {
+                text(10, 52, "Remove Stream Mode", Drawing::Colour::black);
+                text(10, 72, "Click stream to remove", Drawing::Colour::brightRed);
+                if (!_status.empty())
+                    text(10, 92, _status, Drawing::Colour::brightRed);
             }
         }
 
         void onToolUpdate(WidgetIndex widgetIndex, const ScreenCoordsXY& screenCoords) override
         {
-            switch (widgetIndex)
+            if (_mode == WaterToolMode::water)
             {
-                case WIDX_BACKGROUND:
-                    ToolUpdateWater(screenCoords);
-                    break;
+                switch (widgetIndex)
+                {
+                    case WIDX_BACKGROUND:
+                        ToolUpdateWater(screenCoords);
+                        break;
+                }
+            }
+            else
+            {
+                const auto position = ScreenGetMapXY(screenCoords, nullptr);
+                if (position.has_value())
+                {
+                    const auto tile = position->toTileStart();
+                    gMapSelectFlags.set(MapSelectFlag::enable);
+                    gMapSelectType = MapSelectType::full;
+                    gMapSelectPositionA = tile;
+                    gMapSelectPositionB = tile;
+                }
+                else
+                {
+                    gMapSelectFlags.unset(MapSelectFlag::enable);
+                }
             }
         }
 
         void onToolDown(WidgetIndex widgetIndex, const ScreenCoordsXY& screenCoords) override
         {
-            switch (widgetIndex)
+            if (_mode == WaterToolMode::water)
             {
-                case WIDX_BACKGROUND:
-                    if (gMapSelectFlags.has(MapSelectFlag::enable))
-                    {
-                        gCurrentToolId = Tool::upDownArrow;
-                    }
-                    break;
+                switch (widgetIndex)
+                {
+                    case WIDX_BACKGROUND:
+                        if (gMapSelectFlags.has(MapSelectFlag::enable))
+                        {
+                            gCurrentToolId = Tool::upDownArrow;
+                        }
+                        break;
+                }
+            }
+            else if (_mode == WaterToolMode::streamPlace)
+            {
+                applyStreamPlace(screenCoords);
+            }
+            else if (_mode == WaterToolMode::streamRemove)
+            {
+                applyStreamRemove(screenCoords);
             }
         }
 
         void onToolDrag(WidgetIndex widgetIndex, const ScreenCoordsXY& screenCoords) override
         {
-            switch (widgetIndex)
+            if (_mode == WaterToolMode::water)
             {
-                case WIDX_BACKGROUND:
-                    WaterToolDrag(screenCoords);
-                    break;
+                switch (widgetIndex)
+                {
+                    case WIDX_BACKGROUND:
+                        WaterToolDrag(screenCoords);
+                        break;
+                }
+            }
+            else if (_mode == WaterToolMode::streamPlace)
+            {
+                applyStreamPlace(screenCoords);
+            }
+            else if (_mode == WaterToolMode::streamRemove)
+            {
+                applyStreamRemove(screenCoords);
             }
         }
 
         void onToolUp(WidgetIndex widgetIndex, const ScreenCoordsXY& screenCoords) override
         {
-            switch (widgetIndex)
+            if (_mode == WaterToolMode::water)
             {
-                case WIDX_BACKGROUND:
-                    gMapSelectFlags.unset(MapSelectFlag::enable);
-                    gCurrentToolId = Tool::waterDown;
-                    break;
+                switch (widgetIndex)
+                {
+                    case WIDX_BACKGROUND:
+                        gMapSelectFlags.unset(MapSelectFlag::enable);
+                        gCurrentToolId = Tool::waterDown;
+                        break;
+                }
             }
         }
 

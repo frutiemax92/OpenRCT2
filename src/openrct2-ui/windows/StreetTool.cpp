@@ -20,6 +20,9 @@
 #include <openrct2/actions/scenery/StreetPlaceAction.h>
 #include <openrct2/actions/scenery/StreetRemoveAction.h>
 #include <openrct2/actions/scenery/StreetRoadEntranceAction.h>
+#include <openrct2/golf/GolfRuntime.h>
+#include <openrct2/world/MapSelection.h>
+#include <openrct2/world/Parking.h>
 #include <openrct2/drawing/Colour.h>
 #include <openrct2/drawing/Drawing.Screen.h>
 #include <openrct2/drawing/Drawing.h>
@@ -58,7 +61,7 @@ namespace OpenRCT2::Ui::Windows
         WIDX_CART_BAY,
     };
 
-    static constexpr ScreenSize kWindowSize = { 260, 184 };
+    static constexpr ScreenSize kWindowSize = { 260, 215 };
     static constexpr const char* kFlowNames[4] = { "-x", "+y", "+x", "-y" };
 
     // clang-format off
@@ -179,6 +182,7 @@ namespace OpenRCT2::Ui::Windows
         {
             if (activeTool() != kWidgetIndexNull)
                 ToolCancel();
+            gMapSelectFlags.unset(MapSelectFlag::enable);
         }
 
         void onMouseUp(WidgetIndex widgetIndex) override
@@ -212,6 +216,23 @@ namespace OpenRCT2::Ui::Windows
             invalidate();
         }
 
+        void onToolUpdate(WidgetIndex widgetIndex, const ScreenCoordsXY& screenCoords) override
+        {
+            const auto position = ScreenGetMapXY(screenCoords, nullptr);
+            if (position.has_value())
+            {
+                const auto tile = position->toTileStart();
+                gMapSelectFlags.set(MapSelectFlag::enable);
+                gMapSelectType = MapSelectType::full;
+                gMapSelectPositionA = tile;
+                gMapSelectPositionB = tile;
+            }
+            else
+            {
+                gMapSelectFlags.unset(MapSelectFlag::enable);
+            }
+        }
+
         void onToolDown(WidgetIndex widgetIndex, const ScreenCoordsXY& screenCoords) override
         {
             apply(widgetIndex, screenCoords);
@@ -228,6 +249,7 @@ namespace OpenRCT2::Ui::Windows
 
         void onToolAbort(WidgetIndex widgetIndex) override
         {
+            gMapSelectFlags.unset(MapSelectFlag::enable);
             invalidate();
         }
 
@@ -255,10 +277,30 @@ namespace OpenRCT2::Ui::Windows
                 return;
             }
             text(60, 23, std::string(object->GetName()) + (object->OneWay ? " (one-way)" : ""));
-            text(12, 138, "Speed limit: " + std::to_string(object->SpeedLimitKph) + " km/h", Colour::grey);
-            text(130, 73, std::string(object->OneWay ? "Flow and parking face " : "Parking faces ") + kFlowNames[_flow & 3]);
+            text(130, 73, std::string(object->OneWay ? "Flow / face: " : "Faces: ") + kFlowNames[_flow & 3]);
+
+            // Live status from GolfRuntime and world
+            Golf::StreetNetwork network;
+            Street::BuildNetwork(network);
+            const auto roadEntrances = network.roadEntrances().size();
+            const auto lots = Parking::FindLots();
+            int32_t totalSpaces = 0;
+            for (const auto& l : lots)
+                totalSpaces += static_cast<int32_t>(l.tiles.size());
+
+            int32_t occupied = 0;
+            if (auto& runtime = getGameState().golfRuntime)
+            {
+                occupied = std::max(0, runtime->traffic().capacity() - runtime->traffic().freeSpaces());
+            }
+            const auto cartBays = Parking::FindCartBays().size();
+
+            text(12, 138, "Road entrances: " + std::to_string(roadEntrances) + " | Cart bays: " + std::to_string(cartBays), Colour::black);
+            text(12, 154, "Parking: " + std::to_string(occupied) + " / " + std::to_string(totalSpaces) + " spaces occupied", Colour::black);
+            text(12, 172, "Speed limit: " + std::to_string(object->SpeedLimitKph) + " km/h", Colour::grey);
+
             if (!_status.empty())
-                text(12, 156, _status, Colour::brightRed);
+                text(12, 192, _status, Colour::brightRed);
         }
     };
 

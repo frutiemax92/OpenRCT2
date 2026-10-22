@@ -19,6 +19,7 @@
 #include <openrct2/drawing/Line.h>
 #include <openrct2/drawing/Text.h>
 #include <openrct2/golf/Clubs.h>
+#include <openrct2/golf/GolfRuntime.h>
 #include <openrct2/golf/ShotDebug.h>
 #include <openrct2/interface/Viewport.h>
 #include <openrct2/localisation/StringIds.h>
@@ -114,10 +115,18 @@ namespace OpenRCT2::Ui::Windows
             height = minHeight = maxHeight = kWindowSize.height;
             widgets[WIDX_BACKGROUND].right = width - 1;
             widgets[WIDX_BACKGROUND].bottom = height - 1;
+            if (auto* rt = Golf::GetGolfRuntime())
+                rt->setHoleOverlayEnabled(true);
         }
 
         void onClose() override
         {
+            auto* windowMgr = GetWindowManager();
+            if (windowMgr->FindByClass(WindowClass::holeTool) == nullptr)
+            {
+                if (auto* rt = Golf::GetGolfRuntime())
+                    rt->setHoleOverlayEnabled(false);
+            }
             if (isToolActive(*this, WIDX_PICK_TEE))
                 ToolCancel();
         }

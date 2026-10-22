@@ -16,8 +16,10 @@
 #include <openrct2/GameState.h>
 #include <openrct2/SpriteIds.h>
 #include <openrct2/actions/GameActionRunner.h>
+#include <openrct2/actions/golf/CourseBoundaryAction.h>
 #include <openrct2/actions/golf/CourseEditAction.h>
 #include <openrct2/actions/golf/HoleEditAction.h>
+#include <openrct2/world/MapSelection.h>
 #include <openrct2/drawing/Colour.h>
 #include <openrct2/drawing/Drawing.Screen.h>
 #include <openrct2/drawing/Drawing.h>
@@ -29,6 +31,7 @@
 #include <openrct2/golf/HoleDifficulty.h>
 #include <openrct2/golf/HoleSchedule.h>
 #include <openrct2/golf/MapBallWorld.h>
+#include <openrct2/interface/Viewport.h>
 #include <openrct2/localisation/Formatter.h>
 #include <openrct2/localisation/StringIds.h>
 #include <openrct2/ui/WindowManager.h>
@@ -62,11 +65,13 @@ namespace OpenRCT2::Ui::Windows
         WIDX_TAB_3,
 
         // Common to pages
+        WIDX_NEW_MINI_PUTT,
+        WIDX_BOUNDARY_TOOL,
         WIDX_COURSE_PREV,
         WIDX_COURSE_NEXT,
 
         // Holes page widgets
-        WIDX_HOLE_LIST,
+        WIDX_HOLE_LIST = 11,
         WIDX_TEST_HOLE,
         WIDX_MOVE_UP,
         WIDX_MOVE_DOWN,
@@ -76,7 +81,7 @@ namespace OpenRCT2::Ui::Windows
         WIDX_PAR_UP,
 
         // Scheduling page widgets
-        WIDX_SCHED_LIST = 9,
+        WIDX_SCHED_LIST = 11,
         WIDX_MODE_TOGGLE,
         WIDX_SLOT_LABEL,
         WIDX_SLOT_SPINNER,
@@ -84,7 +89,7 @@ namespace OpenRCT2::Ui::Windows
         WIDX_SLOT_UP,
 
         // Statistics page widgets
-        WIDX_OPEN_CLOSE = 9,
+        WIDX_OPEN_CLOSE = 11,
         WIDX_CARTS_OFF_PATH,
         WIDX_FEE_LABEL,
         WIDX_FEE_SPINNER,
@@ -103,8 +108,10 @@ namespace OpenRCT2::Ui::Windows
             makeTab   ({   3, 17 }, STR_COURSE_TAB_HOLES                                                            ),
             makeTab   ({  34, 17 }, STR_COURSE_TAB_SCHEDULING                                                       ),
             makeTab   ({  65, 17 }, STR_COURSE_TAB_STATISTICS                                                       ),
-            makeWidget({ width - 50, 47 }, { 20, 14 }, WidgetType::button, WindowColour::secondary, kStringIdNone     ),
-            makeWidget({ width - 26, 47 }, { 20, 14 }, WidgetType::button, WindowColour::secondary, kStringIdNone     )
+            makeWidget({ width - 180, 47 }, { 55, 14 }, WidgetType::button, WindowColour::secondary, kStringIdNone     ),
+            makeWidget({ width - 120, 47 }, { 55, 14 }, WidgetType::button, WindowColour::secondary, kStringIdNone     ),
+            makeWidget({ width - 55, 47 }, { 24, 14 }, WidgetType::button, WindowColour::secondary, kStringIdNone     ),
+            makeWidget({ width - 28, 47 }, { 24, 14 }, WidgetType::button, WindowColour::secondary, kStringIdNone     )
         );
     };
 
@@ -155,6 +162,20 @@ namespace OpenRCT2::Ui::Windows
         void onOpen() override
         {
             setPage(WINDOW_COURSE_PAGE_HOLES);
+        }
+
+        void onClose() override
+        {
+            if (isToolActive(*this, WIDX_BOUNDARY_TOOL))
+                ToolCancel();
+        }
+
+        void onPrepareDraw() override
+        {
+            setWidgetPressed(WIDX_TAB_1, page == WINDOW_COURSE_PAGE_HOLES);
+            setWidgetPressed(WIDX_TAB_2, page == WINDOW_COURSE_PAGE_SCHEDULING);
+            setWidgetPressed(WIDX_TAB_3, page == WINDOW_COURSE_PAGE_STATISTICS);
+            setWidgetPressed(WIDX_BOUNDARY_TOOL, isToolActive(*this, WIDX_BOUNDARY_TOOL));
         }
 
         void selectCourse(uint32_t courseId)
@@ -219,9 +240,11 @@ namespace OpenRCT2::Ui::Windows
                 drawText(rt, windowPos + ScreenCoordsXY{ x, y }, s, { col });
             };
 
-            // Prev / next course button text
-            text(widgets[WIDX_COURSE_PREV].left + 7, widgets[WIDX_COURSE_PREV].top + 1, "<");
-            text(widgets[WIDX_COURSE_NEXT].left + 7, widgets[WIDX_COURSE_NEXT].top + 1, ">");
+            // Course buttons
+            text(widgets[WIDX_NEW_MINI_PUTT].left + 6, widgets[WIDX_NEW_MINI_PUTT].top + 1, "+Mini");
+            text(widgets[WIDX_BOUNDARY_TOOL].left + 6, widgets[WIDX_BOUNDARY_TOOL].top + 1, "Bounds");
+            text(widgets[WIDX_COURSE_PREV].left + 8, widgets[WIDX_COURSE_PREV].top + 1, "<");
+            text(widgets[WIDX_COURSE_NEXT].left + 8, widgets[WIDX_COURSE_NEXT].top + 1, ">");
 
             // Course title bar / switcher
             if (course == nullptr)
@@ -547,6 +570,26 @@ namespace OpenRCT2::Ui::Windows
                     }
                     return;
                 }
+                case WIDX_NEW_MINI_PUTT:
+                {
+                    auto& gameState = getGameState();
+                    CourseEditAction action(
+                        CourseEditType::create, 0, "Mini-Putt " + std::to_string(gameState.golf.courses().size() + 1), 1);
+                    const auto result = Execute(&action, gameState);
+                    if (result.error == Status::ok)
+                        selectCourse(result.getData<CourseEditResult>().courseId);
+                    else
+                        _statusMessage = result.getErrorMessage();
+                    invalidate();
+                    return;
+                }
+                case WIDX_BOUNDARY_TOOL:
+                    if (isToolActive(*this, WIDX_BOUNDARY_TOOL))
+                        ToolCancel();
+                    else
+                        ToolSet(*this, WIDX_BOUNDARY_TOOL, Tool::crosshair);
+                    invalidate();
+                    return;
             }
 
             auto* course = getSelectedCourse();
@@ -752,6 +795,62 @@ namespace OpenRCT2::Ui::Windows
                 case WIDX_STAT_CARTS:
                     ContextOpenWindow(WindowClass::carts);
                     break;
+            }
+        }
+
+        void onToolDown(WidgetIndex widgetIndex, const ScreenCoordsXY& screenCoords) override
+        {
+            if (widgetIndex == WIDX_BOUNDARY_TOOL)
+            {
+                const auto position = ScreenGetMapXY(screenCoords, nullptr);
+                if (position.has_value())
+                {
+                    const auto tile = position->toTileStart();
+                    gMapSelectPositionA = tile;
+                    gMapSelectPositionB = tile;
+                    gMapSelectFlags.set(MapSelectFlag::enable);
+                    gMapSelectType = MapSelectType::full;
+                }
+            }
+        }
+
+        void onToolDrag(WidgetIndex widgetIndex, const ScreenCoordsXY& screenCoords) override
+        {
+            if (widgetIndex == WIDX_BOUNDARY_TOOL)
+            {
+                const auto position = ScreenGetMapXY(screenCoords, nullptr);
+                if (position.has_value())
+                {
+                    const auto tile = position->toTileStart();
+                    gMapSelectPositionB = tile;
+                    gMapSelectFlags.set(MapSelectFlag::enable);
+                    gMapSelectType = MapSelectType::full;
+                }
+            }
+        }
+
+        void onToolUp(WidgetIndex widgetIndex, const ScreenCoordsXY& screenCoords) override
+        {
+            if (widgetIndex == WIDX_BOUNDARY_TOOL)
+            {
+                const auto minX = std::min(gMapSelectPositionA.x, gMapSelectPositionB.x);
+                const auto minY = std::min(gMapSelectPositionA.y, gMapSelectPositionB.y);
+                const auto maxX = std::max(gMapSelectPositionA.x, gMapSelectPositionB.x);
+                const auto maxY = std::max(gMapSelectPositionA.y, gMapSelectPositionB.y);
+
+                CourseBoundaryAction action({ minX, minY }, { maxX, maxY }, CourseBoundaryAction::kInPlay);
+                Execute(&action, getGameState());
+                gMapSelectFlags.unset(MapSelectFlag::enable);
+                invalidate();
+            }
+        }
+
+        void onToolAbort(WidgetIndex widgetIndex) override
+        {
+            if (widgetIndex == WIDX_BOUNDARY_TOOL)
+            {
+                gMapSelectFlags.unset(MapSelectFlag::enable);
+                invalidate();
             }
         }
     };
