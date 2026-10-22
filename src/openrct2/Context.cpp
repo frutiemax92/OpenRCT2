@@ -42,6 +42,7 @@
 #include "core/Timer.hpp"
 #include "drawing/ColourMap.h"
 #include "drawing/Drawing.Sprite.h"
+#include "drawing/Drawing.Screen.h"
 #include "drawing/Drawing.h"
 #include "drawing/Font.h"
 #include "drawing/IDrawingEngine.h"
@@ -1325,7 +1326,8 @@ namespace OpenRCT2
                 return true;
             }();
             (void)workersStarted;
-            Drawing::ModelSpriteStore::Instance().BeginFrame();
+            if (Drawing::ModelSpriteStore::Instance().BeginFrame() > 0)
+                Drawing::GfxInvalidateScreen();
             Golf::GetHoleMarkers().update(getGameState().golf);
             for (const auto distance : Golf::GetHoleMarkers().signDistances())
                 Drawing::HoleMarkerSprites::EnsureNumber(distance);

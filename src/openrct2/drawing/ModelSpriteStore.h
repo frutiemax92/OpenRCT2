@@ -34,7 +34,9 @@ namespace OpenRCT2::Drawing
         void UnregisterModel(uint32_t id);
 
         // Main thread, once per frame before painting: evicts old sprites.
-        void BeginFrame();
+        // Takes the sprites the workers finished. Returns how many, so the caller can redraw entities that are standing
+        // still and so were not drawn while their sprite was missing.
+        size_t BeginFrame();
         void Clear();
         void SetBudget(size_t bytes);
 

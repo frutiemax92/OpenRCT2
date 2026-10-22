@@ -11,6 +11,7 @@
 
 #include <algorithm>
 #include <atomic>
+#include <chrono>
 #include <gtest/gtest.h>
 #include <openrct2/drawing/Image.h>
 #include <openrct2/drawing/ModelSpriteStore.h>
@@ -161,6 +162,40 @@ TEST(ModelSpriteStore, WorkersFillTheCacheAndTheNextFrameDrawsIt)
     // Whatever the pose draws, asking again must not queue again nor crash.
     const auto second = store.GetImage(key);
     EXPECT_EQ(store.GetImage(key), second);
+
+    store.SetWorkerThreads(0);
+    store.Clear();
+    store.UnregisterModel(id);
+}
+
+// A model standing still is only drawn again if the frame that takes its finished sprite says so (the screen is then
+// invalidated), otherwise a staff member or golfer who stands still would stay invisible.
+TEST(ModelSpriteStore, BeginFrameCountsTheSpritesTheWorkersFinished)
+{
+    auto& store = OpenRCT2::Drawing::ModelSpriteStore::Instance();
+    store.Clear();
+    store.SetWorkerThreads(1);
+
+    auto model = std::make_shared<GlbModel>();
+    auto loaded = loadGlb(GlbTest::triangleGlb());
+    ASSERT_TRUE(loaded.ok) << loaded.error;
+    *model = std::move(loaded.model);
+    const auto id = store.RegisterModel(model, 16.0f);
+
+    ImposterKey key;
+    key.modelId = id;
+    key.rotation = 2;
+    EXPECT_EQ(store.GetImage(key), kImageIndexUndefined);
+
+    size_t finished = 0;
+    for (int i = 0; i < 500 && finished == 0; i++)
+    {
+        finished = store.BeginFrame();
+        if (finished == 0)
+            std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    }
+    EXPECT_EQ(finished, 1u);
+    EXPECT_EQ(store.BeginFrame(), 0u);
 
     store.SetWorkerThreads(0);
     store.Clear();

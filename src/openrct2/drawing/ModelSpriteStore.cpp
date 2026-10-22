@@ -76,15 +76,20 @@ namespace OpenRCT2::Drawing
         _models.erase(id);
     }
 
-    void ModelSpriteStore::BeginFrame()
+    size_t ModelSpriteStore::BeginFrame()
     {
         std::lock_guard lock(_mutex);
+        size_t numFinished = 0;
         if (_worker != nullptr)
         {
             for (auto& finished : _worker->takeFinished())
+            {
                 _cache.insert(finished.key, std::move(finished.image));
+                numFinished++;
+            }
         }
         _cache.trim();
+        return numFinished;
     }
 
     void ModelSpriteStore::SetWorkerThreads(size_t threads)
