@@ -89,6 +89,10 @@ public:
                 return StreetToolOpen();
             case WindowClass::carts:
                 return CartsOpen();
+            case WindowClass::zones:
+                return ZonesOpen();
+            case WindowClass::tournament:
+                return TournamentOpen();
             case WindowClass::editorInventionList:
                 return EditorInventionsListOpen();
             case WindowClass::editorObjectSelection:

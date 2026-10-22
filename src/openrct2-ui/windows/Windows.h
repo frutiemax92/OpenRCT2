@@ -95,6 +95,12 @@ namespace OpenRCT2::Ui::Windows
     // Golfer window (section 13.7), opened for the entity that shows the golfer
     WindowBase* GolferOpen(EntityId golferEntity);
 
+    // The zone tool (cottage lots, tournament areas, driving ranges: sections 17 and 22)
+    WindowBase* ZonesOpen();
+
+    // The tournament window (section 22.5)
+    WindowBase* TournamentOpen();
+
     // The building window (section 9.3), for the building on a position
     WindowBase* BuildingOpen(const CoordsXY& position);
 

@@ -105,6 +105,8 @@ namespace OpenRCT2
         streetTool = 147,
         carts = 148,
         building = 149,
+        zones = 150,
+        tournament = 151,
 
         // Only used for colour schemes
         staff = 220,

@@ -3993,3 +3993,16 @@ STR_7199    :Building
 STR_7200    :Open it
 STR_7201    :Close it
 STR_7202    :Demolish
+STR_7203    :Zones
+STR_7204    :Cottage lot
+STR_7205    :Spectators
+STR_7206    :Media tent
+STR_7207    :Extra parking
+STR_7208    :Grandstand
+STR_7209    :Driving range
+STR_7210    :Hitting tile
+STR_7211    :Remove zone
+STR_7212    :{SMALLFONT}{BLACK}Click a zone, a lot or a driving range to take it away
+STR_7213    :Tournament
+STR_7214    :Book it
+STR_7215    :Cancel it
