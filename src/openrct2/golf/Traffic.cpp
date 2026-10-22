@@ -149,6 +149,40 @@ namespace OpenRCT2::Golf
         _junctionOwner.clear();
     }
 
+    void TrafficSimulation::exportState(TrafficSnapshot& out) const
+    {
+        out.cars = _cars;
+        out.nextCarId = _nextCarId;
+        out.nextLotId = _nextLotId;
+        out.taken.clear();
+        for (const auto& lot : _lots)
+            for (const auto& space : lot.spaces)
+                if (space.carId != 0 || space.reservedBy != 0)
+                    out.taken.push_back({ space.id, space.carId, space.reservedBy });
+        out.junctions.clear();
+        for (const auto& [tile, carId] : _junctionOwner)
+            out.junctions.push_back({ tile, carId });
+        std::sort(out.junctions.begin(), out.junctions.end(), [](const auto& a, const auto& b) { return a.tile < b.tile; });
+    }
+
+    void TrafficSimulation::importState(const TrafficSnapshot& in)
+    {
+        _cars = in.cars;
+        _nextCarId = std::max(_nextCarId, in.nextCarId);
+        _nextLotId = std::max(_nextLotId, in.nextLotId);
+        _junctionOwner.clear();
+        for (const auto& junction : in.junctions)
+            _junctionOwner[junction.tile] = junction.carId;
+        for (auto& lot : _lots)
+            for (auto& space : lot.spaces)
+                for (const auto& taken : in.taken)
+                    if (taken.spaceId == space.id)
+                    {
+                        space.carId = taken.carId;
+                        space.reservedBy = taken.reservedBy;
+                    }
+    }
+
     const ParkingSpace* TrafficSimulation::findSpace(uint32_t spaceId) const
     {
         for (const auto& lot : _lots)

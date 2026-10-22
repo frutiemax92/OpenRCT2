@@ -230,7 +230,7 @@ namespace OpenRCT2::Golf
         refreshBuildings();
         if (!gameState.golfSimulationData.empty())
         {
-            if (!loadDirector(*_director, gameState.golfSimulationData))
+            if (!loadDirector(*_director, gameState.golfSimulationData, &_pendingTraffic))
                 LOG_ERROR("The saved golfers are damaged and were dropped");
             gameState.golfSimulationData.clear();
         }
@@ -592,6 +592,16 @@ namespace OpenRCT2::Golf
         _carEntities.clear();
         _traffic.reset();
 
+        // Cars of a save belong to the layout they were saved with: the lots get their ids again and the cars return to them.
+        const bool restoring = _pendingTraffic.valid && _pendingTraffic.layout == layout;
+        if (restoring)
+        {
+            _traffic.setNextLotId(_pendingTraffic.layoutLotId);
+            _nextSpaceId = _pendingTraffic.layoutSpaceId;
+        }
+        _layoutLotId = _traffic.nextLotId();
+        _layoutSpaceId = _nextSpaceId;
+
         _network = std::move(network);
         for (const auto& lot : lots)
         {
@@ -599,6 +609,32 @@ namespace OpenRCT2::Golf
             for (const auto& tile : lot.tiles)
                 added.addTile(tile.tile, tile.facing, _nextSpaceId);
         }
+        if (restoring)
+        {
+            _traffic.importState(_pendingTraffic);
+            _nextSpaceId = std::max(_nextSpaceId, _pendingTraffic.nextSpaceId);
+            for (const auto& car : _traffic.cars())
+                if (car.state != CarState::parked && car.state != CarState::gone)
+                    _carGolfers[car.id] = car.golferIds;
+        }
+        _pendingTraffic = TrafficSnapshot{};
+    }
+
+    TrafficSnapshot GolfRuntime::trafficSnapshot() const
+    {
+        // Saved again before the streets were scanned: the cars are still the ones that were loaded.
+        if (!_layoutKnown && _pendingTraffic.valid)
+            return _pendingTraffic;
+        TrafficSnapshot snapshot;
+        if (!_layoutKnown || _traffic.carCount() == 0)
+            return snapshot;
+        _traffic.exportState(snapshot);
+        snapshot.valid = true;
+        snapshot.layout = _layout;
+        snapshot.layoutLotId = _layoutLotId;
+        snapshot.layoutSpaceId = _layoutSpaceId;
+        snapshot.nextSpaceId = _nextSpaceId;
+        return snapshot;
     }
 
     bool GolfRuntime::receiveCar(const std::vector<uint32_t>& golferIds, uint32_t groupId)
@@ -1224,6 +1260,19 @@ namespace OpenRCT2::Golf
         return bins;
     }
 
+    void GolfRuntime::showLoaded()
+    {
+        refreshBuildings();
+        syncCarts();
+        if (_scan.hasClub)
+        {
+            refreshTraffic();
+            driveTraffic();
+        }
+        syncEntities();
+        syncBalls();
+    }
+
     void GolfRuntime::update(uint32_t ticks)
     {
         if (ticks % kTicksPerGameMinute == 0)
@@ -1542,10 +1591,17 @@ namespace OpenRCT2::Golf
 
     void updateGolf(GameState_t& gameState)
     {
-        // Nothing to run before a course exists.
-        if (gameState.golfRuntime == nullptr && gameState.golf.courses().empty())
+        // Nothing to run before a course exists, unless a loaded save still holds golfers to bring back.
+        if (gameState.golfRuntime == nullptr && gameState.golf.courses().empty() && gameState.golfSimulationData.empty())
             return;
         runtimeOf(gameState).update(gameState.currentTicks);
+    }
+
+    void restoreAfterLoad(GameState_t& gameState)
+    {
+        if (gameState.golfRuntime == nullptr && gameState.golf.courses().empty() && gameState.golfSimulationData.empty())
+            return;
+        runtimeOf(gameState).showLoaded();
     }
 
     void SetupEmptyGolfSandbox(GameState_t& gameState)

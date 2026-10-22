@@ -885,7 +885,8 @@ namespace OpenRCT2
             }
             else if (gameState.golfRuntime != nullptr)
             {
-                gameState.golfSimulationData = Golf::saveDirector(gameState.golfRuntime->director());
+                const auto trafficSnapshot = gameState.golfRuntime->trafficSnapshot();
+                gameState.golfSimulationData = Golf::saveDirector(gameState.golfRuntime->director(), &trafficSnapshot);
             }
             else if (gameState.golfSimulationData.empty())
                 return; // no golfers yet: older readers and small files stay as they were

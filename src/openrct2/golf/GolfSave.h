@@ -10,6 +10,7 @@
 #pragma once
 
 #include "GolfDirector.h"
+#include "Traffic.h"
 
 #include <cstdint>
 #include <span>
@@ -29,10 +30,12 @@ namespace OpenRCT2::Golf
     // 8: the rage quits when the tournament started (ECO-042).
     // 9: the books of the buildings (section 9.3).
     // 10: the spot where a golfer stands aside while a group mate plays.
-    constexpr uint32_t kGolfSaveFormat = 10;
+    // 11: the cars of the traffic and the parking spaces they hold (STE-020).
+    constexpr uint32_t kGolfSaveFormat = 11;
 
-    std::vector<uint8_t> saveDirector(const GolfDirector& director);
+    // `traffic` (when given) is saved along with the director; loadDirector fills it when the data holds cars.
+    std::vector<uint8_t> saveDirector(const GolfDirector& director, const TrafficSnapshot* traffic = nullptr);
     // Restores the state saved by saveDirector into a director built on the same courses. Returns false (and leaves the
     // director as it was) when the data is damaged or from a newer format.
-    bool loadDirector(GolfDirector& director, std::span<const uint8_t> data);
+    bool loadDirector(GolfDirector& director, std::span<const uint8_t> data, TrafficSnapshot* traffic = nullptr);
 } // namespace OpenRCT2::Golf

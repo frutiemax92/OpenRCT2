@@ -340,7 +340,7 @@ namespace OpenRCT2::Golf
 
     struct GolfSaveAccess
     {
-        static void describe(Archive& a, GolfDirector& d)
+        static void describe(Archive& a, GolfDirector& d, TrafficSnapshot* traffic = nullptr)
         {
             uint32_t format = kGolfSaveFormat;
             a.io(format);
@@ -593,6 +593,58 @@ namespace OpenRCT2::Golf
                     a.io(entry);
                 }
             }
+
+            // The traffic.
+            if (a.format >= 11)
+            {
+                TrafficSnapshot unused;
+                auto& t = traffic != nullptr ? *traffic : unused;
+                bool has = t.valid;
+                a.io(has);
+                if (has)
+                {
+                    a.io(t.layout);
+                    a.io(t.layoutLotId);
+                    a.io(t.layoutSpaceId);
+                    a.io(t.nextSpaceId);
+                    a.io(t.nextCarId);
+                    a.io(t.nextLotId);
+                    a.list(t.cars, [&](Car& c) {
+                        a.io(c.id);
+                        a.io(c.groupId);
+                        a.list(c.golferIds, [&](uint32_t& id) { a.io(id); });
+                        a.io(c.state);
+                        a.list(c.route, [&](TileCoordsXY& tile) {
+                            a.io(tile.x);
+                            a.io(tile.y);
+                        });
+                        uint64_t index = c.index;
+                        a.io(index);
+                        c.index = static_cast<size_t>(index);
+                        a.io(c.progress);
+                        a.io(c.speed);
+                        a.io(c.lotId);
+                        a.io(c.spaceId);
+                        a.io(c.stateTicks);
+                        a.io(c.position);
+                        a.io(c.parkFrom);
+                        a.io(c.parkVia);
+                        a.io(c.heading);
+                        a.io(c.waitingFor);
+                    });
+                    a.list(t.taken, [&](TrafficSnapshot::Taken& k) {
+                        a.io(k.spaceId);
+                        a.io(k.carId);
+                        a.io(k.reservedBy);
+                    });
+                    a.list(t.junctions, [&](TrafficSnapshot::Junction& j) {
+                        a.io(j.tile);
+                        a.io(j.carId);
+                    });
+                    if (a.reading())
+                        t.valid = true;
+                }
+            }
         }
 
         static void describeSheet(Archive& a, TeeSheet& sheet)
@@ -611,15 +663,15 @@ namespace OpenRCT2::Golf
         }
     };
 
-    std::vector<uint8_t> saveDirector(const GolfDirector& director)
+    std::vector<uint8_t> saveDirector(const GolfDirector& director, const TrafficSnapshot* traffic)
     {
         Archive archive;
         // Describing only reads the director when saving; the const is cast away for the shared routine.
-        GolfSaveAccess::describe(archive, const_cast<GolfDirector&>(director));
+        GolfSaveAccess::describe(archive, const_cast<GolfDirector&>(director), const_cast<TrafficSnapshot*>(traffic));
         return archive.take();
     }
 
-    bool loadDirector(GolfDirector& director, std::span<const uint8_t> data)
+    bool loadDirector(GolfDirector& director, std::span<const uint8_t> data, TrafficSnapshot* traffic)
     {
         // Load into a copy of nothing: a failure part way would leave the director half written, so it is kept aside by
         // saving its current state first and putting that back on failure.
@@ -627,11 +679,15 @@ namespace OpenRCT2::Golf
         try
         {
             Archive archive(data);
-            GolfSaveAccess::describe(archive, director);
+            if (traffic != nullptr)
+                *traffic = TrafficSnapshot{};
+            GolfSaveAccess::describe(archive, director, traffic);
             return true;
         }
         catch (const std::exception&)
         {
+            if (traffic != nullptr)
+                *traffic = TrafficSnapshot{};
             Archive restore{ std::span<const uint8_t>(before) };
             GolfSaveAccess::describe(restore, director);
             return false;

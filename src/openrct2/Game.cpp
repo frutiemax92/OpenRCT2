@@ -34,6 +34,7 @@
 #include "entity/EntityRegistry.h"
 #include "entity/PatrolArea.h"
 #include "entity/Peep.h"
+#include "golf/GolfRuntime.h"
 #include "interface/Viewport.h"
 #include "interface/WindowTypes.h"
 #include "management/Research.h"
@@ -378,6 +379,7 @@ void GameLoadInit()
     }
     getGameState().entities.resetEntitySpatialIndices();
     ResetAllSpriteQuadrantPlacements();
+    Golf::restoreAfterLoad(getGameState());
 
     gWindowUpdateTicks = 0;
     gCurrentRealTimeTicks = 0;

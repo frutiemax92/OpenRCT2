@@ -362,6 +362,54 @@ TEST(GolfDirector, PopularityReflectsCourseScenery)
     EXPECT_EQ(inScenery.sceneryScore, 80);
 }
 
+TEST(GolfDirector, SavedCarsComeBackWithTheirSpacesAndRoutes)
+{
+    Park park;
+    Car car;
+    car.id = 7;
+    car.groupId = 3;
+    car.golferIds = { 1, 2 };
+    car.state = CarState::driving;
+    car.route = { TileCoordsXY{ 1, 2 }, TileCoordsXY{ 1, 3 }, TileCoordsXY{ 2, 3 } };
+    car.index = 1;
+    car.progress = Fixed::fromInt(9);
+    car.lotId = 4;
+    car.spaceId = 12;
+    car.position = { Fixed::fromInt(40), Fixed::fromInt(100), Fixed{} };
+    TrafficSnapshot traffic;
+    traffic.valid = true;
+    traffic.layout = 0xABCDEF;
+    traffic.layoutLotId = 3;
+    traffic.layoutSpaceId = 10;
+    traffic.nextSpaceId = 20;
+    traffic.nextCarId = 8;
+    traffic.nextLotId = 6;
+    traffic.cars = { car };
+    traffic.taken = { { 12, 7, 0 } };
+    traffic.junctions = { { 5, 7 } };
+
+    const auto saved = saveDirector(*park.director, &traffic);
+    Park other;
+    TrafficSnapshot loaded;
+    ASSERT_TRUE(loadDirector(*other.director, saved, &loaded));
+    ASSERT_TRUE(loaded.valid);
+    EXPECT_EQ(loaded.layout, 0xABCDEFu);
+    EXPECT_EQ(loaded.layoutSpaceId, 10u);
+    ASSERT_EQ(loaded.cars.size(), 1u);
+    EXPECT_EQ(loaded.cars[0].route.size(), 3u);
+    EXPECT_EQ(loaded.cars[0].index, 1u);
+    EXPECT_EQ(loaded.cars[0].golferIds, car.golferIds);
+    EXPECT_EQ(loaded.cars[0].position.y, car.position.y);
+    ASSERT_EQ(loaded.taken.size(), 1u);
+    EXPECT_EQ(loaded.taken[0].carId, 7u);
+    EXPECT_EQ(loaded.junctions.size(), 1u);
+
+    // A save without cars loads without them.
+    TrafficSnapshot none;
+    ASSERT_TRUE(loadDirector(*other.director, saveDirector(*park.director), &none));
+    EXPECT_FALSE(none.valid);
+}
+
 TEST(GolfDirector, SavedGolfersComeBackExactly)
 {
     Park park;

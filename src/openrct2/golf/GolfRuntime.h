@@ -59,6 +59,8 @@ namespace OpenRCT2::Golf
 
         // Advances the golf by one game tick.
         void update(uint32_t ticks);
+        // Shows the golfers, cars and balls a loaded game holds, without advancing time (a game loads paused).
+        void showLoaded();
         // Rescans the buildings; done once per game minute by update().
         void refreshBuildings();
 
@@ -88,6 +90,8 @@ namespace OpenRCT2::Golf
         {
             return !_network.roadEntrances().empty() && !_traffic.lots().empty();
         }
+        // The traffic as a save keeps it; `valid` is false while there are no cars.
+        TrafficSnapshot trafficSnapshot() const;
         const TrafficSimulation& traffic() const
         {
             return _traffic;
@@ -181,6 +185,9 @@ namespace OpenRCT2::Golf
         uint64_t _layout = 0;                // fingerprint of the streets and lots the traffic was built for
         bool _layoutKnown = false;
         uint32_t _nextSpaceId = 1;
+        uint32_t _layoutLotId = 1;           // the first lot and space ids handed out for the current layout
+        uint32_t _layoutSpaceId = 1;
+        TrafficSnapshot _pendingTraffic;     // the cars of a loaded save, put back once the streets are scanned
         std::unordered_map<uint32_t, uint16_t> _carEntities;              // car id -> entity id
         std::unordered_map<uint32_t, std::vector<uint32_t>> _carGolfers;  // car id -> the golfers it brought
         std::unordered_map<uint32_t, uint16_t> _cartEntities;             // cart id -> entity id
@@ -205,6 +212,8 @@ namespace OpenRCT2::Golf
     void resetRuntime(GameState_t& gameState);
     // Called from the game logic update: ticks the runtime when the park is in play.
     void updateGolf(GameState_t& gameState);
+    // Brings back the golf of a game just loaded, so that it is on the map even while the game is paused.
+    void restoreAfterLoad(GameState_t& gameState);
 
     // Initialises an empty golf sandbox with all default golf objects loaded (NAV-005).
     void SetupEmptyGolfSandbox(GameState_t& gameState);

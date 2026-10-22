@@ -114,6 +114,33 @@ namespace OpenRCT2::Golf
         uint32_t value = 0;
     };
 
+    // What a save keeps of the traffic (the lots themselves come back from the map): the cars, who stands in which space and the
+    // numbers the ids go on from. `layout` and the first ids say which streets and lots the ids belong to.
+    struct TrafficSnapshot
+    {
+        struct Taken
+        {
+            uint32_t spaceId = 0;
+            uint32_t carId = 0;
+            uint32_t reservedBy = 0;
+        };
+        struct Junction
+        {
+            int64_t tile = 0;
+            uint32_t carId = 0;
+        };
+        bool valid = false;
+        uint64_t layout = 0;
+        uint32_t layoutLotId = 1;    // the first lot id of the layout
+        uint32_t layoutSpaceId = 1;  // the first space id of the layout
+        uint32_t nextSpaceId = 1;
+        uint32_t nextCarId = 1;
+        uint32_t nextLotId = 1;
+        std::vector<Car> cars;
+        std::vector<Taken> taken;
+        std::vector<Junction> junctions;
+    };
+
     class TrafficSimulation
     {
     public:
@@ -125,6 +152,18 @@ namespace OpenRCT2::Golf
         ParkingLot& addLot(const TileCoordsXY& streetTile, const TileCoordsXY& pathTile);
         // Forgets the lots, the cars and who was in the way of whom: the streets or the parking changed under them. Ids go on.
         void reset();
+        uint32_t nextLotId() const
+        {
+            return _nextLotId;
+        }
+        void setNextLotId(uint32_t id)
+        {
+            _nextLotId = id;
+        }
+        // Writes the cars and the spaces they hold into `out` (the layout fields are the caller's).
+        void exportState(TrafficSnapshot& out) const;
+        // Puts the cars back into lots rebuilt with the same ids; cars of lots or spaces that are gone are dropped.
+        void importState(const TrafficSnapshot& in);
         // The space with an id, in whichever lot it is; nullptr when there is none.
         const ParkingSpace* findSpace(uint32_t spaceId) const;
         std::vector<ParkingLot>& lots()
