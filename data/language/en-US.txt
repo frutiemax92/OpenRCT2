@@ -46,7 +46,7 @@ STR_1506    :“The trash here is really bad”
 
 STR_1518    :“This balloon from {STRINGID} is a really good value”
 STR_1519    :“This cuddly toy from {STRINGID} is a really good value”
-STR_1520    :“This park map from {STRINGID} is a really good value”
+STR_1520    :“This course map from {STRINGID} is a really good value”
 STR_1521    :“This on-ride photo from {STRINGID} is a really good value”
 STR_1522    :“This umbrella from {STRINGID} is a really good value”
 STR_1523    :“This drink from {STRINGID} is a really good value”
@@ -101,7 +101,7 @@ STR_1667    :{WINDOW_COLOUR_2}Bathroom:
 
 STR_1714    :{INLINE_SPRITE}{249}{19}{00}{00}{WINDOW_COLOUR_2}Empty trash cans
 
-STR_1753    :Show summarized list of guests in park
+STR_1753    :Show summarized list of golfers on the course
 
 STR_1790    :Select uniform color for this type of staff
 STR_1791    :{WINDOW_COLOUR_2}Uniform color:
@@ -170,17 +170,17 @@ STR_2707    :Use system dialog window
 
 STR_2756    :Remove trash
 
-STR_2806    :{RED}Guests are complaining about the disgusting state of the paths in your park{NEWLINE}Check where your handymen are and consider organizing them better
-STR_2807    :{RED}Guests are complaining about the amount of trash in your park{NEWLINE}Check where your handymen are and consider organizing them better
-STR_2808    :{RED}Guests are complaining about the vandalism in your park{NEWLINE}Check where your security guards are and consider organizing them better
+STR_2806    :{RED}Guests are complaining about the disgusting state of the paths on your course{NEWLINE}Check where your handymen are and consider organizing them better
+STR_2807    :{RED}Guests are complaining about the amount of trash on your course{NEWLINE}Check where your handymen are and consider organizing them better
+STR_2808    :{RED}Guests are complaining about the vandalism on your course{NEWLINE}Check where your security guards are and consider organizing them better
 
-STR_2811    :{RED}Guests are complaining because they can’t find the bathrooms in your park
+STR_2811    :{RED}Guests are complaining because they can’t find the bathrooms on your course
 
-STR_2824    :{WINDOW_COLOUR_2}Best park bathrooms award
+STR_2824    :{WINDOW_COLOUR_2}Best course bathrooms award
 
 STR_2828    :{WINDOW_COLOUR_2}Most dazzling ride color schemes award
 
-STR_2845    :{TOPAZ}Your park has received an award for being ‘The park with the most dazzling choice of color schemes’!
+STR_2845    :{TOPAZ}Your course has received an award for being ‘The course with the most dazzling choice of color schemes’!
 
 STR_2971    :Main color scheme
 STR_2972    :Alternative color scheme 1
@@ -209,7 +209,7 @@ STR_3373    :{BLACK}= Restroom
 STR_5440    :Minimize fullscreen on focus loss
 STR_5459    :Rotate counterclockwise
 STR_5460    :Rotate view counterclockwise
-STR_5515    :Stops guests from vandalizing your park when they’re angry
+STR_5515    :Stops guests from vandalizing your course when they’re angry
 STR_5517    :Gray
 STR_5557    :Stay connected after desynchronization (Multiplayer)
 STR_5572    :Add To Favorites
