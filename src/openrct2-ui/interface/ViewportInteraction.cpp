@@ -325,8 +325,13 @@ namespace OpenRCT2::Ui
                         Windows::GolferOpen(entity->id);
                         break;
                     case EntityType::golfVehicle:
-                        Windows::CartsOpen();
+                    {
+                        // Only golf carts belong to the fleet window; a car is not one of them.
+                        auto* vehicle = entity->as<GolfVehicleEntity>();
+                        if (vehicle != nullptr && vehicle->kind == GolfVehicleEntity::Kind::cart)
+                            Windows::CartsOpen();
                         break;
+                    }
                     default:
                         break;
                 }
