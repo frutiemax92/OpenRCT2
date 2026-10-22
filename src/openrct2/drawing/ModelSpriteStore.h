@@ -44,6 +44,11 @@ namespace OpenRCT2::Drawing
         // until the next BeginFrame. Safe to call from paint threads.
         ImageIndex GetImage(const Model::ImposterKey& key);
 
+        // Like GetImage, but while the exact pose is still being rasterised returns an already rasterised pose close to
+        // it (a neighbouring animation frame or facing) so a moving model never vanishes for a frame. `shown` is the key
+        // of the image returned.
+        ImageIndex GetImageOrNearest(const Model::ImposterKey& key, Model::ImposterKey& shown);
+
         // Rasterises missing poses on worker threads (R3D-009): GetImage then returns kImageIndexUndefined for a pose until
         // its image is ready, which BeginFrame collects. 0 threads goes back to rasterising on the calling thread.
         void SetWorkerThreads(size_t threads);

@@ -37,17 +37,18 @@ namespace OpenRCT2
         const auto key = Model::makeImposterKey(
             pose.modelId, *model, pose.clip, pose.time, pose.orientation, static_cast<uint8_t>(session.CurrentRotation), 0,
             pose.remap);
-        const auto image = store.GetImage(key);
+        Model::ImposterKey shown;
+        const auto image = store.GetImageOrNearest(key, shown);
         if (image == kImageIndexUndefined)
             return;
 
         // The box is that of the pose that was rasterised (the bucket centres), in the unrotated frame of the entity.
         Model::RenderSettings settings;
         settings.unitsPerMetre = store.GetUnitsPerMetre(pose.modelId);
-        settings.orientation.yaw = Model::bucketToYaw(key.yawBucket);
-        settings.orientation.pitch = Model::bucketToTilt(key.pitchBucket);
-        settings.orientation.roll = Model::bucketToTilt(key.rollBucket);
-        settings.clipIndex = key.clip;
+        settings.orientation.yaw = Model::bucketToYaw(shown.yawBucket);
+        settings.orientation.pitch = Model::bucketToTilt(shown.pitchBucket);
+        settings.orientation.roll = Model::bucketToTilt(shown.rollBucket);
+        settings.clipIndex = shown.clip;
         settings.time = pose.time;
         auto box = ComputeModelBoundBox(*model, settings);
         box.offset.z += z;

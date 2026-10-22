@@ -95,6 +95,48 @@ TEST(ModelSpriteStore, DrawsAPoseAsAnImageAndSharesIdenticalPoses)
     store.UnregisterModel(id);
 }
 
+TEST(ModelSpriteStore, ShowsANeighbouringPoseWhileTheExactOneIsStillBeingRasterised)
+{
+    auto& store = Drawing::ModelSpriteStore::Instance();
+    store.Clear();
+    store.SetWorkerThreads(1);
+    const auto id = store.RegisterModel(slab(0), 16.0f);
+
+    ImposterKey ready;
+    ready.modelId = id;
+    ready.frame = 3;
+    EXPECT_EQ(store.GetImage(ready), kImageIndexUndefined); // queued
+    store.WaitForWorkers();
+    const auto readyImage = store.GetImage(ready);
+    ASSERT_NE(readyImage, kImageIndexUndefined);
+
+    // The next frame is not rasterised yet: without a fallback the entity would vanish for these frames (flicker).
+    ImposterKey next = ready;
+    next.frame = 4;
+    ImposterKey shown;
+    EXPECT_EQ(store.GetImageOrNearest(next, shown), readyImage);
+    EXPECT_EQ(shown.frame, 3);
+
+    // A facing next to the drawn one works too.
+    ImposterKey turned = ready;
+    turned.yawBucket = 1;
+    EXPECT_EQ(store.GetImageOrNearest(turned, shown), readyImage);
+    EXPECT_EQ(shown.yawBucket, 0);
+
+    // Nothing close by: nothing to show.
+    ImposterKey far = ready;
+    far.yawBucket = 16;
+    EXPECT_EQ(store.GetImageOrNearest(far, shown), kImageIndexUndefined);
+
+    store.WaitForWorkers();
+    EXPECT_NE(store.GetImageOrNearest(next, shown), kImageIndexUndefined);
+    EXPECT_EQ(shown.frame, 4); // the exact pose wins once it is ready
+
+    store.SetWorkerThreads(0);
+    store.Clear();
+    store.UnregisterModel(id);
+}
+
 TEST(ModelSpriteStore, UnknownOrEmptyModelsDrawNothing)
 {
     auto& store = Drawing::ModelSpriteStore::Instance();

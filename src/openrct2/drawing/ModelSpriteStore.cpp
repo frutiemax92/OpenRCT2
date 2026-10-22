@@ -202,3 +202,45 @@ namespace OpenRCT2::Drawing
         return index;
     }
 } // namespace OpenRCT2::Drawing
+
+namespace OpenRCT2::Drawing
+{
+    ImageIndex ModelSpriteStore::GetImageOrNearest(const Model::ImposterKey& key, Model::ImposterKey& shown)
+    {
+        shown = key;
+        const auto exact = GetImage(key); // also queues the rasterisation of a missing pose
+        if (exact != kImageIndexUndefined)
+            return exact;
+
+        std::lock_guard lock(_mutex);
+        constexpr int32_t kMaxFrameDistance = 8;
+        constexpr int32_t kMaxYawDistance = 2;
+        for (int32_t yawStep = 0; yawStep <= kMaxYawDistance; yawStep++)
+        {
+            for (int32_t yawSign = (yawStep == 0 ? 1 : -1); yawSign <= 1; yawSign += 2)
+            {
+                auto candidate = key;
+                candidate.yawBucket = static_cast<uint8_t>(
+                    (key.yawBucket + yawSign * yawStep + Model::kYawBuckets) % Model::kYawBuckets);
+                for (int32_t frameStep = 0; frameStep <= kMaxFrameDistance; frameStep++)
+                {
+                    // Prefer the frame just before: it is the one that was on screen a moment ago.
+                    for (int32_t frameSign = (frameStep == 0 ? 1 : -1); frameSign <= 1; frameSign += 2)
+                    {
+                        const auto frame = static_cast<int32_t>(key.frame) + frameSign * frameStep;
+                        if (frame < 0)
+                            continue;
+                        candidate.frame = static_cast<uint16_t>(frame);
+                        auto it = _images.find(candidate);
+                        if (it != _images.end())
+                        {
+                            shown = candidate;
+                            return it->second;
+                        }
+                    }
+                }
+            }
+        }
+        return kImageIndexUndefined;
+    }
+} // namespace OpenRCT2::Drawing
