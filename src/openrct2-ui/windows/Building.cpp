@@ -319,7 +319,7 @@ namespace OpenRCT2::Ui::Windows
         }
 
     public:
-        BuildingToolWindow()
+        void onOpen() override
         {
             setWidgets(kBuildingToolWidgets);
             refreshBuildings();
