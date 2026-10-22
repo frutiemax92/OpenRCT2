@@ -14,6 +14,7 @@
 #include <openrct2/core/StringTypes.h>
 #include <openrct2/interface/WindowTypes.h>
 #include <openrct2/localisation/StringIdType.h>
+#include <openrct2/world/Location.hpp>
 #include <openrct2/world/ScenerySelection.h>
 #include <optional>
 #include <string_view>
@@ -93,6 +94,9 @@ namespace OpenRCT2::Ui::Windows
 
     // Golfer window (section 13.7), opened for the entity that shows the golfer
     WindowBase* GolferOpen(EntityId golferEntity);
+
+    // The building window (section 9.3), for the building on a position
+    WindowBase* BuildingOpen(const CoordsXY& position);
 
     // Golf carts (section 14)
     WindowBase* CartsOpen();

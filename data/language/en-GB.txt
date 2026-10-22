@@ -3989,3 +3989,7 @@ STR_7195    :The course does not meet the requirements of this tournament
 STR_7196    :Can't change the building
 STR_7197    :There is no building there
 STR_7198    :This building has no services to set
+STR_7199    :Building
+STR_7200    :Open it
+STR_7201    :Close it
+STR_7202    :Demolish

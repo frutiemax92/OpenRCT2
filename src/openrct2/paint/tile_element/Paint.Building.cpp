@@ -11,6 +11,7 @@
 
 #include "../../SpriteIds.h"
 #include "../../drawing/Drawing.h"
+#include "../../interface/Viewport.h"
 #include "../../object/BuildingObject.h"
 #include "../../world/Building.h"
 #include "../../world/tile_element/BuildingElement.h"
@@ -37,6 +38,8 @@ void PaintBuilding(PaintSession& session, int32_t height, const BuildingElement&
     auto sizeY = object->getFootprintY(rotation) * kCoordsXYStep;
     CoordsXYZ offset{ origin.x + sizeX / 2 - tile.x, origin.y + sizeY / 2 - tile.y, height };
     BoundBoxXYZ boundBox{ { origin.x - tile.x + 1, origin.y - tile.y + 1, height }, { sizeX - 2, sizeY - 2, object->Height } };
+
+    session.InteractionType = ViewportInteractionItem::building;
 
     auto view = (rotation + session.CurrentRotation) & 3;
     ImageId image(object->getViewImageId(view));

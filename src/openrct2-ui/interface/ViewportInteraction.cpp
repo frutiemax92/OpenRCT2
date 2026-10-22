@@ -88,7 +88,8 @@ namespace OpenRCT2::Ui
 
         info = GetMapCoordinatesFromPos(
             screenCoords,
-            { ViewportInteractionItem::entity, ViewportInteractionItem::ride, ViewportInteractionItem::parkEntrance });
+            { ViewportInteractionItem::entity, ViewportInteractionItem::ride, ViewportInteractionItem::parkEntrance,
+              ViewportInteractionItem::building });
         auto tileElement = info.interactionType != ViewportInteractionItem::entity ? info.Element : nullptr;
         // Only valid when info.interactionType == ViewportInteractionItem::entity, but can't assign nullptr without compiler
         // complaining
@@ -182,6 +183,7 @@ namespace OpenRCT2::Ui
             case ViewportInteractionItem::entity:
             case ViewportInteractionItem::ride:
             case ViewportInteractionItem::parkEntrance:
+            case ViewportInteractionItem::building:
                 return true;
             default:
                 return false;
@@ -253,6 +255,9 @@ namespace OpenRCT2::Ui
             }
             case ViewportInteractionItem::parkEntrance:
                 ContextOpenWindow(WindowClass::parkInformation);
+                return true;
+            case ViewportInteractionItem::building:
+                Windows::BuildingOpen(info.Loc);
                 return true;
             default:
                 return false;
@@ -568,6 +573,7 @@ namespace OpenRCT2::Ui
             case ViewportInteractionItem::terrain:
             case ViewportInteractionItem::water:
             case ViewportInteractionItem::label:
+            case ViewportInteractionItem::building:
                 return false;
 
             case ViewportInteractionItem::entity:

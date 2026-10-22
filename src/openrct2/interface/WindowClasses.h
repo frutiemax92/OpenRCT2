@@ -104,6 +104,7 @@ namespace OpenRCT2
         holeTool = 146,
         streetTool = 147,
         carts = 148,
+        building = 149,
 
         // Only used for colour schemes
         staff = 220,

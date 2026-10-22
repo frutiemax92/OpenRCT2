@@ -105,7 +105,8 @@ enum class ViewportInteractionItem : uint8_t
     wall,
     largeScenery,
     label,
-    banner
+    banner,
+    building
 };
 using ViewportInteractionItems = FlagHolder<uint16_t, ViewportInteractionItem>;
 
@@ -125,7 +126,8 @@ namespace OpenRCT2
         ViewportInteractionItem::terrain,      ViewportInteractionItem::entity,       ViewportInteractionItem::ride,
         ViewportInteractionItem::water,        ViewportInteractionItem::scenery,      ViewportInteractionItem::footpath,
         ViewportInteractionItem::pathAddition, ViewportInteractionItem::parkEntrance, ViewportInteractionItem::wall,
-        ViewportInteractionItem::largeScenery, ViewportInteractionItem::label,        ViewportInteractionItem::banner
+        ViewportInteractionItem::largeScenery, ViewportInteractionItem::label,        ViewportInteractionItem::banner,
+        ViewportInteractionItem::building
     };
 
     struct InteractionInfo
