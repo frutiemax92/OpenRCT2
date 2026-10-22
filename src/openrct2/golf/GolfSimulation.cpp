@@ -660,6 +660,86 @@ namespace OpenRCT2::Golf
         return false;
     }
 
+    namespace
+    {
+        // A group mate in one of these states has a shot to play before the ones waiting aside may go to their balls.
+        bool isPlayingState(GolferState state)
+        {
+            switch (state)
+            {
+                case GolferState::goingToTee:
+                case GolferState::waitingForTeeTime:
+                case GolferState::talking:
+                case GolferState::preparingShot:
+                case GolferState::swinging:
+                case GolferState::putting:
+                case GolferState::watchingBall:
+                case GolferState::walkingToBall:
+                case GolferState::drivingToBall:
+                case GolferState::searchingBall:
+                    return true;
+                default:
+                    return false;
+            }
+        }
+    } // namespace
+
+    bool GolfSimulation::hasGroupMates(const Golfer& g) const
+    {
+        for (const auto& other : _golfers)
+            if (other.id != g.id && other.groupId == g.groupId && !other.finished && other.courseId == g.courseId
+                && other.holeIndex == g.holeIndex && (isPlayingState(other.state) || other.state == GolferState::waitingForTurn))
+                return true;
+        return false;
+    }
+
+    bool GolfSimulation::myTurn(const Golfer& g) const
+    {
+        const auto* hole = holeOf(g);
+        if (hole == nullptr || !hole->cup.has_value())
+            return true;
+        const FixedVec3 cup{ Fixed::fromInt(hole->cup->x), Fixed::fromInt(hole->cup->y), Fixed{} };
+        const Fixed mine = horizontal(g.ball.position, cup);
+        for (const auto& other : _golfers)
+        {
+            if (other.id == g.id || other.groupId != g.groupId || other.finished || other.courseId != g.courseId
+                || other.holeIndex != g.holeIndex)
+                continue;
+            if (isPlayingState(other.state))
+                return false;
+            if (other.state == GolferState::waitingForTurn)
+            {
+                // The one farthest from the hole plays first; the lower id breaks a tie.
+                const Fixed theirs = horizontal(other.ball.position, cup);
+                if (theirs > mine || (theirs == mine && other.id < g.id))
+                    return false;
+            }
+        }
+        return true;
+    }
+
+    void GolfSimulation::goToBall(Golfer& g)
+    {
+        g.destination = g.ball.position;
+        if (hasGroupMates(g))
+        {
+            // Step aside, off the line of play, so the next golfer can use the spot.
+            const Fixed ax = g.decision.aimX;
+            const Fixed ay = g.decision.aimY;
+            const Fixed aimLength = length(FixedVec3{ ax, ay, Fixed{} });
+            if (aimLength > Fixed::ratio(1, 100))
+            {
+                const Fixed side = Fixed::fromInt(kTurnSideUnits);
+                g.queueSpot = { g.position.x + ay * side / aimLength, g.position.y - ax * side / aimLength, Fixed{} };
+            }
+            else
+                g.queueSpot = g.position;
+            setState(g, GolferState::waitingForTurn);
+            return;
+        }
+        setState(g, GolferState::walkingToBall);
+    }
+
     bool GolfSimulation::lineOfFireBlocked(const Golfer& g) const
     {
         const Fixed length = g.decision.expectedDistance + Fixed::fromInt(kLineOfFireMargin);
@@ -920,8 +1000,7 @@ namespace OpenRCT2::Golf
                 setState(g, GolferState::holeFinished);
                 return;
             }
-            g.destination = g.ball.position;
-            setState(g, GolferState::walkingToBall);
+            goToBall(g);
             return;
         }
 
@@ -938,8 +1017,7 @@ namespace OpenRCT2::Golf
             }
         }
         g.searchedBall = false;
-        g.destination = g.ball.position;
-        setState(g, GolferState::walkingToBall);
+        goToBall(g);
     }
 
     void GolfSimulation::finishHole(Golfer& g)
@@ -1549,10 +1627,18 @@ namespace OpenRCT2::Golf
                     setState(g, GolferState::holeFinished);
                     break;
                 }
-                g.destination = g.ball.position;
-                setState(g, GolferState::walkingToBall);
+                goToBall(g);
                 break;
             }
+            case GolferState::waitingForTurn:
+                // Stands aside, then goes to the ball once the group mates have played and it is the farthest one's turn.
+                if (g.stateTicks >= static_cast<uint32_t>(kTurnMaxWaitTicks) || myTurn(g))
+                {
+                    setState(g, GolferState::walkingToBall);
+                    break;
+                }
+                walk(g, g.queueSpot);
+                break;
             case GolferState::holeFinished:
                 finishHole(g);
                 break;

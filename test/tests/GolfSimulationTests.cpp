@@ -197,6 +197,54 @@ TEST(GolfSimulation, MembersOfAGroupNeverSwingAtTheSameTime)
     EXPECT_FALSE(overlap);
 }
 
+TEST(GolfSimulation, AGolferWaitsAsideForTheGroupAndTheFarthestBallPlaysNext)
+{
+    Course3 c;
+    GolfSimulation sim(c.environment());
+    for (int i = 0; i < 3; i++)
+        sim.spawn(aGolfer(c, 5));
+    std::map<uint32_t, GolferState> before;
+    int waited = 0;
+    int turnsChecked = 0;
+    bool walkedWhileMateHit = false;
+    bool notFarthest = false;
+    for (uint32_t t = 1000; t < 1000 + 400000 && !sim.golfers().empty(); t++)
+    {
+        sim.tick(t);
+        for (const auto& g : sim.golfers())
+        {
+            const auto was = before.count(g.id) ? before[g.id] : g.state;
+            if (g.state == GolferState::waitingForTurn)
+                waited++;
+            if (g.state == GolferState::walkingToBall && was != GolferState::walkingToBall)
+            {
+                const auto cup = c.cups[g.holeIndex];
+                auto distance = [&](const Golfer& o) {
+                    return std::hypot(o.ball.position.x.toDouble() - cup.x, o.ball.position.y.toDouble() - cup.y);
+                };
+                for (const auto& other : sim.golfers())
+                {
+                    if (other.id == g.id || other.holeIndex != g.holeIndex)
+                        continue;
+                    if (other.state == GolferState::swinging || other.state == GolferState::putting
+                        || other.state == GolferState::watchingBall)
+                        walkedWhileMateHit = true;
+                    if (was == GolferState::waitingForTurn && other.state == GolferState::waitingForTurn
+                        && distance(other) > distance(g))
+                        notFarthest = true;
+                }
+                turnsChecked++;
+            }
+        }
+        for (const auto& g : sim.golfers())
+            before[g.id] = g.state;
+    }
+    EXPECT_GT(waited, 0); // after the tee shot the golfer stands aside instead of walking to the ball
+    EXPECT_GT(turnsChecked, 3);
+    EXPECT_FALSE(walkedWhileMateHit);
+    EXPECT_FALSE(notFarthest);
+}
+
 TEST(GolfSimulation, TwoGroupsDoNotTeeOffAtTheSameTime)
 {
     Course3 c;

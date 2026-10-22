@@ -53,6 +53,7 @@ namespace OpenRCT2::Golf
         rageQuitting,       // storming off (GLF-041)
         inCar,              // still in the car that is driving to a parking space (STE-021)
         walkingToRange,     // on the way to the kiosk of the driving range to buy a bucket (DRV-005)
+        waitingForTurn,     // the ball lies still; stands aside until the rest of the group has played and it is this golfer's turn
         count,
     };
     const char* golferStateName(GolferState state);

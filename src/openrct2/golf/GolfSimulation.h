@@ -137,6 +137,10 @@ namespace OpenRCT2::Golf
     // A group that finds the tee taken by another group waits this far from it (a tile is 32 units) and starts to wait
     // when it comes within kTeeOccupiedRadius of the tee.
     constexpr int32_t kTeeQueueDistance = 48;
+    // A golfer who waits for the group's turn stands this far to the side of the line of play, and gives up waiting after
+    // this long so a stuck group mate cannot stall the round.
+    constexpr int32_t kTurnSideUnits = 40;
+    constexpr int32_t kTurnMaxWaitTicks = 20 * kTicksPerGameMinute;
     constexpr int32_t kTeeOccupiedRadius = 40;
     constexpr int32_t kTeeQueueCheckTicks = 10;
     constexpr int32_t kSwingTicks = 50;
@@ -310,6 +314,12 @@ namespace OpenRCT2::Golf
         void emit(SimEvent::Type type, const Golfer& g, int32_t value = 0);
         void think(Golfer& g, ThoughtType thought);
         bool groupBusy(const Golfer& g) const;
+        // Sends a golfer whose ball lies still towards it: at once when alone, otherwise after the group mates have played.
+        void goToBall(Golfer& g);
+        // Whether it is the golfer's turn to walk to the ball: no group mate is still playing, and none waiting is farther
+        // from the hole.
+        bool myTurn(const Golfer& g) const;
+        bool hasGroupMates(const Golfer& g) const;
         // Whether another golfer stands near the path the golfer expects the ball to take.
         bool lineOfFireBlocked(const Golfer& g) const;
         // Whether a golfer of another group is using the tee at `tee` (waiting for its time, or playing the first shot).

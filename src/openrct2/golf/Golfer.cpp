@@ -61,6 +61,8 @@ namespace OpenRCT2::Golf
                 return "In car";
             case GolferState::walkingToRange:
                 return "Going to the driving range";
+            case GolferState::waitingForTurn:
+                return "Waiting for a turn";
             case GolferState::rageQuitting:
                 return "Rage quitting";
             default:
@@ -79,6 +81,7 @@ namespace OpenRCT2::Golf
             case GolferState::drivingToBall:
             case GolferState::searchingBall:
             case GolferState::putting:
+            case GolferState::waitingForTurn:
                 return true;
             default:
                 return false;
