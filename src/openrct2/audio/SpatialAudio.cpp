@@ -9,6 +9,9 @@
 
 #include "SpatialAudio.h"
 
+#include "../config/Config.h"
+#include "Audio.h"
+
 #include <algorithm>
 #include <cmath>
 
@@ -19,6 +22,64 @@ namespace OpenRCT2::Audio
         const auto index = static_cast<size_t>(c);
         const int32_t group = index < static_cast<size_t>(SoundCategory::count) ? category[index] : 100;
         return std::clamp(master, 0, 100) / 100.0f * std::clamp(group, 0, 100) / 100.0f;
+    }
+
+    SoundCategory soundCategoryFor(SoundId id)
+    {
+        switch (id)
+        {
+            case SoundId::birdChirp:
+            case SoundId::duck:
+            case SoundId::streamLoop:
+            case SoundId::rain:
+            case SoundId::layingOutWater:
+            case SoundId::water1:
+            case SoundId::water2:
+            case SoundId::waterSplash:
+                return SoundCategory::ambience;
+
+            case SoundId::cartMotorLoop:
+            case SoundId::carEngineLoop:
+            case SoundId::carDoor:
+            case SoundId::goKartEngine:
+            case SoundId::trainWhistle:
+            case SoundId::trainDeparting:
+            case SoundId::tram:
+                return SoundCategory::vehicles;
+
+            case SoundId::driverSwing:
+            case SoundId::ironSwing:
+            case SoundId::putt:
+            case SoundId::ballImpactGrass:
+            case SoundId::ballImpactSand:
+            case SoundId::ballImpactHard:
+            case SoundId::ballImpactWater:
+            case SoundId::ballImpactTree:
+            case SoundId::ballImpactBuilding:
+            case SoundId::cupDrop:
+            case SoundId::crowdClap:
+            case SoundId::golferCheer:
+            case SoundId::golferGroan:
+            case SoundId::golferInsultGrumble:
+            case SoundId::crowdAmbience:
+                return SoundCategory::golfers;
+
+            default:
+                return SoundCategory::ui;
+        }
+    }
+
+    CategoryVolumes getCurrentCategoryVolumes()
+    {
+        CategoryVolumes v;
+        const auto& s = Config::Get().sound;
+        v.master = s.masterSoundEnabled ? s.masterVolume : 0;
+        v.category[static_cast<size_t>(SoundCategory::ambience)] = s.soundEnabled ? s.ambienceVolume : 0;
+        v.category[static_cast<size_t>(SoundCategory::vehicles)] = s.soundEnabled ? s.vehicleVolume : 0;
+        v.category[static_cast<size_t>(SoundCategory::golfers)] = s.soundEnabled ? s.golferVolume : 0;
+        v.category[static_cast<size_t>(SoundCategory::ui)] = s.soundEnabled ? s.uiVolume : 0;
+        v.category[static_cast<size_t>(SoundCategory::music)] = s.rideMusicEnabled ? s.rideMusicVolume : 0;
+        return v;
     }
 
     float detailZoomGain(int32_t zoomLevel)

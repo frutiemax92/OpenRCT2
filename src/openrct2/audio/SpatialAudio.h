@@ -31,6 +31,8 @@ namespace OpenRCT2::Audio
         bool detail = false;        // swings, footsteps: lost when zoomed out (AUD "lowers detail sounds")
     };
 
+    enum class SoundId : uint8_t;
+
     // AUD-005: the volume groups a sound belongs to.
     enum class SoundCategory : uint8_t
     {
@@ -50,6 +52,9 @@ namespace OpenRCT2::Audio
 
         float gain(SoundCategory c) const;
     };
+
+    SoundCategory soundCategoryFor(SoundId id);
+    CategoryVolumes getCurrentCategoryVolumes();
 
     // AUD-002: where the listener is. The viewport centre projected onto the terrain; the distance to the ground grows
     // with the zoom level.

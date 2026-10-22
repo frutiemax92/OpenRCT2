@@ -271,6 +271,12 @@ namespace OpenRCT2::Audio
         if (!result.audible)
             return;
 
+        const auto category = soundCategoryFor(soundId);
+        const auto volumes = getCurrentCategoryVolumes();
+        result.volume *= volumes.gain(category);
+        if (result.volume <= 0.001f)
+            return;
+
         float mixerPan = spatialPanToMixer(result.pan);
         int32_t mixerVolume = spatialVolumeToMixer(result.volume);
 

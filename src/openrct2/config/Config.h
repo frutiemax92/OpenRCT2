@@ -163,6 +163,10 @@ namespace OpenRCT2::Config
         bool rideMusicEnabled;
         uint8_t rideMusicVolume;
         bool audioFocus;
+        uint8_t ambienceVolume = 100;
+        uint8_t vehicleVolume = 100;
+        uint8_t golferVolume = 100;
+        uint8_t uiVolume = 100;
     };
 
     struct Network

@@ -306,6 +306,33 @@ TEST(SpatialAudio, GolfPlaceholderSoundsExistInSoundId)
     EXPECT_LT(EnumValue(SoundId::streamLoop), EnumValue(SoundId::noScream));
 }
 
+TEST(SpatialAudio, SoundCategoriesAndConfigVolumes)
+{
+    // AUD-005: separate volume sliders: master, ambience, vehicles, golfers, ui, music.
+    EXPECT_EQ(soundCategoryFor(SoundId::streamLoop), SoundCategory::ambience);
+    EXPECT_EQ(soundCategoryFor(SoundId::duck), SoundCategory::ambience);
+    EXPECT_EQ(soundCategoryFor(SoundId::birdChirp), SoundCategory::ambience);
+
+    EXPECT_EQ(soundCategoryFor(SoundId::cartMotorLoop), SoundCategory::vehicles);
+    EXPECT_EQ(soundCategoryFor(SoundId::carEngineLoop), SoundCategory::vehicles);
+    EXPECT_EQ(soundCategoryFor(SoundId::carDoor), SoundCategory::vehicles);
+
+    EXPECT_EQ(soundCategoryFor(SoundId::driverSwing), SoundCategory::golfers);
+    EXPECT_EQ(soundCategoryFor(SoundId::ironSwing), SoundCategory::golfers);
+    EXPECT_EQ(soundCategoryFor(SoundId::putt), SoundCategory::golfers);
+    EXPECT_EQ(soundCategoryFor(SoundId::ballImpactGrass), SoundCategory::golfers);
+    EXPECT_EQ(soundCategoryFor(SoundId::ballImpactSand), SoundCategory::golfers);
+    EXPECT_EQ(soundCategoryFor(SoundId::cupDrop), SoundCategory::golfers);
+    EXPECT_EQ(soundCategoryFor(SoundId::golferCheer), SoundCategory::golfers);
+    EXPECT_EQ(soundCategoryFor(SoundId::golferGroan), SoundCategory::golfers);
+
+    EXPECT_EQ(soundCategoryFor(SoundId::click1), SoundCategory::ui);
+
+    CategoryVolumes vols = getCurrentCategoryVolumes();
+    EXPECT_GE(vols.master, 0);
+    EXPECT_LE(vols.master, 100);
+}
+
 TEST(SpatialAudio, PlaySpatialHandlesUnavailableGracefully)
 {
     CoordsXYZ loc{ 320, 320, 16 };

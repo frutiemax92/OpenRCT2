@@ -447,6 +447,10 @@ namespace OpenRCT2::Config
             model->rideMusicEnabled = reader->GetBoolean("ride_music", true);
             model->rideMusicVolume = reader->GetInt32("ride_music_volume", 100);
             model->audioFocus = reader->GetBoolean("audio_focus", false);
+            model->ambienceVolume = reader->GetInt32("ambience_volume", 100);
+            model->vehicleVolume = reader->GetInt32("vehicle_volume", 100);
+            model->golferVolume = reader->GetInt32("golfer_volume", 100);
+            model->uiVolume = reader->GetInt32("ui_volume", 100);
         }
     }
 
@@ -463,6 +467,10 @@ namespace OpenRCT2::Config
         writer->WriteBoolean("ride_music", model->rideMusicEnabled);
         writer->WriteInt32("ride_music_volume", model->rideMusicVolume);
         writer->WriteBoolean("audio_focus", model->audioFocus);
+        writer->WriteInt32("ambience_volume", model->ambienceVolume);
+        writer->WriteInt32("vehicle_volume", model->vehicleVolume);
+        writer->WriteInt32("golfer_volume", model->golferVolume);
+        writer->WriteInt32("ui_volume", model->uiVolume);
     }
 
     static void ReadNetwork(IIniReader* reader)
