@@ -53,6 +53,15 @@ namespace OpenRCT2
         {
             UpdateFacingFromTravel(yaw, facingFrom, { position.x, position.y });
         }
+        // A golfer waiting for the turn is not in a walking state, yet follows the group to the ball: it shows the walk while
+        // it moves. The grace keeps the walk going between the steps of a slow stroll.
+        constexpr uint8_t kMovedGrace = 12;
+        if (position != here)
+            movedRecently = kMovedGrace;
+        else if (movedRecently > 0)
+            movedRecently--;
+        if (newState == Golf::GolferState::waitingForTurn && movedRecently > 0)
+            newState = Golf::GolferState::walkingToBall;
         if (newState != state)
             animationTick = 0;
         else
