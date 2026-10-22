@@ -21,12 +21,13 @@
 #include <openrct2/drawing/Text.h>
 #include <openrct2/localisation/Localisation.Date.h>
 #include <openrct2/ui/WindowManager.h>
+#include <openrct2/world/Weather.h>
 
 using namespace OpenRCT2::Drawing;
 
 namespace OpenRCT2::Ui::Windows
 {
-    constexpr auto kPanelWidth = 142;
+    constexpr auto kPanelWidth = 160;
 
     enum DateInfoPanelWidgetIdx : WidgetIndex
     {
@@ -115,6 +116,14 @@ namespace OpenRCT2::Ui::Windows
                     GfxDrawSprite(rt, ImageId(nextWeatherSpriteId), screenCoords + ScreenCoordsXY{ 40, 0 });
                 }
             }
+
+            // BAL-031: Wind direction and strength
+            const auto& wind = getGameState().wind;
+            std::string windStr = std::string(Weather::windCompassName(wind.direction)) + " "
+                + std::to_string(wind.strength / 10) + "%";
+            drawText(
+                rt, windowPos + ScreenCoordsXY{ kPanelWidth - 8, static_cast<int32_t>(screenCoords.y + 6) },
+                windStr, { colour, TextAlignment::right });
         }
 
     public:

@@ -199,3 +199,18 @@ TEST(Wind, AStrongWindMovesAShotOffLine)
     EXPECT_NEAR(straight.y.toDouble(), 500.0, 0.5);
     EXPECT_GT(blown.y.toDouble(), 510.0); // pushed towards +y
 }
+
+TEST(Wind, WindCompassNamesAndPanelFormatting)
+{
+    WindState wind;
+    wind.direction = 225;
+    wind.strength = 650;
+    std::string str = std::string(windCompassName(wind.direction)) + " " + std::to_string(wind.strength / 10) + "%";
+    EXPECT_EQ(str, "NW 65%");
+
+    wind.direction = 270;
+    wind.strength = 1000;
+    str = std::string(windCompassName(wind.direction)) + " " + std::to_string(wind.strength / 10) + "%";
+    EXPECT_EQ(str, "N 100%");
+}
+
