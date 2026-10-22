@@ -85,6 +85,10 @@ namespace OpenRCT2
             return PathAdditionDrawType::bench;
         if (s == "fountain")
             return PathAdditionDrawType::jumpingFountain;
+        if (s == "sign")
+            return PathAdditionDrawType::sign;
+        if (s == "ball_washer" || s == "ballWasher")
+            return PathAdditionDrawType::ballWasher;
         return PathAdditionDrawType::light;
     }
 
@@ -115,6 +119,8 @@ namespace OpenRCT2
                 { "isAllowedOnQueue",       PathAdditionFlag::dontAllowOnQueue,      Json::FlagType::inverted },
                 { "isAllowedOnSlope",       PathAdditionFlag::dontAllowOnSlope,      Json::FlagType::inverted },
                 { "isTelevision",           PathAdditionFlag::isQueueScreen,          Json::FlagType::normal },
+                { "isSign",                 PathAdditionFlag::isSign,                 Json::FlagType::normal },
+                { "isBallWasher",           PathAdditionFlag::isBallWasher,           Json::FlagType::normal },
             });
             // clang-format on
         }

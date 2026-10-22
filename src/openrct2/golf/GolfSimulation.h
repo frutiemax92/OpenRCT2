@@ -64,6 +64,20 @@ namespace OpenRCT2::Golf
         static constexpr uint32_t kCapacity = 20;
     };
 
+    // A ball washer where golfers clean their balls (PTH-023).
+    struct BallWasher
+    {
+        uint32_t id = 0;
+        FixedVec3 position;
+    };
+
+    // A path direction or distance sign (PTH-023).
+    struct PathSign
+    {
+        uint32_t id = 0;
+        FixedVec3 position;
+    };
+
     // What the simulation did, for the interface (thoughts, news, sounds) and the economy.
     struct SimEvent
     {
@@ -87,6 +101,7 @@ namespace OpenRCT2::Golf
             paidRangeFee,   // value = the price of the bucket (DRV-005)
             hitByBall,      // golferId is the victim (BAL-034, GLF-013)
             sawAnimal,      // a golfer saw an animal (ANM-005)
+            washedBall,     // cleaned golf ball at ball washer (PTH-023)
         };
         Type type = Type::thought;
         uint32_t golferId = 0;
@@ -125,6 +140,8 @@ namespace OpenRCT2::Golf
             std::vector<Service> services;
             std::vector<Bench> benches;
             std::vector<LitterBin> bins;
+            std::vector<BallWasher> ballWashers;
+            std::vector<PathSign> pathSigns;
             // CRT-002 to CRT-005: the golf carts. When there is no fleet everyone walks.
             CartFleet* carts = nullptr;
             // ANM-003, ANM-005: the animals the balls can hit and the golfers can see. None without them.

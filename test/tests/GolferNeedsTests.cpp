@@ -181,3 +181,21 @@ TEST(GolferNeeds, ThoughtsMatchTheirNeed)
     for (int i = 0; i < static_cast<int>(ThoughtType::count); i++)
         EXPECT_GT(std::string(thoughtName(static_cast<ThoughtType>(i))).size(), 5u) << i;
 }
+
+// PTH-023: Lamps, signs and ball washers as additional path additions
+TEST(GolferNeeds, Pth023PathAdditionsBallWasherAndSignHappiness)
+{
+    Needs n;
+    const int32_t initialHappiness = n.happinessByte();
+
+    // Washing ball at a ball washer boosts happiness
+    applyHappiness(n, HappinessEvent::washedBall);
+    EXPECT_GT(n.happinessByte(), initialHappiness);
+    EXPECT_EQ(happinessDelta(HappinessEvent::washedBall), +8);
+
+    // Reading distance/direction sign boosts happiness
+    const int32_t washedHappiness = n.happinessByte();
+    applyHappiness(n, HappinessEvent::distanceSign);
+    EXPECT_GT(n.happinessByte(), washedHappiness);
+    EXPECT_EQ(happinessDelta(HappinessEvent::distanceSign), +10);
+}

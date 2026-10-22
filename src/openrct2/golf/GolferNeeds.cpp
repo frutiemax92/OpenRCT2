@@ -56,6 +56,7 @@ namespace OpenRCT2::Golf
             -6,   // highPrices
             -8,   // noCart
             +3,   // sawAnimal
+            +8,   // washedBall (PTH-023)
         };
         static_assert(std::size(kHappinessTable) == static_cast<size_t>(HappinessEvent::count));
     } // namespace

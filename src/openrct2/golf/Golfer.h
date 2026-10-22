@@ -146,6 +146,8 @@ namespace OpenRCT2::Golf
         FixedVec3 cartStop;              // where the cart stops for the shot (CRT-004)
         bool hasExit = false;            // leaves by their own way out: the car they came in (STE-012, STE-022)
         FixedVec3 exitPosition;
+        uint32_t washedBallTicks = 0;    // cooldown for ball washer interaction (PTH-023)
+        uint32_t readSignTicks = 0;      // cooldown for path sign interaction (PTH-023)
 
         std::vector<Thought> thoughts;
 

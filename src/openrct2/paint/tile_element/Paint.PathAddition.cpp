@@ -258,6 +258,10 @@ void paintPathAddition(PaintSession& session, const PathElement& pathElement, ui
         case PathAdditionDrawType::jumpingFountain:
             PathAdditionJumpingFountainsPaint(session, *pathAddEntry, height, sceneryImageTemplate, session.rt);
             break;
+        case PathAdditionDrawType::sign:
+        case PathAdditionDrawType::ballWasher:
+            PathAdditionLightsPaint(session, *pathAddEntry, pathElement, height, rotatedEdges, sceneryImageTemplate);
+            break;
     }
 
     session.InteractionType = ViewportInteractionItem::footpath;

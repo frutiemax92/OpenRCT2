@@ -115,6 +115,20 @@ namespace OpenRCT2::Golf
                     bin.position = centre;
                     scan.bins.push_back(bin);
                 }
+                else if (addition->flags.has(PathAdditionFlag::isBallWasher))
+                {
+                    BallWasher washer;
+                    washer.id = id;
+                    washer.position = centre;
+                    scan.ballWashers.push_back(washer);
+                }
+                else if (addition->flags.has(PathAdditionFlag::isSign))
+                {
+                    PathSign sign;
+                    sign.id = id;
+                    sign.position = centre;
+                    scan.pathSigns.push_back(sign);
+                }
                 continue;
             }
             if (it.element != nullptr && it.element->getType() == TileElementType::smallScenery)
@@ -1080,6 +1094,8 @@ namespace OpenRCT2::Golf
         env.services = servicesWithSettings();
         env.benches = mergeBenches();
         env.bins = mergeBins();
+        env.ballWashers = _scan.ballWashers;
+        env.pathSigns = _scan.pathSigns;
     }
 
     std::vector<Service> GolfRuntime::servicesWithSettings() const

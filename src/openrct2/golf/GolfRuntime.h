@@ -43,6 +43,8 @@ namespace OpenRCT2::Golf
         money64 upkeepPerMonth = 0;     // upkeep of every building (ECO-011)
         std::vector<Bench> benches;     // path additions that are benches (PTH-021)
         std::vector<LitterBin> bins;    // path additions that are litter bins (PTH-022)
+        std::vector<BallWasher> ballWashers; // path additions that are ball washers (PTH-023)
+        std::vector<PathSign> pathSigns;     // path additions that are signs (PTH-023)
     };
     BuildingScan scanBuildings();
     int64_t defaultServicePrice(BuildingKind kind);

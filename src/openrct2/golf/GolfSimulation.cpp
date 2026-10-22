@@ -957,6 +957,43 @@ namespace OpenRCT2::Golf
                 emit(SimEvent::Type::lostBall, g);
             }
         }
+        // PTH-023: ball washers clean golf balls and give a small happiness boost
+        if (g.washedBallTicks > 0)
+        {
+            g.washedBallTicks--;
+        }
+        else if (!_env.ballWashers.empty() && isWalkingOrPlaying(g.state))
+        {
+            constexpr Fixed kWasherReach = Fixed::fromInt(32);
+            for (const auto& washer : _env.ballWashers)
+            {
+                if (horizontal(washer.position, g.position) <= kWasherReach)
+                {
+                    applyHappiness(g.needs, HappinessEvent::washedBall);
+                    g.washedBallTicks = 5; // 5 minute cooldown
+                    emit(SimEvent::Type::washedBall, g);
+                    break;
+                }
+            }
+        }
+        // PTH-023: path direction and distance signs guide golfers
+        if (g.readSignTicks > 0)
+        {
+            g.readSignTicks--;
+        }
+        else if (!_env.pathSigns.empty() && isWalkingOrPlaying(g.state))
+        {
+            constexpr Fixed kSignReach = Fixed::fromInt(32);
+            for (const auto& sign : _env.pathSigns)
+            {
+                if (horizontal(sign.position, g.position) <= kSignReach)
+                {
+                    applyHappiness(g.needs, HappinessEvent::distanceSign);
+                    g.readSignTicks = 10; // 10 minute cooldown
+                    break;
+                }
+            }
+        }
         // GLF-040: anger builds up until the golfer storms off.
         if (g.state != GolferState::leaving && g.state != GolferState::rageQuitting
             && shouldRageQuit(g.needs.happinessByte(), g.rageCauses))

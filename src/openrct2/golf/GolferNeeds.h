@@ -118,6 +118,7 @@ namespace OpenRCT2::Golf
         highPrices,
         noCart,             // wanted a cart and had to walk (CRT-003)
         sawAnimal,          // saw an animal near the hole (ANM-005)
+        washedBall,         // cleaned golf ball at ball washer (PTH-023)
         count,
     };
     // Happiness delta on the 0..255 scale for each event.

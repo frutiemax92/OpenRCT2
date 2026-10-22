@@ -24,6 +24,8 @@ namespace OpenRCT2
         bin,
         bench,
         jumpingFountain,
+        sign,
+        ballWasher,
     };
 
     struct PathAdditionEntry
