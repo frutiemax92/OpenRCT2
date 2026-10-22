@@ -208,6 +208,24 @@ TEST(Arrivals, NewGolfersHaveSkillsMoneyAndEquipment)
     EXPECT_EQ(maxEquipment, 3);
 }
 
+TEST(Arrivals, LongerCoursesDrawBetterGolfers)
+{
+    EXPECT_EQ(typicalSkillForCourse(0), 50);
+    EXPECT_EQ(typicalSkillForCourse(kShortCourseYards - 500), kShortCourseSkill);
+    EXPECT_EQ(typicalSkillForCourse(kLongCourseYards + 500), kLongCourseSkill);
+    EXPECT_GT(typicalSkillForCourse(4000), typicalSkillForCourse(2000));
+    SeqRandom rng(5);
+    double shortSum = 0, longSum = 0;
+    constexpr int kN = 400;
+    for (int i = 0; i < kN; i++)
+    {
+        shortSum += rollNewGolfer(rng, 300, false, kShortCourseYards).skills.longPlay;
+        longSum += rollNewGolfer(rng, 300, false, kLongCourseYards).skills.longPlay;
+    }
+    EXPECT_NEAR(shortSum / kN, kShortCourseSkill, 4.0);
+    EXPECT_NEAR(longSum / kN, kLongCourseSkill, 4.0);
+}
+
 TEST(Arrivals, NamesComeFromTheListsOrFallBack)
 {
     SeqRandom rng(1);

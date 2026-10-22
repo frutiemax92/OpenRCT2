@@ -92,7 +92,14 @@ namespace OpenRCT2::Golf
     };
     // Money is random within a range that grows with popularity; VIPs are richer. Skills are around 50 with a spread, with
     // better equipment lifting them a little (GLF-050).
-    NewGolferTemplate rollNewGolfer(IBallRandom& rng, int32_t popularity, bool vip);
+    // The skills centre on typicalSkillForCourse(courseYards): short courses draw beginners, long ones better players.
+    // courseYards 0 (unknown) centres on 50.
+    NewGolferTemplate rollNewGolfer(IBallRandom& rng, int32_t popularity, bool vip, int32_t courseYards = 0);
+    constexpr int32_t kShortCourseYards = 1500; // total length from the men's tees: a short par-3 course
+    constexpr int32_t kLongCourseYards = 6500;  // a full championship course
+    constexpr int32_t kShortCourseSkill = 15;   // long play of about 165 yards with a driver
+    constexpr int32_t kLongCourseSkill = 65;    // about 240 yards
+    int32_t typicalSkillForCourse(int32_t courseYards);
     // A name from the lists in `firstNames` and `lastNames` (peep_names object); falls back to a numbered golfer.
     std::string rollName(IBallRandom& rng, const std::vector<std::string>& firstNames, const std::vector<std::string>& lastNames, uint32_t fallbackNumber);
     // Like rollName, but never a name for which `isTaken` is true, so no two golfers share a name. It draws random

@@ -1272,6 +1272,10 @@ namespace OpenRCT2::Golf
         else if (!gameState.golf.courses().empty())
             courseId = gameState.golf.courses().front().id;
 
+        int32_t courseYards = 0;
+        if (const auto* course = gameState.golf.findCourse(courseId))
+            courseYards = course->totalYards(TeeCategory::men);
+
         FixedVec3 spawnPos{};
         if (_scan.hasClub)
         {
@@ -1303,7 +1307,7 @@ namespace OpenRCT2::Golf
             else if (tier == 2) // VIP
             {
                 if (_rng)
-                    spawn.skills = rollNewGolfer(*_rng, _director ? _director->popularity() : 300, true).skills;
+                    spawn.skills = rollNewGolfer(*_rng, _director ? _director->popularity() : 300, true, courseYards).skills;
                 spawn.money = 500000;
                 spawn.equipmentLevel = 2;
                 spawn.vip = true;
@@ -1312,7 +1316,7 @@ namespace OpenRCT2::Golf
             else // Regular
             {
                 if (_rng)
-                    spawn.skills = rollNewGolfer(*_rng, _director ? _director->popularity() : 300, false).skills;
+                    spawn.skills = rollNewGolfer(*_rng, _director ? _director->popularity() : 300, false, courseYards).skills;
                 spawn.money = 20000;
                 spawn.equipmentLevel = 1;
                 spawn.name = _director->rollGolferName(i + 1);

@@ -241,7 +241,7 @@ namespace OpenRCT2::Golf
             else
             {
                 const bool vip = false;
-                NewGolferTemplate t = rollNewGolfer(*rng, _popularity, vip);
+                NewGolferTemplate t = rollNewGolfer(*rng, _popularity, vip, course->totalYards(TeeCategory::men));
                 spawn.skills = t.skills;
                 spawn.equipmentLevel = t.equipmentLevel;
                 spawn.money = t.money;

@@ -98,13 +98,24 @@ namespace OpenRCT2::Golf
         return std::clamp(std::min(size, spaceLeft), 1, kMaxGroupSize);
     }
 
-    NewGolferTemplate rollNewGolfer(IBallRandom& rng, int32_t popularity, bool vip)
+    int32_t typicalSkillForCourse(int32_t courseYards)
+    {
+        if (courseYards <= 0)
+            return 50;
+        // Beginners (a driver of 150 to 190 yards) play short courses, the best amateurs (around 240 yards) the long ones.
+        const int32_t clamped = std::clamp(courseYards, kShortCourseYards, kLongCourseYards);
+        return kShortCourseSkill
+            + (kLongCourseSkill - kShortCourseSkill) * (clamped - kShortCourseYards) / (kLongCourseYards - kShortCourseYards);
+    }
+
+    NewGolferTemplate rollNewGolfer(IBallRandom& rng, int32_t popularity, bool vip, int32_t courseYards)
     {
         NewGolferTemplate t;
+        const int32_t centre = typicalSkillForCourse(courseYards);
         auto skill = [&]() {
-            // Around 50, spread of about +-25 (sum of two rolls).
+            // Around the typical skill of the course, spread of about +-25 (sum of two rolls).
             const int32_t a = static_cast<int32_t>(rng.next() % 26), b = static_cast<int32_t>(rng.next() % 26);
-            return static_cast<uint8_t>(std::clamp(25 + a + b, 0, 100));
+            return static_cast<uint8_t>(std::clamp(centre - 25 + a + b, 0, 100));
         };
         t.skills = { skill(), skill(), skill(), skill() };
         t.vip = vip;
