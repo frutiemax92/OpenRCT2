@@ -908,6 +908,43 @@ namespace OpenRCT2::Golf
         return false;
     }
 
+    // GLF-002, ECO-032: the owners of cottages come out of their doors to play, a few times a week, within the opening hours.
+    void GolfRuntime::visitFromCottages(uint32_t ticks)
+    {
+        if (ticks % kTicksPerGameMinute != 0 || !acceptsArrivalsAt(_director->hours, minuteOfDayAt(ticks)))
+            return;
+        // kVipPlayChancePerMille a day, spread over the minutes of the opening hours.
+        const int32_t openMinutes = std::max(1, _director->hours.close - _director->hours.open - _director->hours.lastArrivalBeforeClose);
+        const int32_t perMillion = kVipPlayChancePerMille * 1000 / openMinutes;
+        for (const auto& lot : getGameState().golf.lots())
+        {
+            if (!lot.sold || lot.ownerGolferId == 0)
+                continue;
+            if (static_cast<int32_t>(_rng->next() % 1000000u) >= perMillion)
+                continue;
+            // The door of the cottage on the lot.
+            for (int32_t y = lot.min.y; y <= lot.max.y; y++)
+            {
+                for (int32_t x = lot.min.x; x <= lot.max.x; x++)
+                {
+                    const CoordsXY at{ x * kCoordsXYStep, y * kCoordsXYStep };
+                    for (const auto* element : TileElementsView<BuildingElement>(at))
+                    {
+                        const auto* object = element->getObject();
+                        if (object == nullptr || object->Kind != BuildingKind::cottage || !object->HasEntrance)
+                            continue;
+                        if (element->getPartX() != object->EntranceTileX || element->getPartY() != object->EntranceTileY)
+                            continue;
+                        _director->admitVip(lot.ownerGolferId, doorPosition(*element, *object, TileCoordsXY{ x, y }));
+                        y = lot.max.y + 1;
+                        x = lot.max.x + 1;
+                        break;
+                    }
+                }
+            }
+        }
+    }
+
     // Once a game day each lot that is not sold has a chance of being bought, from the popularity and how good the lot is.
     void GolfRuntime::sellCottages()
     {
@@ -1022,6 +1059,7 @@ namespace OpenRCT2::Golf
         }
         _director->update(ticks);
         sellCottages();
+        visitFromCottages(ticks);
         driveTraffic();
         for (const auto& event : _director->takeEvents())
             announce(event);

@@ -100,7 +100,8 @@ namespace OpenRCT2::Golf
         SkillPoints initialSkills;
         uint8_t equipmentLevel = 0;      // 0..3 (GLF-050)
         int64_t money = 0;               // currency units
-        bool vip = false;
+        bool vip = false;                // owns a cottage (ECO-032)
+        bool professional = false;       // plays in a tournament and pays no fee (ECO-042)
         Fixed riskTolerance = Fixed::ratio(5, 10);
 
         Needs needs;

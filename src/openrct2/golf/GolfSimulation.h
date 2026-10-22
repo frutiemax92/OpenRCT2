@@ -130,6 +130,8 @@ namespace OpenRCT2::Golf
             AnimalSimulation* animals = nullptr;
             // Positions along the paths, where carts may stop (CRT-004).
             std::function<std::vector<FixedVec3>()> pathPoints;
+            // ECO-032: what a cottage owner pays of the green fee, in percent. Professionals pay nothing.
+            int32_t vipFeePercent = 0;
         };
 
         explicit GolfSimulation(Environment environment);
@@ -151,6 +153,7 @@ namespace OpenRCT2::Golf
             uint8_t equipmentLevel = 0;
             int64_t money = 10000;
             bool vip = false;
+            bool professional = false;
             Fixed riskTolerance = Fixed::ratio(5, 10);
             uint32_t courseId = 0;
             TeeCategory tee = TeeCategory::men;

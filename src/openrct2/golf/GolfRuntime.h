@@ -105,6 +105,7 @@ namespace OpenRCT2::Golf
         // Cottage lots (section 22.4): a VIP buys a lot when the course is popular.
         void sellCottages();
         bool sellLot(CottageLot& lot, int32_t attractiveness);
+        void visitFromCottages(uint32_t ticks);
         void driveAnimals();
         void syncObstacles();
         void refreshRanges();

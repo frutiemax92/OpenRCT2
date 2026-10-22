@@ -10,6 +10,8 @@
 #include "GolfSimulation.h"
 #include "../world/Stream.h"
 
+#include "Cottages.h"
+
 #include <algorithm>
 
 namespace OpenRCT2::Golf
@@ -248,6 +250,7 @@ namespace OpenRCT2::Golf
         g.equipmentLevel = s.equipmentLevel;
         g.money = s.money;
         g.vip = s.vip;
+        g.professional = s.professional;
         g.riskTolerance = s.riskTolerance;
         g.courseId = s.courseId;
         g.tee = s.tee;
@@ -990,7 +993,7 @@ namespace OpenRCT2::Golf
                     break;
                 }
                 // GLF-032: the green fee is paid at check in; VIPs play free.
-                const int64_t fee = g.vip ? 0 : course->greenFee;
+                const int64_t fee = g.professional ? 0 : (g.vip ? vipGreenFee(course->greenFee, _env.vipFeePercent) : course->greenFee);
                 if (g.money < fee)
                 {
                     applyHappiness(g.needs, HappinessEvent::highPrices);

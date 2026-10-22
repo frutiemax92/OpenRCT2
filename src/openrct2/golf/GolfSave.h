@@ -25,7 +25,8 @@ namespace OpenRCT2::Golf
     // 4: golfers remember the driving range they are visiting (DRV-005).
     // 5: the animals (ANM-001).
     // 6: golfers in the registry can be VIPs who own a cottage (ECO-032).
-    constexpr uint32_t kGolfSaveFormat = 6;
+    // 7: golfers can be tournament professionals (ECO-042).
+    constexpr uint32_t kGolfSaveFormat = 7;
 
     std::vector<uint8_t> saveDirector(const GolfDirector& director);
     // Restores the state saved by saveDirector into a director built on the same courses. Returns false (and leaves the

@@ -43,6 +43,37 @@ namespace OpenRCT2::Golf
         return _registry.remember(entry).id;
     }
 
+    uint32_t GolfDirector::admitVip(uint32_t registryId, const FixedVec3& door)
+    {
+        const auto* entry = _registry.find(registryId);
+        if (entry == nullptr || !entry->vip)
+            return 0;
+        for (const auto& [golferId, id] : _registryOf)
+            if (id == registryId)
+                return 0; // already out on the course
+        const auto courseId = openCourse();
+        if (courseId == 0 || courseClosedToPublic(tournament) || static_cast<int32_t>(_sim.golfers().size()) >= maxGolfers)
+            return 0;
+        auto* rng = _sim.environment().rng;
+        NewGolferTemplate extra = rollNewGolfer(*rng, _popularity, true);
+        GolfSimulation::Spawn spawn;
+        spawn.name = entry->name;
+        spawn.groupId = _nextGroup++;
+        spawn.courseId = courseId;
+        spawn.skills = entry->skills.toSkills();
+        spawn.equipmentLevel = entry->equipmentLevel;
+        spawn.money = extra.money;
+        spawn.riskTolerance = extra.riskTolerance;
+        spawn.vip = true;
+        spawn.position = door;
+        auto& golfer = _sim.spawn(spawn);
+        _registryOf[golfer.id] = registryId;
+        _registry.recordVisit(registryId, _day, entry->lastHappiness);
+        _arrivedToday++;
+        _groupsArrived++;
+        return golfer.id;
+    }
+
     uint32_t GolfDirector::openCourse() const
     {
         if (_sim.environment().courses == nullptr)
@@ -185,7 +216,7 @@ namespace OpenRCT2::Golf
             {
                 spawn.skills = professionalSkills(tournament.tier, *rng);
                 spawn.money = 0;
-                spawn.vip = true; // professionals do not pay
+                spawn.professional = true; // professionals do not pay
                 spawn.equipmentLevel = 3;
                 spawn.name = "Pro " + std::to_string(_nextRegistryId);
             }
@@ -360,6 +391,7 @@ namespace OpenRCT2::Golf
         {
             // The buildings and the desk can change at any time; look again once a game minute.
             auto& env = _sim.environment();
+            env.vipFeePercent = vipFeePercent;
             if (_sources.services)
                 env.services = _sources.services();
             if (_sources.benches)

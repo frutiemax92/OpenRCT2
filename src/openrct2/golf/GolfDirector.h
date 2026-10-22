@@ -132,6 +132,9 @@ namespace OpenRCT2::Golf
 
         // ECO-031: a VIP golfer joins the registry as the owner of a cottage lot. Returns the registry id.
         uint32_t addVip(uint32_t lotId);
+        // GLF-002: a cottage owner comes out of the cottage door to play (ECO-032). Returns the golfer, or 0 when there is
+        // no such owner, they are on the course already, or the course is closed.
+        uint32_t admitVip(uint32_t registryId, const FixedVec3& door);
 
     private:
         friend struct GolfSaveAccess;

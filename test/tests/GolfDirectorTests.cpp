@@ -1065,3 +1065,76 @@ TEST(GolfDirector, GroupsChooseBetweenTheCoursesAndAMiniPuttIsLessLikelyThanAReg
     EXPECT_GT(park.courses.findCourse(miniId)->stats.revenue, 0);
     EXPECT_GT(park.courses.findCourse(park.courseId)->stats.revenue, 0);
 }
+
+TEST(GolfDirectorVip, ACottageOwnerComesOutOfTheDoorAndPaysTheReducedFee)
+{
+    Park park;
+    park.director->setPopularity(0);
+    const auto registryId = park.director->addVip(7);
+    const auto* entry = park.director->registry().find(registryId);
+    ASSERT_NE(entry, nullptr);
+    EXPECT_TRUE(entry->vip);
+    EXPECT_EQ(entry->lotId, 7u);
+    EXPECT_GE(entry->equipmentLevel, 2);
+
+    const auto door = vec(500, 4000, 0);
+    const auto id = park.director->admitVip(registryId, door);
+    ASSERT_NE(id, 0u);
+    const auto* golfer = park.director->simulation().find(id);
+    ASSERT_NE(golfer, nullptr);
+    EXPECT_TRUE(golfer->vip);
+    EXPECT_EQ(golfer->position.x, door.x);
+    EXPECT_EQ(golfer->name, entry->name);
+    // Not twice at once.
+    EXPECT_EQ(park.director->admitVip(registryId, door), 0u);
+    // Only a VIP can be admitted this way.
+    RegistryEntry ordinary;
+    ordinary.id = 999;
+    park.director->registry().remember(ordinary);
+    EXPECT_EQ(park.director->admitVip(999, door), 0u);
+    EXPECT_EQ(park.director->admitVip(12345, door), 0u);
+
+    // ECO-032: by default a cottage owner plays for free; a quarter of the fee is what the player can choose.
+    const auto before = park.director->simulation().find(id)->money;
+    for (uint32_t t = at(1, 8); t < at(1, 8) + 6 * kTicksPerGameMinute; t++)
+        park.director->update(t);
+    EXPECT_EQ(park.director->simulation().find(id)->money, before);
+
+    Park paying;
+    paying.director->setPopularity(0);
+    paying.director->vipFeePercent = 25;
+    const auto owner = paying.director->addVip(1);
+    const auto payer = paying.director->admitVip(owner, door);
+    const auto richness = paying.director->simulation().find(payer)->money;
+    for (uint32_t t = at(1, 8); t < at(1, 8) + 6 * kTicksPerGameMinute; t++)
+        paying.director->update(t);
+    EXPECT_EQ(paying.director->simulation().find(payer)->money, richness - 750 * 25 / 100);
+
+    // Tournament professionals pay nothing whatever the percentage.
+    GolfSimulation::Spawn pro;
+    pro.courseId = paying.courseId;
+    pro.professional = true;
+    pro.money = 0;
+    pro.position = vec(100, 2900, 0);
+    const auto proId = paying.director->simulation().spawn(pro).id;
+    for (uint32_t t = at(1, 9); t < at(1, 9) + 6 * kTicksPerGameMinute; t++)
+        paying.director->update(t);
+    ASSERT_NE(paying.director->simulation().find(proId), nullptr);
+    EXPECT_NE(paying.director->simulation().find(proId)->state, GolferState::leaving);
+}
+
+TEST(GolfDirectorVip, VipsAreNotForgottenWhenTheRegistryIsFull)
+{
+    Park park;
+    park.director->registry().setCapacity(3);
+    const auto vip = park.director->addVip(1);
+    for (uint32_t i = 100; i < 108; i++)
+    {
+        RegistryEntry e;
+        e.id = i;
+        park.director->registry().remember(e);
+    }
+    EXPECT_LE(park.director->registry().size(), 3u);
+    ASSERT_NE(park.director->registry().find(vip), nullptr);
+    EXPECT_TRUE(park.director->registry().find(vip)->vip);
+}

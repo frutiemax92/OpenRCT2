@@ -1334,3 +1334,77 @@ TEST(GolfRuntimeTests, NoLotSellsBelowThePopularityItNeeds)
     }
     EXPECT_FALSE(gameState.golf.findLot(lotId)->sold);
 }
+
+TEST(GolfRuntimeTests, ACottageOwnerPlaysFromTheirOwnDoor)
+{
+    auto context = startPark();
+    ASSERT_NE(context.get(), nullptr);
+    auto& gameState = getGameState();
+    gameState.cheats.sandboxMode = true;
+    gameState.mapSize = { 60, 60 };
+    auto& objectManager = context->GetObjectManager();
+    ObjectEntryIndex clubIndex{};
+    auto* club = loadClub(*context, clubIndex);
+    if (club == nullptr || objectManager.LoadObject("golf.building.cottage") == nullptr)
+        GTEST_SKIP() << "the club house or the cottage is not installed";
+
+    const auto block = findFlatBlock(4, 3);
+    ASSERT_TRUE(block.has_value());
+    for (int32_t y = -1; y <= 3; y++)
+        for (int32_t x = -1; x <= 4; x++)
+            if (x == -1 || x == 4 || y == -1 || y == 3)
+                insertPath({ block->x + x * 32, block->y + y * 32 });
+    GameActions::ZoneEditAction zone(GameActions::ZoneEditType::createLot, 0, *block, CoordsXY{ block->x + 96, block->y + 64 });
+    const auto lotId = GameActions::ExecuteNested(&zone, gameState).getData<GameActions::ZoneEditResult>().zoneId;
+    const auto clubAt = findFlatBlock(3, 2);
+    ASSERT_TRUE(clubAt.has_value());
+    insertPath(Building::GetEntrance(*club, *clubAt, 0).outsideTile);
+    GameActions::BuildingPlaceAction placeClub(*clubAt, clubIndex, 0);
+    ASSERT_EQ(GameActions::ExecuteNested(&placeClub, gameState).error, GameActions::Status::ok);
+
+    auto* course = gameState.golf.createCourse("Links");
+    course->open = true;
+    auto* hole = gameState.golf.createHole(course->id);
+    hole->tees[0] = Golf::HolePoint{ clubAt->x + 64, clubAt->y + 200 };
+    hole->cup = Golf::HolePoint{ clubAt->x + 64, clubAt->y + 700 };
+
+    auto& runtime = Golf::runtimeOf(gameState);
+    runtime.director().setPopularity(1000);
+    for (uint32_t day = 1; day < 120 && !gameState.golf.findLot(lotId)->sold; day++)
+        runtime.update(day * Golf::kTicksPerGameDay);
+    const auto* lot = gameState.golf.findLot(lotId);
+    ASSERT_TRUE(lot->sold) << "the lot was never sold";
+    const auto owner = lot->ownerGolferId;
+
+    // Over the next days the owner turns up on foot beside their cottage, within the opening hours, and only ever one at a
+    // time.
+    bool seen = false;
+    int32_t most = 0;
+    uint32_t day = 130;
+    for (; day < 200 && !seen; day++)
+    {
+        for (uint32_t t = day * Golf::kTicksPerGameDay + 7 * 60 * Golf::kTicksPerGameMinute;
+             t < day * Golf::kTicksPerGameDay + 18 * 60 * Golf::kTicksPerGameMinute; t++)
+        {
+            runtime.update(t);
+            int32_t vips = 0;
+            for (const auto& golfer : runtime.director().simulation().golfers())
+            {
+                if (!golfer.vip)
+                    continue;
+                vips++;
+                if (!seen)
+                {
+                    seen = true;
+                    // They came out of the cottage on the lot, which is a few tiles from where they are now at most.
+                    EXPECT_LT(std::abs(static_cast<int32_t>(golfer.position.x.floor()) - (lot->min.x * 32 + 64)), 6 * 32);
+                    EXPECT_LT(std::abs(static_cast<int32_t>(golfer.position.y.floor()) - (lot->min.y * 32 + 48)), 6 * 32);
+                }
+            }
+            most = std::max(most, vips);
+        }
+    }
+    EXPECT_TRUE(seen);
+    EXPECT_EQ(most, 1);
+    (void)owner;
+}

@@ -243,6 +243,8 @@ namespace OpenRCT2::Golf
                 a.io(g.hasExit);
                 a.io(g.exitPosition);
             }
+            if (a.format >= 7)
+                a.io(g.professional);
             if (a.format >= 4)
             {
                 a.io(g.rangeId);
