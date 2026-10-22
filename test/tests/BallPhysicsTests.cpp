@@ -242,6 +242,36 @@ TEST(BallPhysics, BallsRollDownhillEvenOnAGreen)
     EXPECT_EQ(ball.position.z, world.surfaceAt(ball.position.x, ball.position.y).height);
 }
 
+namespace
+{
+    // Two planes meeting in a crease along x = 100, like two tiles of a terrain valley.
+    class ValleyWorld : public TestWorld
+    {
+    public:
+        SurfaceSample surfaceAt(Fixed x, Fixed y) const override
+        {
+            SurfaceSample s = surface;
+            const Fixed slope = Fixed::ratio(25, 100);
+            const bool right = x >= Fixed::fromInt(100);
+            s.height = right ? (x - Fixed::fromInt(100)) * slope : (Fixed::fromInt(100) - x) * slope;
+            s.normal = normalised(FixedVec3{ right ? -slope : slope, Fixed{}, Fixed::fromInt(1) });
+            return s;
+        }
+    };
+} // namespace
+
+TEST(BallPhysics, ASlowBallInAValleyComesToRestOnTheCrease)
+{
+    ValleyWorld world;
+    world.surface.roughness = Fixed::ratio(5, 100);
+    SeqRandom rng;
+    auto ball = ballAt(world, 103, 100, BallState::Rolling);
+    const int ticks = runUntilSettled(ball, world, rng);
+    EXPECT_LT(ticks, 4000);
+    EXPECT_EQ(ball.state, BallState::AtRest);
+    EXPECT_NEAR(ball.position.x.toDouble(), 100.0, 3.0);
+}
+
 TEST(BallPhysics, AGentleSlopeIsHeldByFriction)
 {
     TestWorld world;

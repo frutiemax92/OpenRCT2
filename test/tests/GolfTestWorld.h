@@ -52,7 +52,7 @@ namespace GolfTest
         uint32_t _state;
     };
 
-    class TestWorld final : public IBallWorld
+    class TestWorld : public IBallWorld
     {
     public:
         SurfaceSample surface;       // properties of the ground everywhere

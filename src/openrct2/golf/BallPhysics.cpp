@@ -261,6 +261,26 @@ namespace OpenRCT2::Golf
                 loseInHazard(c, next);
                 return;
             }
+            if (length(ball.velocity) < p.stopSpeed)
+            {
+                // A valley: the slope here and on the next step push opposite ways, so the ball would only
+                // jitter across the crease for ever. It comes to rest at the bottom.
+                const FixedVec3 nextSlope = next.normal * (p.gravity * next.normal.z) - FixedVec3{ Fixed{}, Fixed{}, p.gravity };
+                if (slope.x * nextSlope.x + slope.y * nextSlope.y < Fixed{})
+                {
+                    ball.position.x = oldX;
+                    ball.position.y = oldY;
+                    ball.velocity = {};
+                    if (here.stream)
+                    {
+                        loseInHazard(c, here);
+                        return;
+                    }
+                    ball.state = BallState::AtRest;
+                    markSafe(ball, here, ball.position.x, ball.position.y);
+                    return;
+                }
+            }
             if (next.stream)
             {
                 // STR-006: a rolling ball crossing a stream loses 80% of its speed
