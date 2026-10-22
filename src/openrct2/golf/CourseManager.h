@@ -11,6 +11,7 @@
 
 #include "Hole.h"
 #include "RangeData.h"
+#include "ZoneData.h"
 
 #include <cstdint>
 #include <string>
@@ -121,6 +122,43 @@ namespace OpenRCT2::Golf
             _nextRangeId = next;
         }
 
+        // ECO-030, ECO-041: the zones the player draws. The corners may come in any order.
+        static constexpr size_t kMaxLots = 64;
+        static constexpr size_t kMaxTournamentZones = 32;
+        CottageLot* createLot(const TileCoordsXY& cornerA, const TileCoordsXY& cornerB);
+        bool removeLot(uint32_t lotId);
+        CottageLot* findLot(uint32_t lotId);
+        const CottageLot* findLot(uint32_t lotId) const;
+        std::vector<CottageLot>& lots()
+        {
+            return _lots;
+        }
+        const std::vector<CottageLot>& lots() const
+        {
+            return _lots;
+        }
+        TournamentZone* createTournamentZone(TournamentZoneKind kind, const TileCoordsXY& cornerA, const TileCoordsXY& cornerB);
+        bool removeTournamentZone(uint32_t zoneId);
+        TournamentZone* findTournamentZone(uint32_t zoneId);
+        const std::vector<TournamentZone>& tournamentZones() const
+        {
+            return _tournamentZones;
+        }
+        std::vector<TournamentZone>& tournamentZones()
+        {
+            return _tournamentZones;
+        }
+        // The tiles of all zones of a kind (ECO-040: the requirements count them).
+        int32_t tournamentZoneTiles(TournamentZoneKind kind) const;
+        uint32_t nextZoneId() const
+        {
+            return _nextZoneId;
+        }
+        void restoreZoneId(uint32_t next)
+        {
+            _nextZoneId = next;
+        }
+
         CourseBoundary& boundary()
         {
             return _boundary;
@@ -150,6 +188,9 @@ namespace OpenRCT2::Golf
     private:
         std::vector<Course> _courses;
         std::vector<DrivingRange> _ranges;
+        std::vector<CottageLot> _lots;
+        std::vector<TournamentZone> _tournamentZones;
+        uint32_t _nextZoneId = 1;
         uint32_t _nextRangeId = 1;
         CourseBoundary _boundary;
         uint32_t _nextCourseId = 1;

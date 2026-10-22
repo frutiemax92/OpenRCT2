@@ -906,7 +906,8 @@ namespace OpenRCT2
             auto& golf = gameState.golf;
             if (os.getMode() == OrcaStream::Mode::reading)
                 golf.clear();
-            else if (golf.courses().empty() && golf.ranges().empty() && !golf.boundary().defined())
+            else if (golf.courses().empty() && golf.ranges().empty() && golf.lots().empty() && golf.tournamentZones().empty()
+                && !golf.boundary().defined())
                 return; // nothing to save: old readers and small files stay as they were
 
             os.readWriteChunk(ParkFileChunkType::golf, [&golf, &os](OrcaStream::ChunkStream& cs) {
@@ -1033,6 +1034,43 @@ namespace OpenRCT2
                             cs.readWrite(sign.position.y);
                             cs.readWrite(sign.distance);
                         }
+                    }
+                }
+                // Cottage lots and tournament zones (ECO-030, ECO-041).
+                if (os.getMode() == OrcaStream::Mode::writing || os.getHeader().targetVersion >= kGolfZonesVersion)
+                {
+                    uint32_t nextZone = golf.nextZoneId();
+                    cs.readWrite(nextZone);
+                    if (cs.getMode() == OrcaStream::Mode::reading)
+                        golf.restoreZoneId(nextZone);
+                    uint32_t lotCount = static_cast<uint32_t>(golf.lots().size());
+                    cs.readWrite(lotCount);
+                    if (cs.getMode() == OrcaStream::Mode::reading)
+                        golf.lots().resize(std::min<uint32_t>(lotCount, Golf::CourseManager::kMaxLots));
+                    for (auto& lot : golf.lots())
+                    {
+                        cs.readWrite(lot.id);
+                        cs.readWrite(lot.min.x);
+                        cs.readWrite(lot.min.y);
+                        cs.readWrite(lot.max.x);
+                        cs.readWrite(lot.max.y);
+                        cs.readWrite(lot.sold);
+                        cs.readWrite(lot.ownerGolferId);
+                        cs.readWrite(lot.buildingObject);
+                        cs.readWrite(lot.pricePaid);
+                    }
+                    uint32_t zoneCount = static_cast<uint32_t>(golf.tournamentZones().size());
+                    cs.readWrite(zoneCount);
+                    if (cs.getMode() == OrcaStream::Mode::reading)
+                        golf.tournamentZones().resize(std::min<uint32_t>(zoneCount, Golf::CourseManager::kMaxTournamentZones));
+                    for (auto& zone : golf.tournamentZones())
+                    {
+                        cs.readWrite(zone.id);
+                        cs.readWrite(zone.kind);
+                        cs.readWrite(zone.min.x);
+                        cs.readWrite(zone.min.y);
+                        cs.readWrite(zone.max.x);
+                        cs.readWrite(zone.max.y);
                     }
                 }
             });

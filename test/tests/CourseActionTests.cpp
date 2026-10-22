@@ -563,3 +563,46 @@ TEST(RangeActions, RangesSurviveASaveAndLoadOfThePark)
         EXPECT_EQ(golf.nextRangeId(), 2u);
     }
 }
+
+TEST(ZoneActions, LotsAndTournamentZonesSurviveASaveAndLoadOfThePark)
+{
+    gOpenRCT2Headless = true;
+    gOpenRCT2NoGraphics = true;
+    MemoryStream saved;
+    {
+        auto context = startPark();
+        ASSERT_NE(context.get(), nullptr);
+        auto& golf = getGameState().golf;
+        auto* lot = golf.createLot({ 5, 6 }, { 7, 8 });
+        lot->sold = true;
+        lot->ownerGolferId = 44;
+        lot->buildingObject = 3;
+        lot->pricePaid = 98765;
+        golf.createLot({ 10, 6 }, { 11, 7 });
+        golf.createTournamentZone(Golf::TournamentZoneKind::grandstand, { 2, 2 }, { 4, 3 });
+        auto exporter = std::make_unique<ParkFileExporter>();
+        exporter->ExportObjectsList = context->GetObjectManager().GetPackableObjects();
+        exporter->Export(getGameState(), saved, kParkFileSaveCompressionLevel);
+    }
+    {
+        auto context = CreateContext();
+        ASSERT_TRUE(context->Initialise());
+        saved.SetPosition(0);
+        auto importer = ParkImporter::CreateParkFile(context->GetObjectRepository());
+        auto loadResult = importer->LoadFromStream(&saved, false);
+        context->GetObjectManager().LoadObjects(loadResult.RequiredObjects);
+        importer->Import(getGameState());
+        const auto& golf = getGameState().golf;
+        ASSERT_EQ(golf.lots().size(), 2u);
+        EXPECT_TRUE(golf.lots()[0].sold);
+        EXPECT_EQ(golf.lots()[0].ownerGolferId, 44u);
+        EXPECT_EQ(golf.lots()[0].buildingObject, 3u);
+        EXPECT_EQ(golf.lots()[0].pricePaid, 98765);
+        EXPECT_EQ(golf.lots()[0].max, (TileCoordsXY{ 7, 8 }));
+        EXPECT_FALSE(golf.lots()[1].sold);
+        ASSERT_EQ(golf.tournamentZones().size(), 1u);
+        EXPECT_EQ(golf.tournamentZones()[0].kind, Golf::TournamentZoneKind::grandstand);
+        EXPECT_EQ(golf.tournamentZoneTiles(Golf::TournamentZoneKind::grandstand), 6);
+        EXPECT_EQ(golf.nextZoneId(), 4u);
+    }
+}

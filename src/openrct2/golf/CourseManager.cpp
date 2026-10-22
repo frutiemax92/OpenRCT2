@@ -162,8 +162,86 @@ namespace OpenRCT2::Golf
         return const_cast<CourseManager*>(this)->findRange(rangeId);
     }
 
+    CottageLot* CourseManager::createLot(const TileCoordsXY& cornerA, const TileCoordsXY& cornerB)
+    {
+        if (_lots.size() >= kMaxLots)
+            return nullptr;
+        CottageLot lot;
+        lot.id = _nextZoneId++;
+        lot.min = { std::min(cornerA.x, cornerB.x), std::min(cornerA.y, cornerB.y) };
+        lot.max = { std::max(cornerA.x, cornerB.x), std::max(cornerA.y, cornerB.y) };
+        _lots.push_back(lot);
+        return &_lots.back();
+    }
+
+    bool CourseManager::removeLot(uint32_t lotId)
+    {
+        const auto it = std::find_if(_lots.begin(), _lots.end(), [lotId](const CottageLot& l) { return l.id == lotId; });
+        if (it == _lots.end())
+            return false;
+        _lots.erase(it);
+        return true;
+    }
+
+    CottageLot* CourseManager::findLot(uint32_t lotId)
+    {
+        for (auto& lot : _lots)
+            if (lot.id == lotId)
+                return &lot;
+        return nullptr;
+    }
+
+    const CottageLot* CourseManager::findLot(uint32_t lotId) const
+    {
+        return const_cast<CourseManager*>(this)->findLot(lotId);
+    }
+
+    TournamentZone* CourseManager::createTournamentZone(
+        TournamentZoneKind kind, const TileCoordsXY& cornerA, const TileCoordsXY& cornerB)
+    {
+        if (_tournamentZones.size() >= kMaxTournamentZones)
+            return nullptr;
+        TournamentZone zone;
+        zone.id = _nextZoneId++;
+        zone.kind = kind;
+        zone.min = { std::min(cornerA.x, cornerB.x), std::min(cornerA.y, cornerB.y) };
+        zone.max = { std::max(cornerA.x, cornerB.x), std::max(cornerA.y, cornerB.y) };
+        _tournamentZones.push_back(zone);
+        return &_tournamentZones.back();
+    }
+
+    bool CourseManager::removeTournamentZone(uint32_t zoneId)
+    {
+        const auto it = std::find_if(
+            _tournamentZones.begin(), _tournamentZones.end(), [zoneId](const TournamentZone& z) { return z.id == zoneId; });
+        if (it == _tournamentZones.end())
+            return false;
+        _tournamentZones.erase(it);
+        return true;
+    }
+
+    TournamentZone* CourseManager::findTournamentZone(uint32_t zoneId)
+    {
+        for (auto& zone : _tournamentZones)
+            if (zone.id == zoneId)
+                return &zone;
+        return nullptr;
+    }
+
+    int32_t CourseManager::tournamentZoneTiles(TournamentZoneKind kind) const
+    {
+        int32_t total = 0;
+        for (const auto& zone : _tournamentZones)
+            if (zone.kind == kind)
+                total += zone.tiles();
+        return total;
+    }
+
     void CourseManager::clear()
     {
+        _lots.clear();
+        _tournamentZones.clear();
+        _nextZoneId = 1;
         _ranges.clear();
         _nextRangeId = 1;
         _courses.clear();

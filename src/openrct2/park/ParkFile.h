@@ -19,7 +19,7 @@ namespace OpenRCT2
     struct ObjectRepositoryItem;
 
     // Current version that is saved.
-    constexpr uint32_t kParkFileCurrentVersion = 73;
+    constexpr uint32_t kParkFileCurrentVersion = 74;
 
     // The minimum version that is forwards compatible with the current version.
     constexpr uint32_t kParkFileMinVersion = 69;
@@ -85,6 +85,8 @@ namespace OpenRCT2
     constexpr uint16_t kGolfSimulationVersion = 72;
     // Driving ranges are kept with the courses, in the golf chunk (DRV-001).
     constexpr uint16_t kGolfRangesVersion = 73;
+    // Cottage lots and tournament zones (ECO-030, ECO-041).
+    constexpr uint16_t kGolfZonesVersion = 74;
 
     class ParkFileExporter
     {

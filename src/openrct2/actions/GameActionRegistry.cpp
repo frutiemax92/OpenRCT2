@@ -82,6 +82,7 @@
 #include "golf/CartEditAction.h"
 #include "golf/CourseEditAction.h"
 #include "golf/RangeEditAction.h"
+#include "golf/ZoneEditAction.h"
 #include "golf/HoleEditAction.h"
 #include "scenery/StreamPlaceAction.h"
 #include "scenery/StreamRemoveAction.h"
@@ -201,6 +202,7 @@ namespace OpenRCT2::GameActions
         REGISTER_ACTION(CartEditAction);
         REGISTER_ACTION(CourseEditAction);
         REGISTER_ACTION(RangeEditAction);
+        REGISTER_ACTION(ZoneEditAction);
         REGISTER_ACTION(HoleEditAction);
         REGISTER_ACTION(StreamPlaceAction);
         REGISTER_ACTION(StreamRemoveAction);

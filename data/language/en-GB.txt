@@ -3972,3 +3972,12 @@ STR_7178    :Can't change the driving range
 STR_7179    :Too many driving ranges
 STR_7180    :There is no such driving range
 STR_7181    :The tile is outside the driving range
+STR_7182    :Can't change the zone
+STR_7183    :Too many zones
+STR_7184    :There is no such zone
+STR_7185    :A cottage lot needs at least 2 x 2 tiles
+STR_7186    :A cottage lot is at most 6 x 6 tiles
+STR_7187    :A cottage lot needs a path or a street along it
+STR_7188    :The lot overlaps another lot
+STR_7189    :The lot takes land from a hole
+STR_7190    :The lot has been sold

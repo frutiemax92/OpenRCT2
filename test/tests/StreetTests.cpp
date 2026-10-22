@@ -19,6 +19,7 @@
 #include <openrct2/ParkImporter.h>
 #include <openrct2/actions/GameActionRunner.h>
 #include <openrct2/actions/footpath/FootpathPlaceAction.h>
+#include <openrct2/actions/golf/ZoneEditAction.h>
 #include <openrct2/actions/scenery/ParkingPlaceAction.h>
 #include <openrct2/actions/scenery/ParkingRemoveAction.h>
 #include <openrct2/actions/scenery/StreetPlaceAction.h>
@@ -670,4 +671,92 @@ TEST(ParkingActions, CartBaysAreNotForCars)
     ASSERT_EQ(GameActions::ExecuteNested(&cars, gameState).error, GameActions::Status::ok);
     EXPECT_EQ(Parking::FindCartBays().size(), 1u);
     EXPECT_FALSE(Parking::FindAt(next)->isCartBay());
+}
+
+TEST(ZoneActions, ACottageLotNeedsAPathAndRoomAndNoHoleOnIt)
+{
+    auto context = startPark();
+    ASSERT_NE(context.get(), nullptr);
+    auto& gameState = getGameState();
+    gameState.cheats.sandboxMode = true;
+    const auto found = findFlatBlock(3, 2);
+    ASSERT_TRUE(found.has_value());
+    const CoordsXY a = *found, b{ a.x + 32, a.y + 32 };
+
+    // No path next to it yet.
+    GameActions::ZoneEditAction lonely(GameActions::ZoneEditType::createLot, 0, a, b);
+    EXPECT_EQ(GameActions::Query(&lonely, gameState).error, GameActions::Status::invalidParameters);
+
+    layPath({ a.x - 32, a.y });
+    GameActions::ZoneEditAction lot(GameActions::ZoneEditType::createLot, 0, { b.x + 5, b.y + 5 }, { a.x + 7, a.y + 9 });
+    const auto created = GameActions::ExecuteNested(&lot, gameState);
+    ASSERT_EQ(created.error, GameActions::Status::ok);
+    const auto id = created.getData<GameActions::ZoneEditResult>().zoneId;
+    const auto* stored = gameState.golf.findLot(id);
+    ASSERT_NE(stored, nullptr);
+    EXPECT_EQ(stored->min, (TileCoordsXY{ a.x / 32, a.y / 32 }));
+    EXPECT_EQ(stored->max, (TileCoordsXY{ b.x / 32, b.y / 32 }));
+    EXPECT_FALSE(stored->sold);
+
+    // Too small, overlapping, and one bigger than a cottage lot are refused.
+    GameActions::ZoneEditAction tiny(GameActions::ZoneEditType::createLot, 0, a, a);
+    EXPECT_EQ(GameActions::Query(&tiny, gameState).error, GameActions::Status::invalidParameters);
+    GameActions::ZoneEditAction overlap(GameActions::ZoneEditType::createLot, 0, b, { b.x + 32, b.y + 32 });
+    EXPECT_EQ(GameActions::Query(&overlap, gameState).error, GameActions::Status::invalidParameters);
+    GameActions::ZoneEditAction huge(GameActions::ZoneEditType::createLot, 0, { a.x, a.y - 32 * 8 }, { a.x + 32 * 7, a.y });
+    EXPECT_EQ(GameActions::Query(&huge, gameState).error, GameActions::Status::invalidParameters);
+
+    // A hole is not for sale.
+    auto* course = gameState.golf.createCourse("Links");
+    auto* hole = gameState.golf.createHole(course->id);
+    hole->tees[0] = Golf::HolePoint{ a.x + 96 + 40, a.y + 10 };
+    const CoordsXY farA{ a.x + 96, a.y }, farB{ a.x + 96 + 32, a.y + 32 };
+    layPath({ farA.x - 32, farA.y });
+    GameActions::ZoneEditAction onTee(GameActions::ZoneEditType::createLot, 0, farA, farB);
+    EXPECT_EQ(GameActions::Query(&onTee, gameState).error, GameActions::Status::invalidParameters);
+
+    // A lot that has not sold can be taken away; one that has, cannot.
+    gameState.golf.findLot(id)->sold = true;
+    GameActions::ZoneEditAction sold(GameActions::ZoneEditType::removeLot, id);
+    EXPECT_EQ(GameActions::Query(&sold, gameState).error, GameActions::Status::invalidParameters);
+    gameState.golf.findLot(id)->sold = false;
+    GameActions::ZoneEditAction remove(GameActions::ZoneEditType::removeLot, id);
+    EXPECT_EQ(GameActions::ExecuteNested(&remove, gameState).error, GameActions::Status::ok);
+    EXPECT_EQ(gameState.golf.findLot(id), nullptr);
+    GameActions::ZoneEditAction missing(GameActions::ZoneEditType::removeLot, id);
+    EXPECT_EQ(GameActions::Query(&missing, gameState).error, GameActions::Status::invalidParameters);
+}
+
+TEST(ZoneActions, TournamentZonesAreCountedByKind)
+{
+    auto context = startPark();
+    ASSERT_NE(context.get(), nullptr);
+    auto& gameState = getGameState();
+    gameState.cheats.sandboxMode = true;
+    const auto found = findFlatBlock(3, 2);
+    ASSERT_TRUE(found.has_value());
+    const CoordsXY a = *found;
+
+    GameActions::ZoneEditAction crowd(
+        GameActions::ZoneEditType::createTournamentZone, 0, a, { a.x + 64, a.y + 32 },
+        static_cast<int32_t>(Golf::TournamentZoneKind::spectator));
+    const auto id = GameActions::ExecuteNested(&crowd, gameState).getData<GameActions::ZoneEditResult>().zoneId;
+    GameActions::ZoneEditAction more(
+        GameActions::ZoneEditType::createTournamentZone, 0, { a.x, a.y + 64 }, { a.x + 32, a.y + 64 },
+        static_cast<int32_t>(Golf::TournamentZoneKind::spectator));
+    ASSERT_EQ(GameActions::ExecuteNested(&more, gameState).error, GameActions::Status::ok);
+    GameActions::ZoneEditAction media(
+        GameActions::ZoneEditType::createTournamentZone, 0, a, a, static_cast<int32_t>(Golf::TournamentZoneKind::media));
+    ASSERT_EQ(GameActions::ExecuteNested(&media, gameState).error, GameActions::Status::ok);
+
+    EXPECT_EQ(gameState.golf.tournamentZoneTiles(Golf::TournamentZoneKind::spectator), 3 * 2 + 2);
+    EXPECT_EQ(gameState.golf.tournamentZoneTiles(Golf::TournamentZoneKind::media), 1);
+    EXPECT_EQ(gameState.golf.tournamentZoneTiles(Golf::TournamentZoneKind::grandstand), 0);
+
+    GameActions::ZoneEditAction badKind(GameActions::ZoneEditType::createTournamentZone, 0, a, a, 9);
+    EXPECT_EQ(GameActions::Query(&badKind, gameState).error, GameActions::Status::invalidParameters);
+
+    GameActions::ZoneEditAction remove(GameActions::ZoneEditType::removeTournamentZone, id);
+    EXPECT_EQ(GameActions::ExecuteNested(&remove, gameState).error, GameActions::Status::ok);
+    EXPECT_EQ(gameState.golf.tournamentZoneTiles(Golf::TournamentZoneKind::spectator), 2);
 }

@@ -10,6 +10,7 @@
 #pragma once
 
 #include "BallPhysics.h"
+#include "ZoneData.h"
 #include "../world/Location.hpp"
 
 #include <cstdint>
@@ -19,30 +20,6 @@ namespace OpenRCT2::Golf
 {
     // Golf cottages (ECO-030 to ECO-033): lots the player designates, which a VIP golfer buys when the course is popular
     // enough. The land price depends on the popularity and the quality of the lot.
-
-    struct CottageLot
-    {
-        uint32_t id = 0;
-        TileCoordsXY min;            // tile rectangle, inclusive
-        TileCoordsXY max;
-        bool sold = false;
-        uint32_t ownerGolferId = 0;  // the VIP who bought it
-        uint32_t buildingObject = 0; // the cottage placed on it
-        int64_t pricePaid = 0;
-
-        int32_t width() const
-        {
-            return max.x - min.x + 1;
-        }
-        int32_t depth() const
-        {
-            return max.y - min.y + 1;
-        }
-        bool contains(const TileCoordsXY& tile) const
-        {
-            return tile.x >= min.x && tile.x <= max.x && tile.y >= min.y && tile.y <= max.y;
-        }
-    };
 
     // ECO-030: a lot is a rectangle sized for a cottage footprint, next to a path or street.
     constexpr int32_t kMinLotSide = 2;
