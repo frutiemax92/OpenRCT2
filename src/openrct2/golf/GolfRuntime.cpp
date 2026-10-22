@@ -16,6 +16,7 @@
 #include "../localisation/StringIds.h"
 #include "../management/Finance.h"
 #include "../management/NewsItem.h"
+#include "Arrivals.h"
 #include "Clubs.h"
 #include "../entity/EntityRegistry.h"
 #include "../entity/GolferEntity.h"
@@ -1239,6 +1240,254 @@ namespace OpenRCT2::Golf
         return *gameState.golfRuntime;
     }
 
+    void GolfRuntime::spawnGolferGroup(int32_t tier)
+    {
+        auto& gameState = getGameState();
+        uint32_t courseId = 1;
+        if (auto* course = gameState.golf.findCourse(1))
+            courseId = course->id;
+        else if (!gameState.golf.courses().empty())
+            courseId = gameState.golf.courses().front().id;
+
+        FixedVec3 spawnPos{};
+        if (_scan.hasClub)
+        {
+            spawnPos = _scan.club;
+        }
+        else
+        {
+            spawnPos = FixedVec3(Fixed::fromInt(50 * 32), Fixed::fromInt(50 * 32), Fixed{});
+        }
+
+        uint32_t group = _rng ? (_rng->next() % 10000 + 1) : 1;
+        int32_t count = 3;
+        for (int32_t i = 0; i < count; i++)
+        {
+            GolfSimulation::Spawn spawn;
+            spawn.groupId = group;
+            spawn.courseId = courseId;
+            spawn.position = spawnPos;
+            if (tier == 1) // Pro
+            {
+                if (_rng)
+                    spawn.skills = professionalSkills(_director ? _director->tournament.tier : TournamentTier::local, *_rng);
+                spawn.money = 100000;
+                spawn.equipmentLevel = 3;
+                spawn.professional = true;
+                spawn.name = "Pro " + std::to_string(i + 1);
+            }
+            else if (tier == 2) // VIP
+            {
+                if (_rng)
+                    spawn.skills = rollNewGolfer(*_rng, _director ? _director->popularity() : 300, true).skills;
+                spawn.money = 500000;
+                spawn.equipmentLevel = 2;
+                spawn.vip = true;
+                spawn.name = "VIP " + std::to_string(i + 1);
+            }
+            else // Regular
+            {
+                if (_rng)
+                    spawn.skills = rollNewGolfer(*_rng, _director ? _director->popularity() : 300, false).skills;
+                spawn.money = 20000;
+                spawn.equipmentLevel = 1;
+                spawn.name = "Golfer " + std::to_string(i + 1);
+            }
+
+            auto& g = _director->simulation().spawn(spawn);
+            g.destination = spawnPos;
+            g.state = GolferState::checkingIn;
+        }
+        syncEntities();
+    }
+
+    void GolfRuntime::spawnDrivingRangeCustomer()
+    {
+        refreshRanges();
+        auto& ranges = getGameState().golf.ranges();
+        if (ranges.empty())
+            return;
+        auto& range = ranges.front();
+        HolePoint kioskPos{ range.areaMin.x * 32 + 16, range.areaMin.y * 32 + 16 };
+        if (range.kiosk.has_value())
+        {
+            kioskPos = *range.kiosk;
+        }
+        else if (!_scan.kiosks.empty())
+        {
+            kioskPos = _scan.kiosks.front();
+            range.kiosk = kioskPos;
+        }
+
+        GolfSimulation::Spawn spawn;
+        spawn.groupId = _rng ? (_rng->next() % 10000 + 1) : 2;
+        spawn.position = FixedVec3(Fixed::fromInt(kioskPos.x), Fixed::fromInt(kioskPos.y), Fixed{});
+        if (_rng)
+            spawn.skills = rollNewGolfer(*_rng, _director ? _director->popularity() : 300, false).skills;
+        spawn.money = 15000;
+        spawn.equipmentLevel = 1;
+        spawn.name = "Range Customer";
+
+        auto& g = _director->simulation().spawn(spawn);
+        g.rangeId = range.id;
+        g.rangeVisited = true;
+        g.destination = spawn.position;
+        g.state = GolferState::walkingToRange;
+        syncEntities();
+    }
+
+    void GolfRuntime::evaluateVipCottages()
+    {
+        auto& gameState = getGameState();
+        for (auto& lot : gameState.golf.lots())
+        {
+            if (lot.sold)
+                continue;
+            const auto attractiveness = lotAttractiveness(featuresOf(lot, _scan.club));
+            if (sellLot(lot, attractiveness))
+                break;
+            lot.sold = true;
+            lot.pricePaid = lotPrice(_director ? _director->popularity() : 300, attractiveness, lot.width() * lot.depth());
+            if (_director)
+                lot.ownerGolferId = _director->addVip(lot.id);
+            break;
+        }
+    }
+
+    void GolfRuntime::startOrAdvanceTournament(int32_t tier)
+    {
+        if (_director == nullptr)
+            return;
+
+        if (_director->tournament.phase == TournamentPhase::none)
+        {
+            _director->tournament.tier = static_cast<TournamentTier>(tier % static_cast<int32_t>(TournamentTier::count));
+            _director->tournament.phase = TournamentPhase::running;
+            _director->tournament.professionals = kProfessionalFieldSize;
+            _director->tournament.day = _director->currentDay();
+
+            uint32_t courseId = 1;
+            if (!getGameState().golf.courses().empty())
+                courseId = getGameState().golf.courses().front().id;
+
+            FixedVec3 spawnPos{};
+            if (_scan.hasClub)
+                spawnPos = _scan.club;
+            else
+                spawnPos = FixedVec3(Fixed::fromInt(50 * 32), Fixed::fromInt(50 * 32), Fixed{});
+
+            for (int32_t i = 0; i < kProfessionalFieldSize; i++)
+            {
+                GolfSimulation::Spawn spawn;
+                spawn.groupId = 2000 + i / 4;
+                spawn.courseId = courseId;
+                if (_rng)
+                    spawn.skills = professionalSkills(_director->tournament.tier, *_rng);
+                spawn.professional = true;
+                spawn.equipmentLevel = 3;
+                spawn.name = "Tour Pro #" + std::to_string(i + 1);
+                spawn.position = spawnPos;
+                auto& g = _director->simulation().spawn(spawn);
+                g.destination = spawnPos;
+                g.state = GolferState::checkingIn;
+            }
+            syncEntities();
+        }
+        else if (_director->tournament.phase == TournamentPhase::running)
+        {
+            _director->tournament.phase = TournamentPhase::finished;
+            _director->tournament.result = 85;
+            _director->tournament.popularityGained = 50;
+            _director->setPopularity(_director->popularity() + 50);
+        }
+        else
+        {
+            _director->tournament.phase = TournamentPhase::none;
+        }
+    }
+
+    void GolfRuntime::setWeatherAndWind(Weather::Type weather, int16_t directionDeg, uint16_t strength)
+    {
+        auto& gameState = getGameState();
+        gameState.weatherCurrent.weatherType = weather;
+        gameState.wind.direction = directionDeg;
+        gameState.wind.targetDirection = directionDeg;
+        gameState.wind.strength = strength;
+        gameState.wind.targetStrength = strength;
+        _world.setWind(windVelocity(gameState.wind));
+    }
+
+    void GolfRuntime::spawnWildlife(int32_t speciesIndex, int32_t nearX, int32_t nearY)
+    {
+        if (_director == nullptr || _director->animals == nullptr)
+            return;
+
+        refreshAnimals();
+        if (_director->animals->species().empty())
+        {
+            AnimalSpecies defaultDuck;
+            defaultDuck.id = "golf.animal.duck";
+            defaultDuck.habitat = kHabitatGreenBank | kHabitatRough | kHabitatFairway | kHabitatWoods | kHabitatWater;
+            defaultDuck.minGroup = 1;
+            defaultDuck.maxGroup = 3;
+            defaultDuck.canFly = true;
+            defaultDuck.canSwim = true;
+            defaultDuck.avoidsStreets = false;
+            _director->animals->addSpecies(defaultDuck);
+        }
+
+        FixedVec3 centre{};
+        if (nearX >= 0 && nearY >= 0)
+        {
+            centre = FixedVec3(Fixed::fromInt(nearX), Fixed::fromInt(nearY), Fixed{});
+        }
+        else if (_scan.hasClub)
+        {
+            centre = _scan.club;
+        }
+        else
+        {
+            centre = FixedVec3(Fixed::fromInt(50 * 32), Fixed::fromInt(50 * 32), Fixed{});
+        }
+
+        const auto& species = _director->animals->species();
+        if (species.empty())
+            return;
+
+        uint32_t sp = (speciesIndex >= 0 && speciesIndex < static_cast<int32_t>(species.size()))
+            ? static_cast<uint32_t>(speciesIndex)
+            : (_rng ? (_rng->next() % species.size()) : 0);
+
+        int32_t spawned = _director->animals->spawnGroup(sp, centre, 32 * 32);
+        if (spawned == 0)
+        {
+            for (const auto& course : getGameState().golf.courses())
+            {
+                for (const auto& hole : course.holes)
+                {
+                    if (hole.tees[0].has_value())
+                    {
+                        spawned = _director->animals->spawnGroup(
+                            sp, FixedVec3(Fixed::fromInt(hole.tees[0]->x), Fixed::fromInt(hole.tees[0]->y), Fixed{}), 32 * 32);
+                        if (spawned > 0)
+                            break;
+                    }
+                    if (hole.cup.has_value())
+                    {
+                        spawned = _director->animals->spawnGroup(
+                            sp, FixedVec3(Fixed::fromInt(hole.cup->x), Fixed::fromInt(hole.cup->y), Fixed{}), 32 * 32);
+                        if (spawned > 0)
+                            break;
+                    }
+                }
+                if (spawned > 0)
+                    break;
+            }
+        }
+        driveAnimals();
+        syncEntities();
+    }
+
     GolfRuntime* GetGolfRuntime()
     {
         return &runtimeOf(getGameState());
@@ -1365,14 +1614,18 @@ namespace OpenRCT2::Golf
             }
         }
 
-        // Footpath connecting parking to buildings and entrance doors
-        for (int32_t y = roadRow; y <= 35; y++)
+        // Footpath connecting parking to buildings, entrance doors and cottage lots
+        for (int32_t y = roadRow; y <= 45; y++)
         {
             addPath(7, y);
         }
         for (int32_t x = 7; x <= 22; x++)
         {
             addPath(x, 35);
+        }
+        for (int32_t x = 7; x <= 8; x++)
+        {
+            addPath(x, 42);
         }
 
         // 2. Buildings
@@ -1396,7 +1649,7 @@ namespace OpenRCT2::Golf
         }
 
         // Driving range zone
-        gameState.golf.createRange({ 19, 20 }, { 28, 35 });
+        gameState.golf.createRange({ 18, 20 }, { 28, 36 });
 
         // Cottage lots
         gameState.golf.createLot({ 9, 41 }, { 13, 45 });

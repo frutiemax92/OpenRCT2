@@ -25,6 +25,7 @@
 #include <openrct2/core/EnumUtils.hpp>
 #include <openrct2/drawing/Drawing.h>
 #include <openrct2/drawing/Text.h>
+#include <openrct2/golf/GolfRuntime.h>
 #include <openrct2/localisation/Currency.h>
 #include <openrct2/localisation/Formatter.h>
 #include <openrct2/localisation/Formatting.h>
@@ -48,6 +49,7 @@ enum
     WINDOW_CHEATS_PAGE_PARK,
     WINDOW_CHEATS_PAGE_RIDES,
     WINDOW_CHEATS_PAGE_WEATHER,
+    WINDOW_CHEATS_PAGE_GOLF,
     WINDOW_CHEATS_PAGE_COUNT,
 };
 
@@ -90,6 +92,7 @@ enum WindowCheatsWidgetIdx : WidgetIndex
     WIDX_TAB_5,
     WIDX_TAB_6,
     WIDX_TAB_7,
+    WIDX_TAB_8,
     WIDX_TAB_CONTENT,
 
     WIDX_NO_MONEY = WIDX_TAB_CONTENT,
@@ -201,12 +204,28 @@ enum WindowCheatsWidgetIdx : WidgetIndex
     WIDX_FAUNA_GROUP,
     WIDX_CREATE_DUCKS,
     WIDX_REMOVE_DUCKS,
+
+    WIDX_DEMO_COURSE_GROUP = WIDX_TAB_CONTENT,
+    WIDX_LOAD_DEMO_COURSE,
+    WIDX_EVALUATE_COTTAGES,
+    WIDX_SPAWN_ACTORS_GROUP,
+    WIDX_SPAWN_REGULAR_GOLFERS,
+    WIDX_SPAWN_PRO_GOLFERS,
+    WIDX_SPAWN_RANGE_CUSTOMER,
+    WIDX_SPAWN_WILDLIFE,
+    WIDX_EVENTS_SIM_GROUP,
+    WIDX_START_TOURNAMENT,
+    WIDX_OVERRIDE_WEATHER_WIND,
+    WIDX_DEBUG_OVERLAYS_GROUP,
+    WIDX_TOGGLE_HOLE_OVERLAY,
+    WIDX_TOGGLE_TURF_OVERLAY,
+    WIDX_OPEN_MODEL_VIEWER,
 };
 
 #pragma region MEASUREMENTS
 
 static constexpr StringId kWindowTitle = STR_CHEAT_TITLE;
-static constexpr ScreenSize kWindowSize = { 249, 300 };
+static constexpr ScreenSize kWindowSize = { 254, 300 };
 
 static constexpr ScreenSize kCheatButtonSize = {110, 17};
 static constexpr ScreenSize kCheatCheckSize = {221, 12};
@@ -227,7 +246,8 @@ static constexpr auto kMainCheatWidgets = makeWidgets(
     makeTab   ({ 96, 17}, STR_STAFF_CHEATS_TIP                          ), /* tab 5 */
     makeTab   ({127, 17}, STR_PARK_CHEATS_TIP                           ), /* tab 6 */
     makeTab   ({158, 17}, STR_RIDE_CHEATS_TIP                           ), /* tab 4 */
-    makeTab   ({189, 17}, STR_WEATHER_NATURE_CHEATS_TIP                 )  /* tab 7 */
+    makeTab   ({189, 17}, STR_WEATHER_NATURE_CHEATS_TIP                 ), /* tab 7 */
+    makeTab   ({220, 17}, STR_GOLF_TESTING_TIP                          )  /* tab 8 */
 );
 
 static constexpr auto window_cheats_money_widgets = makeWidgets(
@@ -360,6 +380,25 @@ static constexpr auto window_cheats_weather_widgets = makeWidgets(
     makeWidget                ({127, 115}, kCheatButtonSize, WidgetType::button,       WindowColour::secondary, STR_REMOVE_DUCKS,                STR_REMOVE_DUCKS_TIP        )  // Remove ducks
 );
 
+static constexpr auto window_cheats_golf_widgets = makeWidgets(
+    kMainCheatWidgets,
+    makeWidget                ({  5,  48}, {244,  60},       WidgetType::groupbox,     WindowColour::secondary, STR_DEMO_COURSE_SETUP                                        ),
+    makeWidget                ({ 11,  62}, {232,  17},       WidgetType::button,       WindowColour::secondary, STR_LOAD_DEMO_COURSE,            STR_LOAD_DEMO_COURSE_TIP        ),
+    makeWidget                ({ 11,  84}, {232,  17},       WidgetType::button,       WindowColour::secondary, STR_EVALUATE_VIP_COTTAGES,        STR_EVALUATE_VIP_COTTAGES_TIP    ),
+    makeWidget                ({  5, 112}, {244,  60},       WidgetType::groupbox,     WindowColour::secondary, STR_SPAWN_ACTORS                                             ),
+    makeWidget                ({ 11, 126}, {112,  17},       WidgetType::button,       WindowColour::secondary, STR_SPAWN_REGULAR_GOLFERS,        STR_SPAWN_REGULAR_GOLFERS_TIP    ),
+    makeWidget                ({131, 126}, {112,  17},       WidgetType::button,       WindowColour::secondary, STR_SPAWN_PRO_GOLFERS,            STR_SPAWN_PRO_GOLFERS_TIP        ),
+    makeWidget                ({ 11, 148}, {112,  17},       WidgetType::button,       WindowColour::secondary, STR_SPAWN_RANGE_CUSTOMER,         STR_SPAWN_RANGE_CUSTOMER_TIP     ),
+    makeWidget                ({131, 148}, {112,  17},       WidgetType::button,       WindowColour::secondary, STR_SPAWN_WILDLIFE,               STR_SPAWN_WILDLIFE_TIP           ),
+    makeWidget                ({  5, 176}, {244,  40},       WidgetType::groupbox,     WindowColour::secondary, STR_EVENTS_SIMULATION                                        ),
+    makeWidget                ({ 11, 190}, {112,  17},       WidgetType::button,       WindowColour::secondary, STR_START_TOURNAMENT,            STR_START_TOURNAMENT_TIP         ),
+    makeWidget                ({131, 190}, {112,  17},       WidgetType::button,       WindowColour::secondary, STR_OVERRIDE_WEATHER_WIND,        STR_OVERRIDE_WEATHER_WIND_TIP     ),
+    makeWidget                ({  5, 220}, {244,  68},       WidgetType::groupbox,     WindowColour::secondary, STR_DEBUG_OVERLAYS                                           ),
+    makeWidget                ({ 11, 234}, {112,  14},       WidgetType::checkbox,     WindowColour::secondary, STR_TOGGLE_HOLE_OVERLAY,         STR_TOGGLE_HOLE_OVERLAY_TIP      ),
+    makeWidget                ({131, 234}, {112,  14},       WidgetType::checkbox,     WindowColour::secondary, STR_TURF_OVERLAY,                STR_TURF_OVERLAY_TIP             ),
+    makeWidget                ({ 11, 256}, {232,  17},       WidgetType::button,       WindowColour::secondary, STR_OPEN_MODEL_VIEWER,            STR_OPEN_MODEL_VIEWER_TIP        )
+);
+
 static constexpr std::span<const Widget> window_cheats_page_widgets[] =
 {
     window_cheats_money_widgets,
@@ -369,6 +408,7 @@ static constexpr std::span<const Widget> window_cheats_page_widgets[] =
     window_cheats_park_widgets,
     window_cheats_rides_widgets,
     window_cheats_weather_widgets,
+    window_cheats_golf_widgets,
 };
 
 static StringId window_cheats_page_titles[] = {
@@ -379,6 +419,7 @@ static StringId window_cheats_page_titles[] = {
     STR_CHEAT_TITLE_PARK,
     STR_CHEAT_TITLE_RIDE,
     STR_CHEAT_TITLE_WEATHER,
+    STR_GOLF_TESTING_TIP,
 };
     // clang-format on
 
@@ -443,6 +484,7 @@ static StringId window_cheats_page_titles[] = {
                 case WIDX_TAB_5:
                 case WIDX_TAB_6:
                 case WIDX_TAB_7:
+                case WIDX_TAB_8:
                     setPage(widgetIndex - WIDX_TAB_1);
                     break;
                 default:
@@ -465,6 +507,9 @@ static StringId window_cheats_page_titles[] = {
                             break;
                         case WINDOW_CHEATS_PAGE_WEATHER:
                             onMouseUpWeather(widgetIndex);
+                            break;
+                        case WINDOW_CHEATS_PAGE_GOLF:
+                            onMouseUpGolf(widgetIndex);
                             break;
                     }
                     break;
@@ -562,6 +607,15 @@ static StringId window_cheats_page_titles[] = {
             if (page == WINDOW_CHEATS_PAGE_STAFF)
             {
                 widgets[WIDX_STAFF_SPEED].text = _staffSpeedNames[EnumValue(gameState.cheats.selectedStaffSpeed)];
+            }
+
+            if (page == WINDOW_CHEATS_PAGE_GOLF)
+            {
+                if (auto* runtime = Golf::GetGolfRuntime())
+                {
+                    setCheckboxValue(WIDX_TOGGLE_HOLE_OVERLAY, runtime->holeOverlayEnabled());
+                    setCheckboxValue(WIDX_TOGGLE_TURF_OVERLAY, runtime->turfOverlayEnabled());
+                }
             }
 
             setWidgetDisabled(WIDX_TAB_2, isInEditorMode());
@@ -716,7 +770,7 @@ static StringId window_cheats_page_titles[] = {
 
             setWidgets(window_cheats_page_widgets[p]);
             widgetSetPressedExclusive(
-                *this, { WIDX_TAB_1, WIDX_TAB_2, WIDX_TAB_3, WIDX_TAB_4, WIDX_TAB_5, WIDX_TAB_6, WIDX_TAB_7 }, WIDX_TAB_1 + p);
+                *this, { WIDX_TAB_1, WIDX_TAB_2, WIDX_TAB_3, WIDX_TAB_4, WIDX_TAB_5, WIDX_TAB_6, WIDX_TAB_7, WIDX_TAB_8 }, WIDX_TAB_1 + p);
 
             auto maxY = 0;
             for (WidgetIndex widgetIdx = WIDX_TAB_CONTENT; widgetIdx < widgets.size(); widgetIdx++)
@@ -741,7 +795,7 @@ static StringId window_cheats_page_titles[] = {
         void UpdateTabPositions()
         {
             constexpr WidgetIndex tabs[] = {
-                WIDX_TAB_1, WIDX_TAB_2, WIDX_TAB_3, WIDX_TAB_4, WIDX_TAB_5, WIDX_TAB_6, WIDX_TAB_7,
+                WIDX_TAB_1, WIDX_TAB_2, WIDX_TAB_3, WIDX_TAB_4, WIDX_TAB_5, WIDX_TAB_6, WIDX_TAB_7, WIDX_TAB_8,
             };
 
             auto left = kTabStart;
@@ -820,6 +874,14 @@ static StringId window_cheats_page_titles[] = {
                 GfxDrawSprite(
                     rt, ImageId(sprite_idx),
                     windowPos + ScreenCoordsXY{ widgets[WIDX_TAB_7].left + 2, widgets[WIDX_TAB_7].top + 4 });
+            }
+
+            // Golf testing tab
+            if (!isWidgetDisabled(WIDX_TAB_8))
+            {
+                GfxDrawSprite(
+                    rt, ImageId(SPR_LOCATE),
+                    windowPos + ScreenCoordsXY{ widgets[WIDX_TAB_8].left + 4, widgets[WIDX_TAB_8].top + 3 });
             }
         }
 
@@ -1327,6 +1389,98 @@ static StringId window_cheats_page_titles[] = {
                     CheatsSet(CheatType::allowTrackPlaceInvalidHeights, !gameState.cheats.allowTrackPlaceInvalidHeights);
                 }
                 break;
+            }
+        }
+
+        void onMouseUpGolf(WidgetIndex widgetIndex)
+        {
+            switch (widgetIndex)
+            {
+                case WIDX_LOAD_DEMO_COURSE:
+                {
+                    Golf::SetupDemoGolfCourse(getGameState());
+                    Golf::resetRuntime(getGameState());
+                    auto* mainWnd = WindowGetMain();
+                    if (mainWnd != nullptr)
+                    {
+                        WindowScrollToLocation(*mainWnd, { 12 * 32, 37 * 32, 0 });
+                    }
+                    break;
+                }
+                case WIDX_EVALUATE_COTTAGES:
+                {
+                    if (auto* runtime = Golf::GetGolfRuntime())
+                        runtime->evaluateVipCottages();
+                    break;
+                }
+                case WIDX_SPAWN_REGULAR_GOLFERS:
+                {
+                    if (auto* runtime = Golf::GetGolfRuntime())
+                        runtime->spawnGolferGroup(0);
+                    break;
+                }
+                case WIDX_SPAWN_PRO_GOLFERS:
+                {
+                    if (auto* runtime = Golf::GetGolfRuntime())
+                        runtime->spawnGolferGroup(1);
+                    break;
+                }
+                case WIDX_SPAWN_RANGE_CUSTOMER:
+                {
+                    if (auto* runtime = Golf::GetGolfRuntime())
+                        runtime->spawnDrivingRangeCustomer();
+                    break;
+                }
+                case WIDX_SPAWN_WILDLIFE:
+                {
+                    if (auto* runtime = Golf::GetGolfRuntime())
+                        runtime->spawnWildlife();
+                    break;
+                }
+                case WIDX_START_TOURNAMENT:
+                {
+                    if (auto* runtime = Golf::GetGolfRuntime())
+                        runtime->startOrAdvanceTournament();
+                    break;
+                }
+                case WIDX_OVERRIDE_WEATHER_WIND:
+                {
+                    static int32_t weatherStep = 0;
+                    weatherStep = (weatherStep + 1) % 4;
+                    Weather::Type w = Weather::Type::sunny;
+                    if (weatherStep == 1)
+                        w = Weather::Type::rain;
+                    else if (weatherStep == 2)
+                        w = Weather::Type::heavyRain;
+                    else if (weatherStep == 3)
+                        w = Weather::Type::snow;
+                    if (auto* runtime = Golf::GetGolfRuntime())
+                        runtime->setWeatherAndWind(w, 45, 800);
+                    break;
+                }
+                case WIDX_TOGGLE_HOLE_OVERLAY:
+                {
+                    if (auto* runtime = Golf::GetGolfRuntime())
+                    {
+                        runtime->toggleHoleOverlay();
+                        invalidate();
+                    }
+                    break;
+                }
+                case WIDX_TOGGLE_TURF_OVERLAY:
+                {
+                    if (auto* runtime = Golf::GetGolfRuntime())
+                    {
+                        runtime->toggleTurfOverlay();
+                        invalidate();
+                    }
+                    break;
+                }
+                case WIDX_OPEN_MODEL_VIEWER:
+                {
+                    ModelViewerOpen();
+                    break;
+                }
             }
         }
     };

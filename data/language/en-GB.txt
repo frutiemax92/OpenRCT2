@@ -4010,3 +4010,28 @@ STR_7216    :Plant trees
 STR_7217    :{SMALLFONT}{BLACK}Plant trees automatically when painting woods surface
 STR_7218    :Turf condition
 STR_7219    :{SMALLFONT}{BLACK}Toggle the turf wear and health overlay
+STR_7220    :{WINDOW_COLOUR_2}Golf testing and sandbox cheats
+STR_7221    :Course setup
+STR_7222    :Load demo course
+STR_7223    :{SMALLFONT}{BLACK}Instantly initialise a complete playable starter golf course
+STR_7224    :Evaluate cottages
+STR_7225    :{SMALLFONT}{BLACK}Trigger an immediate VIP cottage purchase evaluation cycle
+STR_7226    :Spawn actors
+STR_7227    :Spawn golfers
+STR_7228    :{SMALLFONT}{BLACK}Immediately spawn a group of regular golfers
+STR_7229    :Spawn pro field
+STR_7230    :{SMALLFONT}{BLACK}Immediately spawn tournament professional golfers
+STR_7231    :Spawn range customer
+STR_7232    :{SMALLFONT}{BLACK}Immediately spawn a golfer heading to the driving range
+STR_7233    :Spawn wildlife
+STR_7234    :{SMALLFONT}{BLACK}Spawn wildlife animals near the course
+STR_7235    :Events & simulation
+STR_7236    :Advance tournament
+STR_7237    :{SMALLFONT}{BLACK}Start or advance a tournament on the course
+STR_7238    :Cycle weather/wind
+STR_7239    :{SMALLFONT}{BLACK}Cycle between various weather conditions and strong wind
+STR_7240    :Debug overlays
+STR_7241    :Hole overlay
+STR_7242    :{SMALLFONT}{BLACK}Toggle the hole and shot trajectory overlay
+STR_7243    :3D Model viewer
+STR_7244    :{SMALLFONT}{BLACK}Open the 3D model viewer debug window

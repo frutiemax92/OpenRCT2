@@ -121,6 +121,22 @@ namespace OpenRCT2::Golf
             _turfOverlayEnabled = enabled;
         }
 
+        // Testing & Sandbox Actions (TEST-001)
+        void spawnGolferGroup(int32_t tier = 0);
+        void spawnDrivingRangeCustomer();
+        void evaluateVipCottages();
+        void startOrAdvanceTournament(int32_t tier = 0);
+        void setWeatherAndWind(Weather::Type weather, int16_t directionDeg, uint16_t strength);
+        void spawnWildlife(int32_t speciesIndex = -1, int32_t nearX = -1, int32_t nearY = -1);
+        void toggleHoleOverlay()
+        {
+            _holeOverlayEnabled = !_holeOverlayEnabled;
+        }
+        void toggleTurfOverlay()
+        {
+            _turfOverlayEnabled = !_turfOverlayEnabled;
+        }
+
     private:
         class GameRandom;
         void syncEntities();
