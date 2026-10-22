@@ -52,6 +52,11 @@ namespace OpenRCT2
         settings.time = pose.time;
         auto box = ComputeModelBoundBox(*model, settings);
         box.offset.z += z;
+        // The feet stand on the ground, but a path's box lies 1-2 units above it: start the box above the path as peeps
+        // do, keeping its top, so the entity always sorts in front of the ground it stands on.
+        const auto top = box.offset.z + box.length.z;
+        box.offset.z = std::max(box.offset.z, z + 5);
+        box.length.z = std::max(1, top - box.offset.z);
         PaintAddImageAsParent(session, ImageId(image), { 0, 0, z }, box);
     }
 } // namespace OpenRCT2
