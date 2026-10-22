@@ -27,7 +27,7 @@ namespace OpenRCT2
         "golf.terrain_edge.rock_cliff",
     };
 
-    constexpr std::array<std::string_view, 39> kCommonScenarioAndTrackDesignerObjects = {
+    constexpr std::array<std::string_view, 40> kCommonScenarioAndTrackDesignerObjects = {
         // Terrain surfaces
         "golf.terrain_surface.grass",
         "golf.terrain_surface.tee",
@@ -88,6 +88,9 @@ namespace OpenRCT2
         "golf.footpath_surface.gravel",
         "golf.footpath_surface.tee_queue",
         "golf.footpath_railings.none",
+
+        // Staff
+        "golf.peep_animations.greenskeeper",
     };
 
     ObjectEntryIndex GetDefaultStationObject(IObjectManager& objectManager)

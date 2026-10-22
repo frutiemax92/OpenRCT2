@@ -155,6 +155,7 @@ class ObjectTests(unittest.TestCase):
         expected |= {"footpath_surface/golf.footpath_surface.gravel.parkobj",
                      "footpath_surface/golf.footpath_surface.tee_queue.parkobj",
                      "footpath_railings/golf.footpath_railings.none.parkobj"}
+        expected.add("peep_animations/golf.peep_animations.greenskeeper.parkobj")
         expected.add("path_addition/golf.path_addition.bench.parkobj")
         expected.add("path_addition/golf.path_addition.bin.parkobj")
         expected.add("path_addition/golf.path_addition.lamp.parkobj")

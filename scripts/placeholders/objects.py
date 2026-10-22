@@ -593,6 +593,19 @@ def footpath_railings(name, description, palette):
     return object_files(manifest("golf.footpath_railings." + name, "footpath_railings", description, properties, table), images)
 
 
+def peep_animations(name, description, peep_type, animations, palette):
+    """Sprite animations the staff code still reads (bounds, preview image). Staff are drawn as 3D models like the golfers,
+    so every animation is the same single transparent frame in the 4 view directions."""
+    blank = quantise(Image(1, 1, (0, 0, 0), alpha=0), palette).png()
+    images = {"images/blank.png": blank}
+    table = [{"path": "images/blank.png", "x": 0, "y": 0}] * 5
+    group = {"animations": {a: {"offset": 0, "sequence": [0]} for a in animations}}
+    data = manifest("golf.peep_animations." + name, "peep_animations", description,
+                    {"peepType": peep_type, "noRandomPlacement": True}, table)
+    data["animationGroups"] = [group]
+    return object_files(data, images)
+
+
 def building_icon(colour):
     image = Image(32, 32, (0, 0, 0), 0)
     image.fill_rect(6, 12, 20, 14, shade(colour, 0.9))
@@ -867,6 +880,10 @@ def build(layout=None, palette=None):
         footpath_surface("tee_queue", "Tee waiting path", (0xA0, 0x88, 0x60), palette, queue=True))
     out["footpath_railings/golf.footpath_railings.none.parkobj"] = pack(
         footpath_railings("none", "No railings", palette))
+    out["peep_animations/golf.peep_animations.greenskeeper.parkobj"] = pack(
+        peep_animations("greenskeeper", "Greenskeeper", "handyman",
+                        ["walking", "watchRide", "hanging", "staffMower", "staffSweep", "drowning", "staffWatering",
+                         "staffEmptyBin"], palette))
     out["path_addition/golf.path_addition.bench.parkobj"] = pack(
         path_addition("bench", "Park bench", "bench", True, False, False, (0x8B, 0x5A, 0x2B), palette, price=50))
     out["path_addition/golf.path_addition.bin.parkobj"] = pack(

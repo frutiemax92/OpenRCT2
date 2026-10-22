@@ -16,6 +16,7 @@
 #include <openrct2/golf/GolfRuntime.h>
 #include <openrct2/object/DefaultObjects.h>
 #include <openrct2/object/ObjectManager.h>
+#include <openrct2/peep/PeepAnimations.h>
 #include <openrct2/scenes/editor/EditorController.h>
 #include <openrct2/world/Map.h>
 #include <openrct2/world/Park.h>
@@ -45,7 +46,7 @@ protected:
 // NAV-001: Auto-load all golf objects in DefaultObjects
 TEST_F(GolfNavigationTests, DefaultGolfObjectsArrayContainsAllCoreGolfObjects)
 {
-    EXPECT_EQ(kCommonScenarioAndTrackDesignerObjects.size(), 39u);
+    EXPECT_EQ(kCommonScenarioAndTrackDesignerObjects.size(), 40u);
 
     bool hasClubHouse = false;
     bool hasRoad = false;
@@ -85,6 +86,16 @@ TEST_F(GolfNavigationTests, DefaultObjectsLoadAFootpathSurfaceAndRailings)
     EXPECT_NE(objectManager.GetLoadedObjectEntryIndex("golf.footpath_surface.gravel"), kObjectEntryIndexNull);
     EXPECT_NE(objectManager.GetLoadedObjectEntryIndex("golf.footpath_surface.tee_queue"), kObjectEntryIndexNull);
     EXPECT_NE(objectManager.GetLoadedObjectEntryIndex("golf.footpath_railings.none"), kObjectEntryIndexNull);
+}
+
+// Hiring a greenskeeper and opening the staff window read the handyman sprite animations, so the defaults must have them.
+TEST_F(GolfNavigationTests, DefaultObjectsLoadTheHandymanAnimations)
+{
+    auto& objectManager = _context->GetObjectManager();
+    for (const auto& entry : kCommonScenarioAndTrackDesignerObjects)
+        objectManager.LoadObject(entry);
+
+    EXPECT_NE(findPeepAnimationsIndexForType(AnimationPeepType::handyman), kObjectEntryIndexNull);
 }
 
 // NAV-004: Editor::CheckPark succeeds on golf courses without legacy theme-park gates

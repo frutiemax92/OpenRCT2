@@ -9,10 +9,14 @@
 
 #include "Paint.Staff.h"
 
+#include "../../GameState.h"
 #include "../../drawing/LightFX.h"
+#include "../../drawing/ModelSpriteStore.h"
 #include "../../entity/Staff.h"
+#include "../../object/GolferModelObject.h"
 #include "../../profiling/Profiling.h"
 #include "../Paint.h"
+#include "Paint.Model.h"
 #include "Paint.Peep.h"
 
 using namespace OpenRCT2;
@@ -30,11 +34,29 @@ void PaintStaff(PaintSession& session, const Staff& staff, int32_t orientation)
 
     PaintStaffLightingEffects(staff);
 
-    Direction direction = (orientation >> 3);
-    auto baseImageData = PaintPeepGetBaseImageAndOffset(staff, direction);
-    auto imageId = ImageId(baseImageData.baseImageId, staff.tShirtColour);
+    // Staff are 3D models like the golfers: the golfer model, walking while they move and idle otherwise.
+    const auto modelId = GolferModelObject::ActiveModelId;
+    if (modelId == 0)
+        return;
+    const auto* model = Drawing::ModelSpriteStore::Instance().GetModel(modelId);
+    if (model == nullptr)
+        return;
 
-    PaintAddImageAsParent(session, imageId, kPaintPeepOffset(staff.z), kPaintPeepBoundBox(staff.z));
+    ModelPose pose;
+    pose.modelId = modelId;
+    const char* clipName = staff.state == PeepState::walking ? "walk" : "idle";
+    for (size_t i = 0; i < model->clips.size(); i++)
+    {
+        if (model->clips[i].name == clipName)
+        {
+            pose.clip = static_cast<int32_t>(i);
+            pose.time = static_cast<float>(getGameState().currentTicks) / 40.0f;
+            break;
+        }
+    }
+    // The staff orientation runs 0..31 (8 per direction); the model yaw is in radians.
+    pose.orientation.yaw = static_cast<float>(staff.orientation) * (2.0f * 3.14159265f / 32.0f);
+    PaintModelEntity(session, pose, staff.z);
 }
 
 void PaintStaffLightingEffects(const Staff& staff)
