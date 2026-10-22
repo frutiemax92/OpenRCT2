@@ -1190,3 +1190,42 @@ TEST(GolfRuntimeTests, GolfersOnTheCourseAreObstaclesForBallsButNotForTheirOwn)
     }
     EXPECT_TRUE(sawObstacle);
 }
+
+TEST(GolfRuntimeTests, ADuckThatIsHitQuacksAndADeerChirps)
+{
+    auto context = startPark();
+    ASSERT_NE(context.get(), nullptr);
+    auto& gameState = getGameState();
+    gameState.mapSize = { 60, 60 };
+    gameState.golf.createCourse("Links");
+    auto& objectManager = context->GetObjectManager();
+    if (objectManager.LoadObject("golf.animal.duck") == nullptr || objectManager.LoadObject("golf.animal.deer") == nullptr)
+        GTEST_SKIP() << "the animals are not installed";
+    auto& runtime = Golf::runtimeOf(gameState);
+    runtime.update(0);
+    std::vector<Audio::SoundId> heard;
+    runtime.setSoundSink([&](Audio::SoundId sound, const CoordsXYZ&) { heard.push_back(sound); });
+
+    // Put one of each on dry ground (the test park has no pond for the duck) and knock them.
+    auto& animals = *runtime.director().animals;
+    auto species = animals.species();
+    ASSERT_EQ(species.size(), 2u);
+    for (auto& s : species)
+    {
+        s.habitat = Golf::kHabitatFairway | Golf::kHabitatRough | Golf::kHabitatWoods;
+        s.minGroup = s.maxGroup = 1;
+    }
+    animals.setSpecies(species);
+    for (uint32_t index = 0; index < species.size(); index++)
+    {
+        if (animals.spawnGroup(index, { Fixed::fromInt(10 * 32), Fixed::fromInt(10 * 32), Fixed{} }, 6 * 32) == 0)
+            GTEST_SKIP() << "the test park has no dry ground";
+    }
+    for (const auto& animal : animals.animals())
+        animals.hitByBall(animal.id);
+    runtime.update(1);
+    // One sound each: the duck's own and the chirp of the deer.
+    EXPECT_EQ(heard.size(), 2u);
+    EXPECT_NE(std::find(heard.begin(), heard.end(), Audio::SoundId::duck), heard.end());
+    EXPECT_NE(std::find(heard.begin(), heard.end(), Audio::SoundId::birdChirp), heard.end());
+}

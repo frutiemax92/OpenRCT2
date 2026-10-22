@@ -684,6 +684,12 @@ namespace OpenRCT2::Golf
         if (same && entries == _animalObjects)
             return;
         _animalObjects = entries;
+        _animalSounds.clear();
+        for (const auto entry : entries)
+        {
+            const auto* object = objects.GetLoadedObject<AnimalObject>(entry);
+            _animalSounds.push_back(object != nullptr && object->SoundEffect == "duck" ? Audio::SoundId::duck : Audio::SoundId::birdChirp);
+        }
         _director->animals->setSpecies(std::move(species));
     }
 
@@ -744,10 +750,11 @@ namespace OpenRCT2::Golf
                 if (animal.id != event.animalId)
                     continue;
                 const CoordsXYZ where{ static_cast<int32_t>(animal.position.x.floor()), static_cast<int32_t>(animal.position.y.floor()), 0 };
+                const auto sound = animal.species < _animalSounds.size() ? _animalSounds[animal.species] : Audio::SoundId::birdChirp;
                 if (_sound)
-                    _sound(Audio::SoundId::birdChirp, where);
+                    _sound(sound, where);
                 else
-                    Audio::PlaySpatial(Audio::SoundId::birdChirp, where);
+                    Audio::PlaySpatial(sound, where);
             }
         }
 

@@ -147,6 +147,7 @@ namespace OpenRCT2::Audio
         golferGroan,
         golferInsultGrumble,
         birdChirp,
+        duck,
         streamLoop,
         noScream = 254,
         null = 255

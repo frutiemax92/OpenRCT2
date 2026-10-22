@@ -138,6 +138,7 @@ namespace OpenRCT2::Golf
         std::unordered_map<uint32_t, uint16_t> _cartEntities;             // cart id -> entity id
         std::unordered_map<uint32_t, uint16_t> _animalEntities;           // animal id -> entity id
         std::vector<uint16_t> _animalObjects;                             // species index -> animal object entry index
+        std::vector<Audio::SoundId> _animalSounds;                        // species index -> the sound it makes when hit
         std::vector<uint32_t> _golferObstacles;                           // golfer ids that are in the way of balls
         uint32_t _animalDay = 0xFFFFFFFFu;                                // the game day animals last tried to spawn
         std::unordered_map<uint64_t, uint16_t> _ballEntities;             // golfer id (range balls: | 1 << 32) -> entity id

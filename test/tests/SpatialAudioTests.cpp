@@ -301,7 +301,8 @@ TEST(SpatialAudio, GolfPlaceholderSoundsExistInSoundId)
     EXPECT_LT(EnumValue(SoundId::golferCheer), EnumValue(SoundId::golferGroan));
     EXPECT_LT(EnumValue(SoundId::golferGroan), EnumValue(SoundId::golferInsultGrumble));
     EXPECT_LT(EnumValue(SoundId::golferInsultGrumble), EnumValue(SoundId::birdChirp));
-    EXPECT_LT(EnumValue(SoundId::birdChirp), EnumValue(SoundId::streamLoop));
+    EXPECT_LT(EnumValue(SoundId::birdChirp), EnumValue(SoundId::duck));
+    EXPECT_LT(EnumValue(SoundId::duck), EnumValue(SoundId::streamLoop));
     EXPECT_LT(EnumValue(SoundId::streamLoop), EnumValue(SoundId::noScream));
 }
 

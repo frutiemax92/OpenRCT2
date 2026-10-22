@@ -220,6 +220,8 @@ def synthesise(name, index):
         return noise(0.5, index, smooth=8, pulses=4)
     if name == "birdChirp":
         return tone([1800.0, 2400.0, 2100.0], 0.25, "sine", vibrato=0.05, sweep=1.3)
+    if name == "duck":
+        return mix(tone([520.0, 380.0], 0.22, "saw", vibrato=0.04, sweep=0.7), noise(0.22, index, smooth=6))
     if name == "streamLoop":
         return noise(1.0, index, smooth=8, decay=False)
     return tone([base], 0.15)
