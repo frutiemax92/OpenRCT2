@@ -72,6 +72,7 @@ set(test_files
    "${CMAKE_CURRENT_SOURCE_DIR}/GolfRuntimeTests.cpp"
    "${CMAKE_CURRENT_SOURCE_DIR}/GolfNavigationTests.cpp"
    "${CMAKE_CURRENT_SOURCE_DIR}/GolfUITests.cpp"
+   "${CMAKE_CURRENT_SOURCE_DIR}/GolfWordingTests.cpp"
    "${CMAKE_CURRENT_SOURCE_DIR}/GolfToolTests.cpp"
    "${CMAKE_CURRENT_SOURCE_DIR}/GolfPickingTests.cpp"
    "${CMAKE_CURRENT_SOURCE_DIR}/GolfMonitoringTests.cpp"
@@ -135,6 +136,9 @@ if (Python3_Interpreter_FOUND)
         WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/../..")
     add_test(NAME ObjectGeneratorTests
         COMMAND ${Python3_EXECUTABLE} -I "${CMAKE_CURRENT_SOURCE_DIR}/../scripts/test_objects.py"
+        WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/../..")
+    add_test(NAME GolfWordingScriptCheck
+        COMMAND ${Python3_EXECUTABLE} -I "${CMAKE_CURRENT_SOURCE_DIR}/../../scripts/check-golf-wording.py"
         WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/../..")
     add_test(NAME PlaceholderGeneratorTests
         COMMAND ${Python3_EXECUTABLE} -I "${CMAKE_CURRENT_SOURCE_DIR}/../scripts/test_placeholders.py"
