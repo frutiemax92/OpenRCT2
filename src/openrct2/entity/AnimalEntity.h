@@ -10,6 +10,7 @@
 #pragma once
 
 #include "../golf/Animals.h"
+#include "../world/Location.hpp"
 #include "EntityBase.h"
 
 namespace OpenRCT2
@@ -25,6 +26,7 @@ namespace OpenRCT2
         uint16_t object = 0;                       // entry index of the animal object that gives the model
         Golf::AnimalState state = Golf::AnimalState::idle;
         uint8_t yaw = 0;                           // counter-clockwise from above: 0 faces -x, 64 -y, 128 +x, 192 +y
+        CoordsXY facingFrom{}; // where the heading was last taken from (see UpdateFacingFromTravel)
         uint32_t animationTick = 0;
 
         static AnimalEntity* create(uint32_t animalId, uint16_t objectIndex, const CoordsXYZ& position);

@@ -8,6 +8,7 @@
  *****************************************************************************/
 
 #include "AnimalEntity.h"
+#include "Facing.h"
 
 #include "../GameState.h"
 #include "EntityRegistry.h"
@@ -35,6 +36,7 @@ namespace OpenRCT2
         entity->spriteData.width = 14;
         entity->spriteData.heightMin = 16;
         entity->spriteData.heightMax = 6;
+        entity->facingFrom = { position.x, position.y };
         entity->moveToAndUpdateSpatialIndex(position);
         return entity;
     }
@@ -42,13 +44,7 @@ namespace OpenRCT2
     void AnimalEntity::follow(const CoordsXYZ& position, Golf::AnimalState newState)
     {
         const auto here = getLocation();
-        if (position.x != here.x || position.y != here.y)
-        {
-            const double angle = std::atan2(static_cast<double>(position.y - here.y), static_cast<double>(position.x - here.x));
-            double turns = angle / (2.0 * M_PI) + 0.5;
-            turns -= std::floor(turns);
-            yaw = static_cast<uint8_t>(static_cast<int32_t>(turns * 256.0) & 0xFF);
-        }
+        UpdateFacingFromTravel(yaw, facingFrom, { position.x, position.y });
         if (newState != state)
             animationTick = 0;
         else

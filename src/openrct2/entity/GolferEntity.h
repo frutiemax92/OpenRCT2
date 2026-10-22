@@ -10,6 +10,7 @@
 #pragma once
 
 #include "../golf/Golfer.h"
+#include "../world/Location.hpp"
 #include "EntityBase.h"
 
 namespace OpenRCT2
@@ -25,6 +26,7 @@ namespace OpenRCT2
         uint32_t golfer = 0; // id of the Golf::Golfer this entity shows
         Golf::GolferState state = Golf::GolferState::arriving;
         uint8_t yaw = 0;     // 0..255 for a full turn counter-clockwise from above: 0 faces -x, 64 faces -y, 128 +x, 192 +y
+        CoordsXY facingFrom{}; // where the heading was last taken from (see UpdateFacingFromTravel)
         uint32_t animationTick = 0;
 
         // Creates an entity for a golfer at a position. Returns nullptr when the entity limit is hit.
