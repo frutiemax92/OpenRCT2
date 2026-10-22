@@ -336,3 +336,12 @@ TEST(GolfBallSprites, TheSpritesAreRegisteredAsImages)
     Drawing::GolfBallSprites::Release();
     gOpenRCT2NoGraphics = true;
 }
+
+TEST(GolfBallEntity, EntityTypeMatchesGolfBall)
+{
+    auto context = startPark();
+    ASSERT_NE(context.get(), nullptr);
+    auto* ball = GolfBall::create({ Fixed::fromInt(100), Fixed::fromInt(100), Fixed::fromInt(16) }, BallState::Teed, 1);
+    ASSERT_NE(ball, nullptr);
+    EXPECT_EQ(ball->type, EntityType::golfBall);
+}
