@@ -22,7 +22,7 @@ namespace OpenRCT2
 {
     using Golf::GolferState;
 
-    const char* golferClipName(GolferState state)
+    const char* golferClipName(GolferState state, uint32_t animationTick)
     {
         switch (state)
         {
@@ -44,7 +44,8 @@ namespace OpenRCT2
             case GolferState::talking:
                 return "talk";
             case GolferState::holeFinished:
-                return "celebrate";
+                // Celebrates for a moment, then stands waiting for the rest of the group (40 game ticks a second).
+                return animationTick < 120 ? "celebrate" : "idle";
             case GolferState::rageQuitting:
                 return "rage_quit";
             case GolferState::searchingBall:
@@ -70,7 +71,7 @@ namespace OpenRCT2
 
         ModelPose pose;
         pose.modelId = modelId;
-        const auto* clipName = golferClipName(golfer.state);
+        const auto* clipName = golferClipName(golfer.state, golfer.animationTick);
         for (size_t i = 0; i < model->clips.size(); i++)
         {
             if (model->clips[i].name == clipName)

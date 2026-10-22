@@ -723,6 +723,17 @@ namespace OpenRCT2::Golf
         return true;
     }
 
+    bool GolfSimulation::groupClearOfBall(const Golfer& g) const
+    {
+        constexpr Fixed kClear = Fixed::fromInt(20);
+        for (const auto& other : _golfers)
+            if (other.id != g.id && other.groupId == g.groupId && !other.finished && other.courseId == g.courseId
+                && other.holeIndex == g.holeIndex && other.state != GolferState::holeFinished
+                && horizontal(other.position, g.ball.position) < kClear)
+                return false;
+        return true;
+    }
+
     bool GolfSimulation::groupHasArrived(const Golfer& g) const
     {
         for (const auto& other : _golfers)
@@ -859,6 +870,17 @@ namespace OpenRCT2::Golf
         setState(g, GolferState::walkingToBall);
     }
 
+    bool GolfSimulation::groupHasUntee(const Golfer& member) const
+    {
+        for (const auto& m : _golfers)
+            if (m.groupId == member.groupId && !m.finished && m.courseId == member.courseId && m.holeIndex == member.holeIndex
+                && !m.ballInPlay
+                && (m.state == GolferState::goingToTee || m.state == GolferState::waitingForTeeTime
+                    || m.state == GolferState::talking || isWaitingForTurn(m.state)))
+                return true;
+        return false;
+    }
+
     bool GolfSimulation::groupMateAheadForTee(const Golfer& g) const
     {
         for (const auto& other : _golfers)
@@ -892,6 +914,9 @@ namespace OpenRCT2::Golf
             // A group mate waiting for the turn stands aside on purpose: the shooter does not wait for them to leave.
             if (other.groupId == g.groupId && isWaitingForTurn(other.state))
                 continue;
+            // Golfers who have holed out stand clear of the green.
+            if (other.state == GolferState::holeFinished && other.holeScored)
+                continue;
             const Fixed dx = other.position.x - g.ball.position.x;
             const Fixed dy = other.position.y - g.ball.position.y;
             const Fixed along = dx * g.decision.aimX + dy * g.decision.aimY;
@@ -911,6 +936,10 @@ namespace OpenRCT2::Golf
                 continue;
             // The golfers of a group take the tee one at a time: the others wait on the side until the shooter has left it.
             const bool sameGroup = other.groupId == g.groupId;
+            // A group that has begun its tee shots finishes them before another group steps onto the tee: its golfers who have not
+            // teed off yet would otherwise be shut out by a group that arrives in between.
+            if (!sameGroup && other.ballInPlay && groupHasUntee(other))
+                return true;
             // The group's golfers still on their way go to the tee one after the other: a mate ahead in the queue goes first.
             if (sameGroup && other.id < g.id && other.state == GolferState::goingToTee)
                 return true;
@@ -1256,7 +1285,34 @@ namespace OpenRCT2::Golf
             startRageQuit(g);
             return;
         }
-        goToNextStep(g);
+        // The golfer stays by the cup until the rest of the group has finished the hole (see updateGolfer).
+        g.holeScored = true;
+    }
+
+    bool GolfSimulation::groupFinishedHole(const Golfer& g) const
+    {
+        for (const auto& other : _golfers)
+        {
+            if (other.id == g.id || other.groupId != g.groupId || other.finished || other.courseId != g.courseId
+                || other.holeIndex != g.holeIndex)
+                continue;
+            switch (other.state)
+            {
+                case GolferState::holeFinished:
+                    if (!other.holeScored)
+                        return false;
+                    break;
+                case GolferState::leaving:
+                case GolferState::rageQuitting:
+                case GolferState::returningCart:
+                case GolferState::inCar:
+                case GolferState::arriving:
+                    break;
+                default:
+                    return false;
+            }
+        }
+        return true;
     }
 
     void GolfSimulation::goToNextStep(Golfer& g)
@@ -1629,7 +1685,7 @@ namespace OpenRCT2::Golf
                 const bool pathClear = g.stateTicks >= static_cast<uint32_t>(kPrepareShotTicks + kLineOfFireMaxWaitTicks)
                     || !g.pathBlocked;
                 const bool groupThere = g.stateTicks >= static_cast<uint32_t>(kPrepareShotTicks + kLineOfFireMaxWaitTicks)
-                    || groupHasArrived(g);
+                    || (groupHasArrived(g) && groupClearOfBall(g));
                 if (g.stateTicks >= static_cast<uint32_t>(kPrepareShotTicks) && pathClear && groupThere && !groupBusy(g))
                     setState(g, g.decision.putt ? GolferState::putting : GolferState::swinging);
                 break;
@@ -1827,7 +1883,23 @@ namespace OpenRCT2::Golf
                 break;
             }
             case GolferState::holeFinished:
-                finishHole(g);
+                if (!g.holeScored)
+                {
+                    finishHole(g);
+                    break;
+                }
+                // The next hole starts for the whole group together, after the last golfer has holed out.
+                if (groupFinishedHole(g) || g.stateTicks >= static_cast<uint32_t>(kTurnMaxWaitTicks))
+                {
+                    // The whole group goes on in the same tick.
+                    for (auto& mate : _golfers)
+                        if (mate.groupId == g.groupId && mate.courseId == g.courseId && mate.holeIndex == g.holeIndex
+                            && mate.state == GolferState::holeFinished && mate.holeScored)
+                        {
+                            mate.holeScored = false;
+                            goToNextStep(mate);
+                        }
+                }
                 break;
             case GolferState::usingFacility:
             {

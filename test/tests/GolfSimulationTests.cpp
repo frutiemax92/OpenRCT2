@@ -268,7 +268,7 @@ TEST(GolfSimulation, AGolferWaitsAsideForTheGroupAndTheFarthestBallPlaysNext)
             // Nobody stands on the ball of the golfer who is about to swing.
             if (g.state == GolferState::swinging && g.stateTicks == 1)
                 for (const auto& other : sim.golfers())
-                    if (other.id != g.id && other.holeIndex == g.holeIndex
+                    if (other.id != g.id && other.holeIndex == g.holeIndex && other.state != GolferState::holeFinished
                         && dist(other.position, g.ball.position) < 16)
                         mateOnTheBall = true;
         }
@@ -298,6 +298,51 @@ TEST(GolfSimulation, AGolferWaitsAsideForTheGroupAndTheFarthestBallPlaysNext)
     EXPECT_GT(turnsChecked, 3);
     EXPECT_FALSE(walkedWhileMateHit);
     EXPECT_FALSE(notFarthest);
+}
+
+TEST(GolfSimulation, SeveralGroupsOfThreeAllGetToPlayTheFirstHole)
+{
+    Course3 c;
+    GolfSimulation sim(c.environment());
+    for (uint32_t group = 1; group <= 3; group++)
+        for (int i = 0; i < 3; i++)
+            sim.spawn(aGolfer(c, group));
+    std::map<uint32_t, int> shots;
+    for (uint32_t t = 1000; t < 1000 + 120000 && !sim.golfers().empty(); t++)
+    {
+        sim.tick(t);
+        if (t % 50 == 0)
+            for (const auto& e : sim.takeEvents())
+                if (e.type == SimEvent::Type::shotHit)
+                    shots[e.golferId]++;
+    }
+    // A group that has begun its tee shots does not get shut out by a group that arrives at the tee in between.
+    EXPECT_EQ(shots.size(), 9u);
+}
+
+TEST(GolfSimulation, AGroupMovesToTheNextHoleTogetherAfterTheLastGolferHolesOut)
+{
+    Course3 c;
+    GolfSimulation sim(c.environment());
+    for (int i = 0; i < 3; i++)
+        sim.spawn(aGolfer(c, 7));
+    bool wentAhead = false;
+    bool moved = false;
+    for (uint32_t t = 1000; t < 1000 + 200000 && !sim.golfers().empty(); t++)
+    {
+        sim.tick(t);
+        uint32_t lowest = 99;
+        uint32_t highest = 0;
+        for (const auto& g : sim.golfers())
+        {
+            lowest = std::min(lowest, g.holeIndex);
+            highest = std::max(highest, g.holeIndex);
+        }
+        wentAhead |= highest > lowest; // one golfer on the next hole while a mate is still on the last
+        moved |= highest > 0;
+    }
+    EXPECT_TRUE(moved);
+    EXPECT_FALSE(wentAhead);
 }
 
 TEST(GolfSimulation, TwoGroupsDoNotTeeOffAtTheSameTime)

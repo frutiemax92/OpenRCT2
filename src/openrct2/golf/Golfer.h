@@ -143,6 +143,7 @@ namespace OpenRCT2::Golf
         // Where to wait while a group mate plays, chosen when that mate's turn starts (see GolfSimulation::planWaitingSpots).
         FixedVec3 turnSpot;
         bool hasTurnSpot = false;
+        bool holeScored = false;         // the hole is scored and the golfer waits for the group to finish it (not saved)
         uint32_t turnWaitTicks = 0;      // time spent waiting for or following the group's turn
         FixedVec3 separation; // the push away from close golfers, looked at a few times a second (see GolfSimulation::walk)
         bool pathBlocked = false;        // someone stands in the way of the planned shot (not saved, looked at again within a second)

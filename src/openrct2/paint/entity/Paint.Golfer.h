@@ -20,7 +20,8 @@ namespace OpenRCT2
     struct GolferEntity;
 
     // The animation clip a golfer plays in a state (GLF-030, GLF-032).
-    const char* golferClipName(Golf::GolferState state);
+    // `animationTick` counts the ticks in the state: a golfer who has holed out celebrates for a moment, then stands.
+    const char* golferClipName(Golf::GolferState state, uint32_t animationTick = 0);
 
     // Draws a golfer as the golfer model, in the clip of the state it is in, turned towards where it walks (R3D-004).
     void PaintGolfer(PaintSession& session, const GolferEntity& golfer, int32_t imageDirection);

@@ -318,6 +318,10 @@ namespace OpenRCT2::Golf
         bool groupMateOnTee(const Golfer& g) const;
         // Whether a group mate with a lower id has yet to tee off and goes first.
         bool groupMateAheadForTee(const Golfer& g) const;
+        // Whether a golfer of the member's group is still to tee off on the member's hole.
+        bool groupHasUntee(const Golfer& member) const;
+        // Whether every golfer of the group has holed out (or left) on the golfer's hole.
+        bool groupFinishedHole(const Golfer& g) const;
         // Sends a golfer whose ball lies still towards it: at once when alone, otherwise after the group mates have played.
         void goToBall(Golfer& g);
         // Whether it is the golfer's turn to walk to the ball: no group mate is still playing, and none waiting is farther
@@ -333,6 +337,8 @@ namespace OpenRCT2::Golf
         bool tryStartTurn(Golfer& g);
         // Whether the group mates waiting for the turn stand on their waiting spots.
         bool groupHasArrived(const Golfer& g) const;
+        // Whether no group mate stands over the ball about to be hit.
+        bool groupClearOfBall(const Golfer& g) const;
         // Whether another golfer stands near the path the golfer expects the ball to take.
         bool lineOfFireBlocked(const Golfer& g) const;
         // Whether a golfer of another group is using the tee at `tee` (waiting for its time, or playing the first shot).
