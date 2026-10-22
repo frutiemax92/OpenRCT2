@@ -42,7 +42,7 @@ namespace OpenRCT2::Ui::Windows
     static Drawing::Colour _edgeColour1 = Drawing::Colour::black;
 
     static constexpr StringId kWindowTitle = STR_LAND;
-    static constexpr ScreenSize kWindowSize = { 98, 180 };
+    static constexpr ScreenSize kWindowSize = { 98, 192 };
 
     enum WindowLandWidgetIdx : WidgetIndex
     {
@@ -58,6 +58,7 @@ namespace OpenRCT2::Ui::Windows
         WIDX_WALL,
         WIDX_SURFACE_COLOUR_1,
         WIDX_EDGE_COLOUR_1,
+        WIDX_SPAWN_TREES,
     };
 
     enum class SelectionMode
@@ -77,7 +78,8 @@ namespace OpenRCT2::Ui::Windows
         makeWidget     ({ 2, 106}, {47, 36}, WidgetType::flatBtn,   WindowColour::secondary, 0xFFFFFFFF,                              STR_CHANGE_BASE_LAND_TIP),     // floor texture
         makeWidget     ({49, 106}, {47, 36}, WidgetType::flatBtn,   WindowColour::secondary, 0xFFFFFFFF,                              STR_CHANGE_VERTICAL_LAND_TIP),  // wall texture
         makeWidget     ({20, 146}, {12, 12}, WidgetType::colourBtn, WindowColour::secondary, 0xFFFFFFFF,                              STR_SELECT_COLOUR), // surface colour 1
-        makeWidget     ({67, 146}, {12, 12}, WidgetType::colourBtn, WindowColour::secondary, 0xFFFFFFFF,                              STR_SELECT_COLOUR) // edge colour 1
+        makeWidget     ({67, 146}, {12, 12}, WidgetType::colourBtn, WindowColour::secondary, 0xFFFFFFFF,                              STR_SELECT_COLOUR), // edge colour 1
+        makeWidget     ({ 4, 166}, {90, 16}, WidgetType::checkbox,  WindowColour::secondary, STR_LAND_TOOL_SPAWN_TREES,              STR_LAND_TOOL_SPAWN_TREES_TIP) // spawn trees (TER-043)
     );
     // clang-format on
 
@@ -87,6 +89,7 @@ namespace OpenRCT2::Ui::Windows
         bool _landToolBlocked = false;
         bool _landToolMountainMode = false;
         bool _landToolPaintMode = false;
+        bool _landToolSpawnTrees = false;
 
         money64 _landToolRaiseCost = kMoney64Undefined;
         money64 _landToolLowerCost = kMoney64Undefined;
@@ -149,6 +152,10 @@ namespace OpenRCT2::Ui::Windows
                 case WIDX_PAINTMODE:
                     _landToolMountainMode = false;
                     _landToolPaintMode ^= 1;
+                    invalidate();
+                    break;
+                case WIDX_SPAWN_TREES:
+                    _landToolSpawnTrees ^= 1;
                     invalidate();
                     break;
                 case WIDX_PREVIEW:
@@ -304,6 +311,8 @@ namespace OpenRCT2::Ui::Windows
 
             widgets[WIDX_SURFACE_COLOUR_1].setVisible(_surfaceColour1Enabled && surfaceButtonSelected);
             widgets[WIDX_EDGE_COLOUR_1].setVisible(_edgeColour1Enabled && edgeButtonSelected);
+            widgets[WIDX_SPAWN_TREES].setVisible(_landToolPaintMode);
+            setCheckboxValue(WIDX_SPAWN_TREES, _landToolSpawnTrees);
 
             // Update the preview image (for tool sizes up to 7)
             widgets[WIDX_PREVIEW].image = ImageId(LandTool::SizeToSpriteIndex(gLandToolSize));
@@ -637,7 +646,7 @@ namespace OpenRCT2::Ui::Windows
                         auto surfaceSetStyleAction = GameActions::SurfaceSetStyleAction(
                             { gMapSelectPositionA.x, gMapSelectPositionA.y, gMapSelectPositionB.x, gMapSelectPositionB.y },
                             gLandToolTerrainSurface, gLandToolTerrainEdge, _surfaceColour1, _edgeColour1,
-                            GetPaintQuadrantMask(screenCoords));
+                            GetPaintQuadrantMask(screenCoords), _landToolSpawnTrees);
 
                         GameActions::Execute(&surfaceSetStyleAction, getGameState());
 
@@ -665,7 +674,7 @@ namespace OpenRCT2::Ui::Windows
                             auto surfaceSetStyleAction = GameActions::SurfaceSetStyleAction(
                                 { gMapSelectPositionA.x, gMapSelectPositionA.y, gMapSelectPositionB.x, gMapSelectPositionB.y },
                                 gLandToolTerrainSurface, gLandToolTerrainEdge, _surfaceColour1, _edgeColour1,
-                            GetPaintQuadrantMask(screenCoords));
+                                GetPaintQuadrantMask(screenCoords), _landToolSpawnTrees);
 
                             GameActions::Execute(&surfaceSetStyleAction, getGameState());
 

@@ -4006,3 +4006,5 @@ STR_7212    :{SMALLFONT}{BLACK}Click a zone, a lot or a driving range to take it
 STR_7213    :Tournament
 STR_7214    :Book it
 STR_7215    :Cancel it
+STR_7216    :Plant trees
+STR_7217    :{SMALLFONT}{BLACK}Plant trees automatically when painting woods surface
