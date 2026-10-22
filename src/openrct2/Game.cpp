@@ -93,9 +93,14 @@ void GameResetSpeed()
 
 void GameIncreaseGameSpeed()
 {
-    auto newSpeed = std::min(Config::Get().general.debuggingTools ? 5 : 4, gGameSpeed + 1);
+    // 1 to 4, then the 10x speed; with the debugging tools the hyper speed (8) sits between them.
+    int32_t newSpeed = gGameSpeed + 1;
     if (newSpeed == 5)
-        newSpeed = 8;
+        newSpeed = Config::Get().general.debuggingTools ? 8 : kGameSpeedUltra;
+    else if (newSpeed == 9)
+        newSpeed = kGameSpeedUltra;
+    else if (newSpeed > kGameSpeedUltra)
+        newSpeed = kGameSpeedUltra;
 
     auto setSpeedAction = GameActions::GameSetSpeedAction(newSpeed);
     GameActions::Execute(&setSpeedAction, getGameState());
@@ -103,8 +108,10 @@ void GameIncreaseGameSpeed()
 
 void GameReduceGameSpeed()
 {
-    auto newSpeed = std::max(1, gGameSpeed - 1);
-    if (newSpeed == 7)
+    int32_t newSpeed = std::max(1, gGameSpeed - 1);
+    if (gGameSpeed == kGameSpeedUltra)
+        newSpeed = Config::Get().general.debuggingTools ? 8 : 4;
+    else if (newSpeed == 7)
         newSpeed = 4;
 
     auto setSpeedAction = GameActions::GameSetSpeedAction(newSpeed);

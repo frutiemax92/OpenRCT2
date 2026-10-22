@@ -11,6 +11,8 @@
 #include "../interface/InGameConsole.h"
 #include "../scripting/CustomMenu.h"
 
+#include <cstdio>
+#include <fstream>
 #include <openrct2-ui/interface/Chat.h>
 #include <openrct2-ui/interface/Dropdown.h>
 #include <openrct2-ui/interface/Widget.h>
@@ -531,20 +533,25 @@ namespace OpenRCT2::Ui::Windows
             }
         }
 
+        // Dropdown rows: the four speeds, the x10 speed, and with the debugging tools a separator and the hyper speed.
+        static constexpr int32_t kUltraRow = 4;
+        static constexpr int32_t kHyperRow = 6;
+
         void initFastforwardMenu(Widget& widget)
         {
-            int32_t num_items = 4;
+            int32_t num_items = 5;
             gDropdown.items[0] = Dropdown::MenuLabel(STR_SPEED_NORMAL);
             gDropdown.items[1] = Dropdown::MenuLabel(STR_SPEED_QUICK);
             gDropdown.items[2] = Dropdown::MenuLabel(STR_SPEED_FAST);
             gDropdown.items[3] = Dropdown::MenuLabel(STR_SPEED_TURBO);
+            gDropdown.items[kUltraRow] = Dropdown::MenuLabel("Ultra Speed (x10)");
 
             if (Config::Get().general.debuggingTools)
             {
-                num_items = 6;
+                num_items = 7;
 
-                gDropdown.items[4] = Dropdown::Separator();
-                gDropdown.items[5] = Dropdown::MenuLabel(STR_SPEED_HYPER);
+                gDropdown.items[5] = Dropdown::Separator();
+                gDropdown.items[kHyperRow] = Dropdown::MenuLabel(STR_SPEED_HYPER);
             }
 
             WindowDropdownShowText(
@@ -553,26 +560,13 @@ namespace OpenRCT2::Ui::Windows
 
             // Set checkmarks
             if (gGameSpeed <= 4)
-            {
                 gDropdown.items[gGameSpeed - 1].setChecked(true);
-            }
-            if (gGameSpeed == 8)
-            {
-                gDropdown.items[5].setChecked(true);
-            }
+            else if (gGameSpeed == kGameSpeedUltra)
+                gDropdown.items[kUltraRow].setChecked(true);
+            else if (gGameSpeed == 8)
+                gDropdown.items[kHyperRow].setChecked(true);
 
-            if (Config::Get().general.debuggingTools)
-            {
-                gDropdown.defaultIndex = (gGameSpeed == 8 ? 0 : gGameSpeed);
-            }
-            else
-            {
-                gDropdown.defaultIndex = (gGameSpeed >= 4 ? 0 : gGameSpeed);
-            }
-            if (gDropdown.defaultIndex == 4)
-            {
-                gDropdown.defaultIndex = 5;
-            }
+            gDropdown.defaultIndex = 0;
         }
 
         void fastforwardMenuDropdown(int16_t dropdownIndex)
@@ -580,12 +574,15 @@ namespace OpenRCT2::Ui::Windows
             auto* w = WindowGetMain();
             if (w != nullptr)
             {
-                if (dropdownIndex >= 0 && dropdownIndex <= 5)
+                int32_t newSpeed = 0;
+                if (dropdownIndex >= 0 && dropdownIndex <= 3)
+                    newSpeed = dropdownIndex + 1;
+                else if (dropdownIndex == kUltraRow)
+                    newSpeed = kGameSpeedUltra;
+                else if (dropdownIndex == kHyperRow)
+                    newSpeed = 8;
+                if (newSpeed != 0)
                 {
-                    auto newSpeed = dropdownIndex + 1;
-                    if (newSpeed >= 5)
-                        newSpeed = 8;
-
                     auto setSpeedAction = GameActions::GameSetSpeedAction(newSpeed);
                     GameActions::Execute(&setSpeedAction, getGameState());
                 }
@@ -1012,12 +1009,35 @@ namespace OpenRCT2::Ui::Windows
                     TournamentOpen();
                     break;
                 case DDIDX_PARK_SANDBOX:
-                    CheatsOpen();
+                    CheatsOpenGolfPage();
                     break;
             }
         }
 
     public:
+        void onUpdate() override
+        {
+            // Debug aid (see the frame dump of the drawing engine): "/tmp/openrct2-toolbar.request" holds a button label,
+            // e.g. "Golfers", which is pressed as if it had been clicked.
+            std::ifstream request("/tmp/openrct2-toolbar.request");
+            if (!request)
+                return;
+            std::string label;
+            std::getline(request, label);
+            request.close();
+            std::remove("/tmp/openrct2-toolbar.request");
+            for (WidgetIndex i = 0; i < WIDX_SEPARATOR; i++)
+            {
+                const auto* name = ButtonLabel(i);
+                if (name != nullptr && label == name)
+                {
+                    onMouseUp(i);
+                    onMouseDown(i);
+                    break;
+                }
+            }
+        }
+
         void onMouseUp(WidgetIndex widgetIndex) override
         {
             WindowBase* mainWindow;
@@ -1592,6 +1612,66 @@ namespace OpenRCT2::Ui::Windows
             AlignButtons(kWidgetOrderCombined, 0);
         }
 
+        // The toolbar sprites are placeholders that mean nothing to the player, so every button is a plain text button.
+        static const char* ButtonLabel(WidgetIndex index)
+        {
+            switch (index)
+            {
+                case WIDX_PAUSE: return "Pause";
+                case WIDX_FILE_MENU: return "File";
+                case WIDX_MUTE: return "Sound";
+                case WIDX_ZOOM_OUT: return "Zoom -";
+                case WIDX_ZOOM_IN: return "Zoom +";
+                case WIDX_ROTATE_ANTI_CLOCKWISE: return "Turn <";
+                case WIDX_ROTATE_CLOCKWISE: return "Turn >";
+                case WIDX_VIEW_MENU: return "View";
+                case WIDX_MAP: return "Map";
+                case WIDX_LAND: return "Land";
+                case WIDX_WATER: return "Water";
+                case WIDX_SCENERY: return "Build";
+                case WIDX_PATH: return "Paths";
+                case WIDX_CONSTRUCT_RIDE: return "Holes";
+                case WIDX_RIDES: return "Course";
+                case WIDX_PARK: return "Park";
+                case WIDX_STAFF: return "Staff";
+                case WIDX_GUESTS: return "Golfers";
+                case WIDX_CLEAR_SCENERY: return "Clear";
+                case WIDX_FASTFORWARD: return "Speed";
+                case WIDX_CHEATS: return "Sandbox";
+                case WIDX_DEBUG: return "Debug";
+                case WIDX_FINANCES: return "Money";
+                case WIDX_RESEARCH: return "Research";
+                case WIDX_NEWS: return "News";
+                case WIDX_NETWORK: return "Network";
+                case WIDX_CHAT: return "Chat";
+                default: return nullptr;
+            }
+        }
+
+        void ApplyTextLabels()
+        {
+            constexpr int16_t kButtonWidth = 56;
+            for (WidgetIndex i = 0; i < WIDX_SEPARATOR; i++)
+            {
+                const auto* label = ButtonLabel(i);
+                if (label == nullptr)
+                    continue;
+                auto& widget = widgets[i];
+                widget.type = WidgetType::button;
+                widget.setString(label);
+                widget.setWidth(kButtonWidth);
+            }
+            if (gGameSpeed > 1)
+            {
+                _speedLabel = "Speed x" + std::to_string(gGameSpeed);
+                widgets[WIDX_FASTFORWARD].setString(_speedLabel.c_str());
+            }
+            if (gGamePaused != 0)
+                widgets[WIDX_PAUSE].setString("Resume");
+        }
+
+        std::string _speedLabel;
+
         void onPrepareDraw() override
         {
             ResetWidgetsToDefaultState();
@@ -1605,6 +1685,7 @@ namespace OpenRCT2::Ui::Windows
             ApplyZoomState();
             ApplyMapRotation();
             ApplyFootpathPressed();
+            ApplyTextLabels();
 
             if (!Config::Get().interface.toolbarButtonsCentred)
                 AlignButtonsLeftRight();
@@ -1614,132 +1695,7 @@ namespace OpenRCT2::Ui::Windows
 
         void onDraw(Drawing::RenderTarget& rt) override
         {
-            const auto& gameState = getGameState();
-            int32_t imgId;
-
             WindowDrawWidgets(*this, rt);
-
-            ScreenCoordsXY screenPos{};
-            // Draw staff button image (setting masks to the staff colours)
-            if (widgets[WIDX_STAFF].isVisible())
-            {
-                screenPos = { windowPos.x + widgets[WIDX_STAFF].left, windowPos.y + widgets[WIDX_STAFF].top };
-                imgId = SPR_TOOLBAR_STAFF;
-                if (widgetIsPressed(*this, WIDX_STAFF))
-                    imgId++;
-                GfxDrawSprite(
-                    rt, ImageId(imgId, gameState.park.staffHandymanColour, gameState.park.staffMechanicColour), screenPos);
-            }
-
-            // Draw fast forward button
-            if (widgets[WIDX_FASTFORWARD].isVisible())
-            {
-                screenPos = { windowPos.x + widgets[WIDX_FASTFORWARD].left + 0,
-                              windowPos.y + widgets[WIDX_FASTFORWARD].top + 0 };
-                if (widgetIsPressed(*this, WIDX_FASTFORWARD))
-                    screenPos.y++;
-                GfxDrawSprite(rt, ImageId(SPR_G2_FASTFORWARD), screenPos + ScreenCoordsXY{ 6, 3 });
-
-                for (int32_t i = 0; i < gGameSpeed && gGameSpeed <= 4; i++)
-                {
-                    GfxDrawSprite(rt, ImageId(SPR_G2_SPEED_ARROW), screenPos + ScreenCoordsXY{ 5 + i * 5, 15 });
-                }
-                for (int32_t i = 0; i < 3 && gGameSpeed >= 5; i++)
-                {
-                    GfxDrawSprite(rt, ImageId(SPR_G2_HYPER_ARROW), screenPos + ScreenCoordsXY{ 5 + i * 6, 15 });
-                }
-            }
-
-            // Draw cheats button
-            if (widgets[WIDX_CHEATS].isVisible())
-            {
-                screenPos = windowPos + ScreenCoordsXY{ widgets[WIDX_CHEATS].left - 1, widgets[WIDX_CHEATS].top - 1 };
-                if (widgetIsPressed(*this, WIDX_CHEATS))
-                    screenPos.y++;
-                GfxDrawSprite(rt, ImageId(SPR_G2_SANDBOX), screenPos);
-
-                // Draw an overlay if clearance checks are disabled
-                if (getGameState().cheats.disableClearanceChecks)
-                {
-                    auto colour = ColourWithFlags{ Drawing::Colour::darkOrange }.withFlag(ColourFlag::withOutline, true);
-                    drawText(
-                        rt, screenPos + ScreenCoordsXY{ 26, 2 }, STR_OVERLAY_CLEARANCE_CHECKS_DISABLED,
-                        { colour, TextAlignment::right });
-                }
-            }
-
-            // Draw chat button
-            if (widgets[WIDX_CHAT].isVisible())
-            {
-                screenPos = windowPos + ScreenCoordsXY{ widgets[WIDX_CHAT].left, widgets[WIDX_CHAT].top - 2 };
-                if (widgetIsPressed(*this, WIDX_CHAT))
-                    screenPos.y++;
-                GfxDrawSprite(rt, ImageId(SPR_G2_CHAT), screenPos);
-            }
-
-            // Draw debug button
-            if (widgets[WIDX_DEBUG].isVisible())
-            {
-                screenPos = windowPos + ScreenCoordsXY{ widgets[WIDX_DEBUG].left, widgets[WIDX_DEBUG].top - 1 };
-                if (widgetIsPressed(*this, WIDX_DEBUG))
-                    screenPos.y++;
-                GfxDrawSprite(rt, ImageId(SPR_TAB_GEARS_0), screenPos);
-            }
-
-            // Draw research button
-            if (widgets[WIDX_RESEARCH].isVisible())
-            {
-                screenPos = windowPos + ScreenCoordsXY{ widgets[WIDX_RESEARCH].left - 1, widgets[WIDX_RESEARCH].top };
-                if (widgetIsPressed(*this, WIDX_RESEARCH))
-                    screenPos.y++;
-                GfxDrawSprite(rt, ImageId(SPR_TAB_FINANCES_RESEARCH_0), screenPos);
-            }
-
-            // Draw finances button
-            if (widgets[WIDX_FINANCES].isVisible())
-            {
-                screenPos = windowPos + ScreenCoordsXY{ widgets[WIDX_FINANCES].left + 3, widgets[WIDX_FINANCES].top + 1 };
-                if (widgetIsPressed(*this, WIDX_FINANCES))
-                    screenPos.y++;
-                GfxDrawSprite(rt, ImageId(SPR_FINANCE), screenPos);
-            }
-
-            // Draw news button
-            if (widgets[WIDX_NEWS].isVisible())
-            {
-                screenPos = windowPos + ScreenCoordsXY{ widgets[WIDX_NEWS].left + 3, widgets[WIDX_NEWS].top + 0 };
-                if (widgetIsPressed(*this, WIDX_NEWS))
-                    screenPos.y++;
-                GfxDrawSprite(rt, ImageId(SPR_G2_TAB_NEWS), screenPos);
-            }
-
-            // Draw network button
-            if (widgets[WIDX_NETWORK].isVisible())
-            {
-                screenPos = windowPos + ScreenCoordsXY{ widgets[WIDX_NETWORK].left + 3, widgets[WIDX_NETWORK].top + 0 };
-                if (widgetIsPressed(*this, WIDX_NETWORK))
-                    screenPos.y++;
-
-                // Draw (de)sync icon.
-                imgId = (Network::IsDesynchronised() ? SPR_G2_MULTIPLAYER_DESYNC : SPR_G2_MULTIPLAYER_SYNC);
-                GfxDrawSprite(rt, ImageId(imgId), screenPos + ScreenCoordsXY{ 3, 11 });
-
-                // Draw number of players.
-                auto ft = Formatter();
-                ft.Add<int32_t>(Network::GetNumVisiblePlayers());
-                auto colour = ColourWithFlags{ Drawing::Colour::white }.withFlag(ColourFlag::withOutline, true);
-                drawText(rt, screenPos + ScreenCoordsXY{ 23, 1 }, STR_COMMA16, ft, { colour, TextAlignment::right });
-            }
-
-            if (widgets[WIDX_ROTATE_ANTI_CLOCKWISE].isVisible())
-            {
-                screenPos = windowPos
-                    + ScreenCoordsXY{ widgets[WIDX_ROTATE_ANTI_CLOCKWISE].left + 2,
-                                      widgets[WIDX_ROTATE_ANTI_CLOCKWISE].top + 0 };
-                if (isWidgetPressed(WIDX_ROTATE_ANTI_CLOCKWISE))
-                    screenPos.y++;
-                GfxDrawSprite(rt, ImageId(SPR_G2_ICON_ROTATE_ANTI_CLOCKWISE), screenPos);
-            }
         }
     };
 

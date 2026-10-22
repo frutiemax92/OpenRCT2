@@ -208,11 +208,13 @@ namespace OpenRCT2
             }
             throw IOException("Attempted to read past end of file.");
         }
-        uint64_t position = GetPosition();
-        if (fread(buffer, 1, static_cast<size_t>(length), _file) == length)
+        // The position is only worked out when the read fails: asking for it costs a system call per read.
+        const auto readBytes = fread(buffer, 1, static_cast<size_t>(length), _file);
+        if (readBytes == length)
         {
             return;
         }
+        const uint64_t position = GetPosition() - readBytes;
         char msg[256];
         std::snprintf(
             msg, sizeof(msg),

@@ -80,6 +80,7 @@ namespace OpenRCT2::Golf
         uint32_t spaceId = 0;
         int32_t stateTicks = 0;
         FixedVec3 position;                // world position with the lane offset
+        FixedVec3 parkFrom;                // where the car stood when it began to pull into its space
         int32_t heading = 0;               // direction 0-3 of travel, for drawing
         uint32_t waitingFor = 0;           // car or junction blocking it, for the tests
     };

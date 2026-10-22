@@ -1170,7 +1170,7 @@ namespace OpenRCT2
                 return false;
             if (!Config::Get().general.uncapFPS)
                 return false;
-            if (gGameSpeed > 4)
+            if (gGameSpeed > 4)  // also true for the ultra speed
                 return false;
             return true;
         }

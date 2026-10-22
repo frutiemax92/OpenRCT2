@@ -9,25 +9,21 @@
 
 #include "Fixed.hpp"
 
+#include <cmath>
+
 namespace OpenRCT2
 {
     uint64_t integerSqrt(uint64_t n)
     {
-        uint64_t result = 0;
-        uint64_t bit = uint64_t{ 1 } << 62;
-        while (bit > n)
-            bit >>= 2;
-        while (bit != 0)
-        {
-            if (n >= result + bit)
-            {
-                n -= result + bit;
-                result = (result >> 1) + bit;
-            }
-            else
-                result >>= 1;
-            bit >>= 2;
-        }
+        // The hardware square root gives the answer or one off it; the checks make the result the exact floor on every
+        // platform, so simulations stay deterministic.
+        uint64_t result = static_cast<uint64_t>(std::sqrt(static_cast<double>(n)));
+        if (result > 0xFFFFFFFFu)
+            result = 0xFFFFFFFFu;
+        while (result * result > n)
+            result--;
+        while (result < 0xFFFFFFFFu && (result + 1) * (result + 1) <= n)
+            result++;
         return result;
     }
 

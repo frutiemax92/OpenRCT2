@@ -441,12 +441,32 @@ namespace OpenRCT2
         auto numTiles = kMaximumMapSizeTechnical * kMaximumMapSizeTechnical;
 
         auto& gameState = getGameState();
-        SetTileElements(gameState, std::vector<TileElement>(numTiles, GetDefaultSurfaceElement(surfaceColour1)));
+        // The tiles outside of the map, and its edge at x = 0 and y = 0, are cleared as MapRemoveOutOfRangeElements would
+        // clear them; they are made that way here so the 1M tiles of a new map are not looked at one by one afterwards.
+        auto cleared = GetDefaultSurfaceElement(surfaceColour1);
+        cleared.baseHeight = kMinimumLandHeight;
+        cleared.clearanceHeight = kMinimumLandHeight;
+        std::vector<TileElement> tiles(numTiles, cleared);
+        const auto defaultElement = GetDefaultSurfaceElement(surfaceColour1);
+        for (int32_t y = 1; y < size.y; y++)
+        {
+            for (int32_t x = 1; x < size.x; x++)
+                tiles[static_cast<size_t>(x) + static_cast<size_t>(y) * kMaximumMapSizeTechnical] = defaultElement;
+        }
+        SetTileElements(gameState, std::move(tiles));
 
         gameState.grassSceneryTileLoopPosition = 0;
         gameState.widePathTileLoopPosition = {};
         gameState.mapSize = size;
-        MapRemoveOutOfRangeElements();
+        // Spawn points of an earlier map are forgotten with the tiles they stood on.
+        gameState.peepSpawns.erase(
+            std::remove_if(
+                gameState.peepSpawns.begin(), gameState.peepSpawns.end(),
+                [&size](const CoordsXY& spawn) {
+                    const TileCoordsXY tile{ spawn };
+                    return tile.x == 0 || tile.y == 0 || tile.x >= size.x || tile.y >= size.y;
+                }),
+            gameState.peepSpawns.end());
         MapAnimations::ClearAll();
 
         auto intent = Intent(INTENT_ACTION_MAP);

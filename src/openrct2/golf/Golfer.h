@@ -136,6 +136,10 @@ namespace OpenRCT2::Golf
         bool wantsCart = false;
         bool rageQuit = false;
         bool finished = false;           // left the course
+        bool queueing = false;           // waiting behind a tee that is taken (not saved: looked at again within a second)
+        FixedVec3 queueSpot;
+        FixedVec3 separation; // the push away from close golfers, looked at a few times a second (see GolfSimulation::walk)
+        bool pathBlocked = false;        // someone stands in the way of the planned shot (not saved, looked at again within a second)
         uint32_t arrivalDay = 0;
         int32_t animalSightings = 0;     // animals that cheered the golfer up on this hole (ANM-005)
         uint32_t rangeId = 0;            // the driving range being visited, 0 for none (DRV-005)

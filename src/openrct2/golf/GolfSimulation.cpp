@@ -567,6 +567,37 @@ namespace OpenRCT2::Golf
         }
     }
 
+    // A push (about one unit long at the closest) away from the golfers that stand or walk within the personal space of g.
+    FixedVec3 GolfSimulation::separationPush(const Golfer& g) const
+    {
+        FixedVec3 push{};
+        const Fixed space = Fixed::fromInt(kPersonalSpaceUnits);
+        for (const auto& other : _golfers)
+        {
+            if (other.id == g.id || other.finished || other.state == GolferState::inCar)
+                continue;
+            Fixed dx = g.position.x - other.position.x;
+            Fixed dy = g.position.y - other.position.y;
+            // Most golfers are far away: skip them without a square root.
+            if (dx >= space || dx <= -space || dy >= space || dy <= -space)
+                continue;
+            Fixed d = length(FixedVec3{ dx, dy, Fixed{} });
+            if (d >= space)
+                continue;
+            if (d < Fixed::ratio(1, 10))
+            {
+                // On top of each other: the one with the higher id steps aside, in a direction of its own.
+                dx = Fixed::fromInt((g.id & 1) ? 1 : -1);
+                dy = Fixed::fromInt((g.id & 2) ? 1 : -1);
+                d = length(FixedVec3{ dx, dy, Fixed{} });
+            }
+            const Fixed weight = (space - d) / space;
+            push.x += dx / d * weight;
+            push.y += dy / d * weight;
+        }
+        return push;
+    }
+
     bool GolfSimulation::walk(Golfer& g, const FixedVec3& to)
     {
         if (g.onCart)
@@ -587,8 +618,23 @@ namespace OpenRCT2::Golf
             g.position = { to.x, to.y, groundZ(to.x, to.y) };
             return true;
         }
-        const Fixed nextX = g.position.x + delta.x * speed / distance;
-        const Fixed nextY = g.position.y + delta.y * speed / distance;
+        Fixed nextX = g.position.x + delta.x * speed / distance;
+        Fixed nextY = g.position.y + delta.y * speed / distance;
+        // Golfers keep apart: they do not pile up into one figure, except at the very end of a walk where the target is shared.
+        if (distance > Fixed::fromInt(kQueueDistanceUnits))
+        {
+            if ((g.stateTicks + g.id) % kSeparationCheckTicks == 0)
+                g.separation = separationPush(g);
+            const auto& push = g.separation;
+            const CoordsXY from{ static_cast<int32_t>(nextX.floor()), static_cast<int32_t>(nextY.floor()) };
+            const CoordsXY pushed{ static_cast<int32_t>((nextX + push.x * speed).floor()),
+                                   static_cast<int32_t>((nextY + push.y * speed).floor()) };
+            if (Stream::CanMove(from, pushed, false))
+            {
+                nextX += push.x * speed;
+                nextY += push.y * speed;
+            }
+        }
         const CoordsXY currTile{ static_cast<int32_t>(g.position.x.floor()), static_cast<int32_t>(g.position.y.floor()) };
         const CoordsXY nextTile{ static_cast<int32_t>(nextX.floor()), static_cast<int32_t>(nextY.floor()) };
         if (!Stream::CanMove(currTile, nextTile, false))
@@ -612,6 +658,87 @@ namespace OpenRCT2::Golf
                 return true;
         }
         return false;
+    }
+
+    bool GolfSimulation::lineOfFireBlocked(const Golfer& g) const
+    {
+        const Fixed length = g.decision.expectedDistance + Fixed::fromInt(kLineOfFireMargin);
+        // The shot scatters more the further it goes.
+        const Fixed width = Fixed::fromInt(kLineOfFireMargin) + g.decision.expectedDistance / 8;
+        for (const auto& other : _golfers)
+        {
+            if (other.id == g.id || other.finished || other.state == GolferState::inCar
+                || other.state == GolferState::arriving)
+                continue;
+            const Fixed dx = other.position.x - g.ball.position.x;
+            const Fixed dy = other.position.y - g.ball.position.y;
+            const Fixed along = dx * g.decision.aimX + dy * g.decision.aimY;
+            const Fixed across = dx * g.decision.aimY - dy * g.decision.aimX;
+            const Fixed absAcross = across < Fixed{} ? -across : across;
+            if (along > -Fixed::fromInt(kLineOfFireMargin) && along < length && absAcross < width)
+                return true;
+        }
+        return false;
+    }
+
+    bool GolfSimulation::teeOccupied(const Golfer& g, const FixedVec3& tee) const
+    {
+        for (const auto& other : _golfers)
+        {
+            if (other.id == g.id || other.groupId == g.groupId || other.finished || other.courseId != g.courseId
+                || other.holeIndex != g.holeIndex)
+                continue;
+            switch (other.state)
+            {
+                case GolferState::waitingForTeeTime:
+                case GolferState::talking:
+                case GolferState::preparingShot:
+                case GolferState::swinging:
+                case GolferState::putting:
+                    break;
+                default:
+                    continue;
+            }
+            if (horizontal(other.position, tee) < Fixed::fromInt(kTeeOccupiedRadius))
+                return true;
+        }
+        return false;
+    }
+
+    FixedVec3 GolfSimulation::teeQueueSpot(const Golfer& g) const
+    {
+        FixedVec3 spot = g.destination;
+
+        const auto* hole = holeOf(g);
+        Fixed ux = Fixed::fromInt(1);
+        Fixed uy{};
+        if (hole != nullptr)
+        {
+            // Direction of play: from the tee to the first aim point (or the cup).
+            const auto line = hole->playingLine(teeFor(*hole, g.tee).has_value() ? g.tee : *hole->firstTee());
+            if (line.size() >= 2)
+            {
+                const FixedVec3 d{ Fixed::fromInt(line[1].x) - g.destination.x,
+                                   Fixed::fromInt(line[1].y) - g.destination.y, Fixed{} };
+                const Fixed dl = length(d);
+                if (dl > Fixed::ratio(1, 2))
+                {
+                    ux = d.x / dl;
+                    uy = d.y / dl;
+                }
+            }
+        }
+        // The place in the queue: golfers with a lower id waiting for the same tee are ahead.
+        int32_t slot = 0;
+        for (const auto& other : _golfers)
+            if (other.id < g.id && !other.finished && other.state == GolferState::goingToTee
+                && other.courseId == g.courseId && other.holeIndex == g.holeIndex)
+                slot++;
+        const Fixed back = Fixed::fromInt(kTeeQueueDistance + (slot / 3) * 16);
+        const Fixed side = Fixed::fromInt((slot % 3 - 1) * 16);
+        spot.x = g.destination.x - ux * back - uy * side;
+        spot.y = g.destination.y - uy * back + ux * side;
+        return spot;
     }
 
     void GolfSimulation::startHole(Golfer& g)
@@ -1150,7 +1277,25 @@ namespace OpenRCT2::Golf
             {
                 if (g.cartId != 0 && g.stateTicks == 1)
                     board(g);
-                if (!walk(g, g.destination))
+                // A tee that another group is using is not walked onto: wait still behind it, away from the line of play,
+                // in a spot that depends on the tee and the other waiting golfers only, never on where the golfer stands.
+                FixedVec3 target = g.destination;
+                // The queue is looked at a few times a second, not every tick: it is the costly part of a crowded course.
+                if (g.stateTicks % kTeeQueueCheckTicks == 1)
+                {
+                    const bool wasQueueing = g.queueing;
+                    g.queueing = teeOccupied(g, g.destination);
+                    // The spot is worked out when the golfer starts to wait and now and then after, not at every look.
+                    if (g.queueing && (!wasQueueing || g.stateTicks % (kTeeQueueCheckTicks * 10) == 1))
+                        g.queueSpot = teeQueueSpot(g);
+                }
+                const bool occupied = g.queueing;
+                if (occupied)
+                    target = g.queueSpot;
+                // Standing at the waiting spot: nothing to do until the tee is free.
+                if (occupied && horizontal(g.position, target) <= Fixed::fromInt(kArriveDistanceUnits))
+                    break;
+                if (!walk(g, target) || occupied)
                     break;
                 if (g.onCart)
                     dismount(g);
@@ -1230,7 +1375,13 @@ namespace OpenRCT2::Golf
                     g.decision = decideShot(c);
                     g.shotTargetDistance = g.decision.expectedDistance;
                 }
-                if (g.stateTicks >= static_cast<uint32_t>(kPrepareShotTicks) && !groupBusy(g))
+                // Wait for the path of the ball to be clear of golfers, up to a limit so a crowded fairway cannot stall the round.
+                // Looked at a few times a second: it walks every golfer.
+                if (g.stateTicks % kTeeQueueCheckTicks == 0)
+                    g.pathBlocked = lineOfFireBlocked(g);
+                const bool pathClear = g.stateTicks >= static_cast<uint32_t>(kPrepareShotTicks + kLineOfFireMaxWaitTicks)
+                    || !g.pathBlocked;
+                if (g.stateTicks >= static_cast<uint32_t>(kPrepareShotTicks) && pathClear && !groupBusy(g))
                     setState(g, g.decision.putt ? GolferState::putting : GolferState::swinging);
                 break;
             }

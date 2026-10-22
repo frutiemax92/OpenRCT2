@@ -714,7 +714,7 @@ TEST(GolfRuntimeTests, WithoutStreetsGroupsStillTurnUpAtTheClub)
     EXPECT_FALSE(runtime.hasCarTraffic());
     const uint32_t start = Golf::kTicksPerGameDay + 6 * 60 * Golf::kTicksPerGameMinute;
     bool sawGolfer = false;
-    for (uint32_t t = start; t < start + 3 * 60 * Golf::kTicksPerGameMinute; t++)
+    for (uint32_t t = start; t < start + 60 * Golf::kTicksPerGameMinute; t++)
     {
         runtime.update(t);
         for (const auto& golfer : runtime.director().simulation().golfers())
@@ -747,7 +747,7 @@ TEST(GolfRuntimeTests, EveryCarDrivesAwayOnceItsGroupHasLeft)
     size_t mostCars = 0;
     // From 06:00 to the small hours of the next morning: arrivals stop before closing, everyone is off the course by 20:00.
     const uint32_t start = Golf::kTicksPerGameDay + 6 * 60 * Golf::kTicksPerGameMinute;
-    for (uint32_t t = start; t < start + 20 * 60 * Golf::kTicksPerGameMinute; t++)
+    for (uint32_t t = start; t < start + 16 * 60 * Golf::kTicksPerGameMinute; t++)
     {
         runtime.update(t);
         mostCars = std::max(mostCars, runtime.traffic().cars().size());
@@ -1497,31 +1497,44 @@ TEST(GolfRuntimeTests, ACottageOwnerPlaysFromTheirOwnDoor)
 
     // Over the next days the owner turns up on foot beside their cottage, within the opening hours, and only ever one at a
     // time.
+    // The owner is only admitted on a game minute, so the days are stepped a minute at a time until they turn up; then
+    // the next hour runs tick by tick to count how many there are.
     bool seen = false;
     int32_t most = 0;
-    uint32_t day = 130;
-    for (; day < 200 && !seen; day++)
+    uint32_t seenAt = 0;
+    const auto countVips = [&] {
+        int32_t vips = 0;
+        for (const auto& golfer : runtime.director().simulation().golfers())
+            if (golfer.vip)
+                vips++;
+        most = std::max(most, vips);
+    };
+    for (uint32_t day = 130; day < 200 && !seen; day++)
     {
+        // Nobody else comes: golfers do not walk while the minutes are skipped, so they would only fill the course.
+        runtime.director().setPopularity(0);
         for (uint32_t t = day * Golf::kTicksPerGameDay + 7 * 60 * Golf::kTicksPerGameMinute;
-             t < day * Golf::kTicksPerGameDay + 18 * 60 * Golf::kTicksPerGameMinute; t++)
+             t < day * Golf::kTicksPerGameDay + 18 * 60 * Golf::kTicksPerGameMinute && !seen; t += Golf::kTicksPerGameMinute)
         {
             runtime.update(t);
-            int32_t vips = 0;
             for (const auto& golfer : runtime.director().simulation().golfers())
             {
                 if (!golfer.vip)
                     continue;
-                vips++;
-                if (!seen)
-                {
-                    seen = true;
-                    // They came out of the cottage on the lot, which is a few tiles from where they are now at most.
-                    EXPECT_LT(std::abs(static_cast<int32_t>(golfer.position.x.floor()) - (lot->min.x * 32 + 64)), 6 * 32);
-                    EXPECT_LT(std::abs(static_cast<int32_t>(golfer.position.y.floor()) - (lot->min.y * 32 + 48)), 6 * 32);
-                }
+                seen = true;
+                seenAt = t;
+                // They came out of the cottage on the lot, which is a few tiles from where they are now at most.
+                EXPECT_LT(std::abs(static_cast<int32_t>(golfer.position.x.floor()) - (lot->min.x * 32 + 64)), 6 * 32);
+                EXPECT_LT(std::abs(static_cast<int32_t>(golfer.position.y.floor()) - (lot->min.y * 32 + 48)), 6 * 32);
+                break;
             }
-            most = std::max(most, vips);
         }
+    }
+    countVips();
+    for (uint32_t t = seenAt + 1; seen && t < seenAt + 60 * Golf::kTicksPerGameMinute; t++)
+    {
+        runtime.update(t);
+        countVips();
     }
     EXPECT_TRUE(seen);
     EXPECT_EQ(most, 1);

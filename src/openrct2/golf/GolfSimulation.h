@@ -130,6 +130,15 @@ namespace OpenRCT2::Golf
     // Timings in ticks.
     constexpr int32_t kCheckInTicks = kTicksPerGameMinute;
     constexpr int32_t kPrepareShotTicks = 60;
+    // A golfer waits at most this long for someone to leave the line of the shot, then plays anyway.
+    constexpr int32_t kLineOfFireMaxWaitTicks = 2 * kTicksPerGameMinute;
+    // Distance in world units a golfer is kept from the ball's path at least, and beyond the end of it.
+    constexpr int32_t kLineOfFireMargin = 2;
+    // A group that finds the tee taken by another group waits this far from it (a tile is 32 units) and starts to wait
+    // when it comes within kTeeOccupiedRadius of the tee.
+    constexpr int32_t kTeeQueueDistance = 48;
+    constexpr int32_t kTeeOccupiedRadius = 40;
+    constexpr int32_t kTeeQueueCheckTicks = 10;
     constexpr int32_t kSwingTicks = 50;
     constexpr int32_t kRestTicksPerMinute = kTicksPerGameMinute;
     constexpr int32_t kRestEnergyPerMinute = 30;
@@ -154,6 +163,9 @@ namespace OpenRCT2::Golf
         return kWalkSpeedHundredths;
     }
     constexpr int32_t kArriveDistanceUnits = 2;
+    constexpr int32_t kPersonalSpaceUnits = 6;  // golfers on foot keep this far apart
+    constexpr int32_t kSeparationCheckTicks = 8; // golfers look for company this often, not every tick
+    constexpr int32_t kQueueDistanceUnits = 14; // within this of its target a walker no longer steps aside: the target is shared
     // A group waiting at a tee longer than this many minutes counts it as a course problem (GLF-013, GLF-040).
     constexpr int32_t kLongWaitMinutes = 8;
     constexpr int32_t kFreeWaitMinutes = 1;
@@ -268,6 +280,7 @@ namespace OpenRCT2::Golf
         void updateGolfer(Golfer& g);
         void onMinute(Golfer& g);
         bool walk(Golfer& g, const FixedVec3& to);
+        FixedVec3 separationPush(const Golfer& g) const;
         // The driving ranges (section 17).
         void syncRanges();
         bool wantsRange(const Golfer& g);
@@ -297,6 +310,12 @@ namespace OpenRCT2::Golf
         void emit(SimEvent::Type type, const Golfer& g, int32_t value = 0);
         void think(Golfer& g, ThoughtType thought);
         bool groupBusy(const Golfer& g) const;
+        // Whether another golfer stands near the path the golfer expects the ball to take.
+        bool lineOfFireBlocked(const Golfer& g) const;
+        // Whether a golfer of another group is using the tee at `tee` (waiting for its time, or playing the first shot).
+        // Where a golfer waits for the tee: behind it, away from the line of play, apart from the others in the queue.
+        FixedVec3 teeQueueSpot(const Golfer& g) const;
+        bool teeOccupied(const Golfer& g, const FixedVec3& tee) const;
         Fixed groundZ(Fixed x, Fixed y) const;
 
         Environment _env;

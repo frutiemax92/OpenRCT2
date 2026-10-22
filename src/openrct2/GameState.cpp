@@ -67,6 +67,7 @@ namespace OpenRCT2
         BannerInit(gameState);
         RideInitAll();
         gameState.entities.resetAllEntities();
+        gameState.golf.clear();
         Golf::resetRuntime(gameState);
         UpdateConsolidatedPatrolAreas();
         ResetDate();
@@ -128,7 +129,7 @@ namespace OpenRCT2
             if (gGameSpeed > 1)
             {
                 // Update more often if game speed is above normal.
-                numUpdates = 1 << (gGameSpeed - 1);
+                numUpdates = gGameSpeed == kGameSpeedUltra ? kGameSpeedUltraUpdates : 1 << (gGameSpeed - 1);
             }
         }
 

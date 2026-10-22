@@ -620,8 +620,16 @@ namespace OpenRCT2::Golf
     {
         const auto* space = _traffic.findSpace(car.spaceId);
         const auto where = space != nullptr ? parkingSpaceCentre(*space) : _scan.club;
-        for (const auto id : car.golferIds)
-            _director->simulation().release(id, where, where);
+        // They step out side by side along the car, not all on one spot.
+        const auto side = directionStep(space != nullptr ? space->facing : 0);
+        const int32_t count = static_cast<int32_t>(car.golferIds.size());
+        for (int32_t i = 0; i < count; i++)
+        {
+            const Fixed offset = Fixed::fromInt((i * 2 - (count - 1)) * 3);
+            const FixedVec3 at{ where.x + Fixed::fromInt(side.x) * Fixed::fromInt(8) + Fixed::fromInt(-side.y) * offset,
+                                where.y + Fixed::fromInt(side.y) * Fixed::fromInt(8) + Fixed::fromInt(side.x) * offset, where.z };
+            _director->simulation().release(car.golferIds[i], at, where);
+        }
     }
 
     // The golfers of a car that was lost (a saved game, a rebuilt street) get out at the club.
@@ -1273,6 +1281,7 @@ namespace OpenRCT2::Golf
 
         uint32_t group = _rng ? (_rng->next() % 10000 + 1) : 1;
         int32_t count = 3;
+        std::vector<uint32_t> ids;
         for (int32_t i = 0; i < count; i++)
         {
             GolfSimulation::Spawn spawn;
@@ -1308,7 +1317,21 @@ namespace OpenRCT2::Golf
 
             auto& g = _director->simulation().spawn(spawn);
             g.destination = spawnPos;
-            g.state = GolferState::checkingIn;
+            ids.push_back(g.id);
+        }
+        // The group comes by car, like the arrivals of the director (STE-021).
+        auto& sim = _director->simulation();
+        for (const auto id : ids)
+            sim.putInCar(id);
+        if (!receiveCar(ids, group))
+        {
+            // No car can come (no free parking space, no road entrance): the group turns up at the club.
+            for (const auto id : ids)
+            {
+                sim.release(id, spawnPos, spawnPos);
+                if (auto* g = sim.find(id))
+                    g->state = GolferState::checkingIn;
+            }
         }
         syncEntities();
     }
@@ -1548,6 +1571,10 @@ namespace OpenRCT2::Golf
         }
         Park::UpdateSize(gameState.park);
 
+        // The golf clock starts at midnight and the course opens at 06:00, half an hour of real time away. A new game
+        // starts in the morning instead, so golfers arrive straight away.
+        gameState.currentTicks = static_cast<uint32_t>(hhmm(7, 0) * kTicksPerGameMinute);
+
         gameState.savedView = ScreenCoordsXY{ 75 * 32, 75 * 32 };
         gameState.savedViewZoom = ZoomLevel{ 0 };
         gameState.savedViewRotation = 0;
@@ -1671,7 +1698,7 @@ namespace OpenRCT2::Golf
         if (regular != nullptr)
         {
             regular->open = true;
-            regular->greenFee = 2500;
+            regular->greenFee = kFairFeePerHole * 3;
             regular->kind = CourseKind::regular;
 
             // Hole 1: Par 4
@@ -1721,7 +1748,7 @@ namespace OpenRCT2::Golf
         if (mini != nullptr)
         {
             mini->open = true;
-            mini->greenFee = 800;
+            mini->greenFee = kFairFeePerHole;
             mini->kind = CourseKind::miniPutt;
 
             auto* miniHole = gameState.golf.createHole(mini->id);

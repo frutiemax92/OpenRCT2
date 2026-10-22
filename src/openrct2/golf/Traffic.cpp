@@ -447,6 +447,7 @@ namespace OpenRCT2::Golf
                         car.state = CarState::parking;
                         car.stateTicks = 0;
                         car.speed = Fixed{};
+                        car.parkFrom = car.position;
                     }
                     break;
                 case CarState::parking:
@@ -457,15 +458,27 @@ namespace OpenRCT2::Golf
                                 return &l;
                         return nullptr;
                     }();
+                    // Pull into the space: drive from the street to its centre, nose first, at the street's height.
+                    const ParkingSpace* space = lot != nullptr ? lot->spaceOf(car.id) : nullptr;
+                    if (space != nullptr)
+                    {
+                        auto target = parkingSpaceCentre(*space);
+                        if (const auto* street = lot != nullptr ? _network->tileAt(lot->streetTile) : nullptr)
+                            target.z = Fixed::fromInt(street->height);
+                        const int32_t t = std::min(car.stateTicks, kParkingTicks);
+                        const Fixed f = Fixed::ratio(t, kParkingTicks);
+                        car.position = { car.parkFrom.x + (target.x - car.parkFrom.x) * f,
+                                         car.parkFrom.y + (target.y - car.parkFrom.y) * f,
+                                         car.parkFrom.z + (target.z - car.parkFrom.z) * f };
+                        car.heading = (space->facing + 2) & 3;
+                    }
                     if (car.stateTicks >= kParkingTicks)
                     {
-                        if (lot != nullptr)
-                            if (auto* space = lot->spaceOf(car.id))
-                            {
-                                space->carId = car.id;
-                                space->reservedBy = 0;
-                                car.position = parkingSpaceCentre(*space);
-                            }
+                        if (auto* taken = lot != nullptr ? lot->spaceOf(car.id) : nullptr)
+                        {
+                            taken->carId = car.id;
+                            taken->reservedBy = 0;
+                        }
                         car.state = CarState::parked;
                         car.stateTicks = 0;
                         _events.push_back({ TrafficEvent::Type::parked, car.id, car.spaceId });

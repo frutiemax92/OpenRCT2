@@ -54,6 +54,10 @@ extern uint32_t gCurrentRealTimeTicks;
 extern uint16_t gCurrentDeltaTime;
 extern uint8_t gGamePaused;
 extern uint8_t gGameSpeed;
+
+// The fastest speed: shown as x10, it runs 20 updates per frame where the turbo speed (4) runs 8.
+constexpr uint8_t kGameSpeedUltra = 10;
+constexpr uint32_t kGameSpeedUltraUpdates = 20;
 extern bool gDoSingleUpdate;
 extern float gDayNightCycle;
 extern bool gInUpdateCode;
