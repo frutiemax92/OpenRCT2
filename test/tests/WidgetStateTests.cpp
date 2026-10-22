@@ -138,3 +138,12 @@ TEST(WidgetStateTest, MakeHoldableSpinnerWidgetsHasHoldableOnIncrementButtons)
     static_assert(widgets[1].flags.has(WidgetFlag::isHoldable));
     static_assert(widgets[2].flags.has(WidgetFlag::isHoldable));
 }
+
+// UI-001 / ARC-002: Navigation and window widgets integration
+TEST(WidgetStateTest, GolfNavigationWindowsClassificationDistinct)
+{
+    EXPECT_NE(WindowClass::course, WindowClass::holeTool);
+    EXPECT_NE(WindowClass::tournament, WindowClass::zones);
+    EXPECT_NE(WindowClass::carts, WindowClass::streetTool);
+    EXPECT_NE(WindowClass::shotTool, WindowClass::modelViewer);
+}

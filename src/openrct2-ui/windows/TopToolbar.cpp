@@ -141,6 +141,8 @@ namespace OpenRCT2::Ui::Windows
     {
         DDIDX_CONSOLE = 0,
         DDIDX_DEBUG_PAINT = 1,
+        DDIDX_SHOT_TOOL = 2,
+        DDIDX_MODEL_VIEWER = 3,
 
         TOP_TOOLBAR_DEBUG_COUNT,
     };
@@ -716,6 +718,8 @@ namespace OpenRCT2::Ui::Windows
         {
             gDropdown.items[DDIDX_CONSOLE] = Dropdown::ToggleOption(STR_DEBUG_DROPDOWN_CONSOLE);
             gDropdown.items[DDIDX_DEBUG_PAINT] = Dropdown::ToggleOption(STR_DEBUG_DROPDOWN_DEBUG_PAINT);
+            gDropdown.items[DDIDX_SHOT_TOOL] = Dropdown::ToggleOption(STR_SHOT_TOOL_TITLE);
+            gDropdown.items[DDIDX_MODEL_VIEWER] = Dropdown::ToggleOption(STR_MODEL_VIEWER_TITLE);
 
             WindowDropdownShowText(
                 { windowPos.x + widget.left, windowPos.y + widget.top }, widget.height(),
@@ -724,6 +728,8 @@ namespace OpenRCT2::Ui::Windows
             auto* windowMgr = GetWindowManager();
             gDropdown.items[DDIDX_CONSOLE].setChecked(windowMgr->FindByClass(WindowClass::console) != nullptr);
             gDropdown.items[DDIDX_DEBUG_PAINT].setChecked(windowMgr->FindByClass(WindowClass::debugPaint) != nullptr);
+            gDropdown.items[DDIDX_SHOT_TOOL].setChecked(windowMgr->FindByClass(WindowClass::shotTool) != nullptr);
+            gDropdown.items[DDIDX_MODEL_VIEWER].setChecked(windowMgr->FindByClass(WindowClass::modelViewer) != nullptr);
         }
 
         void debugMenuDropdown(int16_t dropdownIndex)
@@ -731,6 +737,7 @@ namespace OpenRCT2::Ui::Windows
             auto* w = WindowGetMain();
             if (w != nullptr)
             {
+                auto* windowMgr = GetWindowManager();
                 switch (dropdownIndex)
                 {
                     case DDIDX_CONSOLE:
@@ -741,7 +748,6 @@ namespace OpenRCT2::Ui::Windows
                     }
                     case DDIDX_DEBUG_PAINT:
                     {
-                        auto* windowMgr = GetWindowManager();
                         if (windowMgr->FindByClass(WindowClass::debugPaint) == nullptr)
                         {
                             ContextOpenWindow(WindowClass::debugPaint);
@@ -749,6 +755,30 @@ namespace OpenRCT2::Ui::Windows
                         else
                         {
                             windowMgr->CloseByClass(WindowClass::debugPaint);
+                        }
+                        break;
+                    }
+                    case DDIDX_SHOT_TOOL:
+                    {
+                        if (windowMgr->FindByClass(WindowClass::shotTool) == nullptr)
+                        {
+                            ContextOpenWindow(WindowClass::shotTool);
+                        }
+                        else
+                        {
+                            windowMgr->CloseByClass(WindowClass::shotTool);
+                        }
+                        break;
+                    }
+                    case DDIDX_MODEL_VIEWER:
+                    {
+                        if (windowMgr->FindByClass(WindowClass::modelViewer) == nullptr)
+                        {
+                            ContextOpenWindow(WindowClass::modelViewer);
+                        }
+                        else
+                        {
+                            windowMgr->CloseByClass(WindowClass::modelViewer);
                         }
                         break;
                     }
@@ -1221,9 +1251,19 @@ namespace OpenRCT2::Ui::Windows
         {
             // Footpath and golf window buttons pressed state
             auto* windowMgr = GetWindowManager();
-            setWidgetPressed(WIDX_PATH, windowMgr->FindByClass(WindowClass::footpath) != nullptr);
-            setWidgetPressed(WIDX_CONSTRUCT_RIDE, windowMgr->FindByClass(WindowClass::holeTool) != nullptr);
-            setWidgetPressed(WIDX_RIDES, windowMgr->FindByClass(WindowClass::course) != nullptr);
+            setWidgetPressed(
+                WIDX_PATH,
+                windowMgr->FindByClass(WindowClass::footpath) != nullptr
+                    || windowMgr->FindByClass(WindowClass::streetTool) != nullptr);
+            setWidgetPressed(
+                WIDX_CONSTRUCT_RIDE,
+                windowMgr->FindByClass(WindowClass::holeTool) != nullptr
+                    || windowMgr->FindByClass(WindowClass::zones) != nullptr);
+            setWidgetPressed(
+                WIDX_RIDES,
+                windowMgr->FindByClass(WindowClass::course) != nullptr
+                    || windowMgr->FindByClass(WindowClass::tournament) != nullptr
+                    || windowMgr->FindByClass(WindowClass::carts) != nullptr);
         }
 
         // TODO: look into using std::span

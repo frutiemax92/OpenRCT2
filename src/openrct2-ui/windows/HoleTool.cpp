@@ -55,9 +55,11 @@ namespace OpenRCT2::Ui::Windows
         WIDX_AIM_1,
         WIDX_AIM_2,
         WIDX_REMOVE,
+        WIDX_OPEN_COURSE,
+        WIDX_OPEN_ZONES,
     };
 
-    static constexpr ScreenSize kWindowSize = { 280, 200 };
+    static constexpr ScreenSize kWindowSize = { 280, 224 };
     static constexpr int32_t kFirstMarkerWidget = WIDX_MEN_TEE;
     static constexpr int32_t kMarkerCount = 6;
 
@@ -76,7 +78,9 @@ namespace OpenRCT2::Ui::Windows
         makeWidget({  10, 86 }, {  84, 18 }, WidgetType::button, WindowColour::secondary, STR_HOLE_TOOL_CUP),
         makeWidget({  98, 86 }, {  84, 18 }, WidgetType::button, WindowColour::secondary, STR_HOLE_TOOL_AIM_1),
         makeWidget({ 186, 86 }, {  84, 18 }, WidgetType::button, WindowColour::secondary, STR_HOLE_TOOL_AIM_2),
-        makeWidget({  10, 110 }, { 120, 12 }, WidgetType::checkbox, WindowColour::secondary, STR_HOLE_TOOL_REMOVE, STR_HOLE_TOOL_REMOVE_TIP)
+        makeWidget({  10, 110 }, { 120, 12 }, WidgetType::checkbox, WindowColour::secondary, STR_HOLE_TOOL_REMOVE, STR_HOLE_TOOL_REMOVE_TIP),
+        makeWidget({  10, 196 }, { 125, 20 }, WidgetType::button, WindowColour::secondary, STR_COURSE_WINDOW_TITLE),
+        makeWidget({ 145, 196 }, { 125, 20 }, WidgetType::button, WindowColour::secondary, STR_ZONES_TITLE)
     );
     // clang-format on
 
@@ -218,6 +222,12 @@ namespace OpenRCT2::Ui::Windows
                 case WIDX_REMOVE:
                     _remove = !_remove;
                     break;
+                case WIDX_OPEN_COURSE:
+                    ContextOpenWindow(WindowClass::course);
+                    break;
+                case WIDX_OPEN_ZONES:
+                    ContextOpenWindow(WindowClass::zones);
+                    break;
                 case WIDX_MEN_TEE:
                 case WIDX_WOMEN_TEE:
                 case WIDX_CHILD_TEE:
@@ -310,7 +320,7 @@ namespace OpenRCT2::Ui::Windows
                 }
             }
             if (!_status.empty())
-                text(12, 182, _status, Colour::brightRed);
+                text(12, 178, _status, Colour::brightRed);
         }
     };
 

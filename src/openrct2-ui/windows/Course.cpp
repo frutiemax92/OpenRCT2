@@ -10,6 +10,7 @@
 #include "Windows.h"
 
 #include <algorithm>
+#include <openrct2/Context.h>
 #include <openrct2-ui/interface/Widget.h>
 #include <openrct2-ui/interface/Window.h>
 #include <openrct2/GameState.h>
@@ -89,6 +90,9 @@ namespace OpenRCT2::Ui::Windows
         WIDX_FEE_SPINNER,
         WIDX_FEE_DOWN,
         WIDX_FEE_UP,
+        WIDX_STAT_TOURNAMENT,
+        WIDX_STAT_ZONES,
+        WIDX_STAT_CARTS,
     };
 
     // clang-format off
@@ -127,7 +131,10 @@ namespace OpenRCT2::Ui::Windows
         makeWidget({  10,  76 }, { 100,  18 }, WidgetType::button,   WindowColour::secondary, STR_COURSE_OPEN     ),
         makeWidget({ 120,  76 }, { 140,  18 }, WidgetType::checkbox, WindowColour::secondary, STR_COURSE_CARTS_OFF_PATH, STR_COURSE_CARTS_OFF_PATH_TIP),
         makeWidget({ 280,  78 }, {  70,  14 }, WidgetType::label,    WindowColour::secondary, STR_COURSE_GREEN_FEE),
-        makeSpinnerWidgets({ 355, 76 }, { 85, 18 }, WidgetType::spinner, WindowColour::secondary                   )
+        makeSpinnerWidgets({ 355, 76 }, { 85, 18 }, WidgetType::spinner, WindowColour::secondary                   ),
+        makeWidget({  20, 260 }, { 120,  22 }, WidgetType::button,   WindowColour::secondary, STR_TOURNAMENT_TITLE ),
+        makeWidget({ 160, 260 }, { 120,  22 }, WidgetType::button,   WindowColour::secondary, STR_ZONES_TITLE      ),
+        makeWidget({ 300, 260 }, { 120,  22 }, WidgetType::button,   WindowColour::secondary, STR_CARTS_TITLE      )
     );
     // clang-format on
 
@@ -736,6 +743,15 @@ namespace OpenRCT2::Ui::Windows
                     invalidate();
                     break;
                 }
+                case WIDX_STAT_TOURNAMENT:
+                    ContextOpenWindow(WindowClass::tournament);
+                    break;
+                case WIDX_STAT_ZONES:
+                    ContextOpenWindow(WindowClass::zones);
+                    break;
+                case WIDX_STAT_CARTS:
+                    ContextOpenWindow(WindowClass::carts);
+                    break;
             }
         }
     };
