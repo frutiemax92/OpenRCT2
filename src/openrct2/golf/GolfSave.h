@@ -23,7 +23,8 @@ namespace OpenRCT2::Golf
     // 2: golfers remember the car they came in (STE-012).
     // 3: the golf carts and who rides them (CRT-002 to CRT-005).
     // 4: golfers remember the driving range they are visiting (DRV-005).
-    constexpr uint32_t kGolfSaveFormat = 4;
+    // 5: the animals (ANM-001).
+    constexpr uint32_t kGolfSaveFormat = 5;
 
     std::vector<uint8_t> saveDirector(const GolfDirector& director);
     // Restores the state saved by saveDirector into a director built on the same courses. Returns false (and leaves the

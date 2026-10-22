@@ -9,6 +9,7 @@
 
 #pragma once
 
+#include "Animals.h"
 #include "Arrivals.h"
 #include "Carts.h"
 #include "GolfObjectives.h"
@@ -58,6 +59,8 @@ namespace OpenRCT2::Golf
 
         // CRT-002: the golf carts, owned here so they are saved with the golfers who ride them.
         CartFleet fleet;
+        // Animals (section 20), owned here so they are saved with the rest of the course.
+        std::unique_ptr<AnimalSimulation> animals;
 
         OpeningHours hours;
         int32_t maxGolfers = kDefaultMaxGolfers;

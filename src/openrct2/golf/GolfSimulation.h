@@ -9,6 +9,7 @@
 
 #pragma once
 
+#include "Animals.h"
 #include "Carts.h"
 #include "CourseManager.h"
 #include "GameClock.h"
@@ -84,6 +85,8 @@ namespace OpenRCT2::Golf
             littered,
             paidCartFee,    // value = the fee (CRT-003)
             paidRangeFee,   // value = the price of the bucket (DRV-005)
+            hitByBall,      // golferId is the victim (BAL-034, GLF-013)
+            sawAnimal,      // a golfer saw an animal (ANM-005)
         };
         Type type = Type::thought;
         uint32_t golferId = 0;
@@ -123,6 +126,8 @@ namespace OpenRCT2::Golf
             std::vector<LitterBin> bins;
             // CRT-002 to CRT-005: the golf carts. When there is no fleet everyone walks.
             CartFleet* carts = nullptr;
+            // ANM-003, ANM-005: the animals the balls can hit and the golfers can see. None without them.
+            AnimalSimulation* animals = nullptr;
             // Positions along the paths, where carts may stop (CRT-004).
             std::function<std::vector<FixedVec3>()> pathPoints;
         };

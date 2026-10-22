@@ -117,6 +117,7 @@ namespace OpenRCT2::Golf
         crowdedPath,
         highPrices,
         noCart,             // wanted a cart and had to walk (CRT-003)
+        sawAnimal,          // saw an animal near the hole (ANM-005)
         count,
     };
     // Happiness delta on the 0..255 scale for each event.

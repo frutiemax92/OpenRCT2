@@ -35,6 +35,7 @@
 #include <openrct2/actions/golf/RangeEditAction.h>
 #include <openrct2/actions/scenery/SmallSceneryPlaceAction.h>
 #include <openrct2/golf/DrivingRange.h>
+#include <openrct2/golf/MapObstacles.h>
 #include <openrct2/actions/scenery/ParkingPlaceAction.h>
 #include <openrct2/world/Parking.h>
 #include <openrct2/world/Street.h>
@@ -1071,4 +1072,121 @@ TEST(GolfRuntimeTests, EveryAnimalStateMapsToAClipTheDuckHas)
         EXPECT_NE(model->findClip(animalClipName(state)), nullptr) << animalClipName(state);
     // The duck has no flying clip in this model; the painter falls back to walking, so the name alone is not an error.
     EXPECT_STREQ(animalClipName(Golf::AnimalState::fly), "fly");
+}
+
+TEST(GolfRuntimeTests, TheSpeciesAreTheLoadedAnimalObjects)
+{
+    auto context = startPark();
+    ASSERT_NE(context.get(), nullptr);
+    auto& gameState = getGameState();
+    gameState.golf.createCourse("Links");
+    auto& objectManager = context->GetObjectManager();
+    if (objectManager.LoadObject("golf.animal.duck") == nullptr || objectManager.LoadObject("golf.animal.deer") == nullptr)
+        GTEST_SKIP() << "the animals are not installed";
+    auto& runtime = Golf::runtimeOf(gameState);
+    runtime.update(0); // the species are looked at once a game minute
+    const auto& species = runtime.director().animals->species();
+    ASSERT_EQ(species.size(), 2u);
+    bool duck = false, deer = false;
+    for (const auto& s : species)
+    {
+        duck = duck || (s.id == "golf.animal.duck" && (s.habitat & Golf::kHabitatWater) != 0 && s.canSwim);
+        deer = deer || (s.id == "golf.animal.deer" && (s.habitat & Golf::kHabitatWoods) != 0 && !s.canSwim);
+    }
+    EXPECT_TRUE(duck);
+    EXPECT_TRUE(deer);
+    // The group sizes and the spawn rate come from the objects.
+    for (const auto& s : species)
+    {
+        EXPECT_GE(s.minGroup, 1);
+        EXPECT_GE(s.maxGroup, s.minGroup);
+        EXPECT_GT(s.spawnPerThousandPerDay, 0);
+    }
+}
+
+TEST(GolfRuntimeTests, AnimalsAreDrawnAndAreSmallObstaclesForTheBalls)
+{
+    auto context = startPark();
+    ASSERT_NE(context.get(), nullptr);
+    auto& gameState = getGameState();
+    gameState.mapSize = { 60, 60 };
+    gameState.golf.createCourse("Links");
+    auto& runtime = Golf::runtimeOf(gameState);
+    // A species that lives anywhere on dry ground, added by hand (the minute boundaries would replace it with the objects').
+    Golf::AnimalSpecies everywhere;
+    everywhere.id = "golf.animal.test";
+    everywhere.habitat = Golf::kHabitatFairway | Golf::kHabitatRough | Golf::kHabitatWoods;
+    everywhere.minGroup = everywhere.maxGroup = 2;
+    runtime.director().animals->addSpecies(everywhere);
+    const FixedVec3 centre{ Fixed::fromInt(10 * 32), Fixed::fromInt(10 * 32), Fixed{} };
+    if (runtime.director().animals->spawnGroup(0, centre, 3 * 32) == 0)
+        GTEST_SKIP() << "no dry ground at the centre of the test park";
+
+    runtime.update(1);
+    EXPECT_EQ(gameState.entities.getEntityListCount(EntityType::animal), 2u);
+    // ANM-003: a ball meets the animal as an obstacle.
+    const auto& animal = runtime.director().animals->animals()[0];
+    Golf::ObstacleContact contact;
+    const FixedVec3 at{ animal.position.x, animal.position.y, animal.position.z + Fixed::fromInt(2) };
+    EXPECT_TRUE(Golf::GetMapObstacles().query(at, Fixed::ratio(1, 2), contact));
+    EXPECT_TRUE(Golf::isAnimalObstacle(contact.id));
+    EXPECT_EQ(Golf::animalOfObstacle(contact.id), animal.id);
+
+    // Animals that are gone lose their entity and their obstacle.
+    runtime.director().animals->setSpecies({});
+    runtime.update(2);
+    EXPECT_EQ(gameState.entities.getEntityListCount(EntityType::animal), 0u);
+    Golf::ObstacleContact none;
+    EXPECT_FALSE(Golf::GetMapObstacles().query(at, Fixed::ratio(1, 2), none));
+}
+
+TEST(GolfRuntimeTests, GolfersOnTheCourseAreObstaclesForBallsButNotForTheirOwn)
+{
+    auto context = startPark();
+    ASSERT_NE(context.get(), nullptr);
+    auto& gameState = getGameState();
+    gameState.cheats.sandboxMode = true;
+    ObjectEntryIndex index{};
+    auto* club = loadClub(*context, index);
+    if (club == nullptr)
+        GTEST_SKIP() << "the club house object is not installed";
+    const auto found = findFlatBlock(3, 2);
+    ASSERT_TRUE(found.has_value());
+    insertPath(Building::GetEntrance(*club, *found, 0).outsideTile);
+    GameActions::BuildingPlaceAction place(*found, index, 0);
+    ASSERT_EQ(GameActions::ExecuteNested(&place, gameState).error, GameActions::Status::ok);
+    auto* course = gameState.golf.createCourse("Links");
+    course->open = true;
+    auto* hole = gameState.golf.createHole(course->id);
+    hole->tees[0] = Golf::HolePoint{ found->x + 64, found->y + 200 };
+    hole->cup = Golf::HolePoint{ found->x + 64, found->y + 700 };
+    auto& runtime = Golf::runtimeOf(gameState);
+    runtime.director().setPopularity(0);
+
+    Golf::GolfSimulation::Spawn spawn;
+    spawn.courseId = course->id;
+    spawn.money = 100000;
+    spawn.position = runtime.buildings().club;
+    const uint32_t id = runtime.director().simulation().spawn(spawn).id;
+    const uint32_t start = Golf::kTicksPerGameDay + 7 * 60 * Golf::kTicksPerGameMinute;
+    bool sawObstacle = false;
+    for (uint32_t t = start; t < start + 40 * Golf::kTicksPerGameMinute; t++)
+    {
+        runtime.update(t);
+        const auto* golfer = runtime.director().simulation().find(id);
+        if (golfer == nullptr || golfer->state != Golf::GolferState::preparingShot)
+            continue;
+        Golf::ObstacleContact contact;
+        const FixedVec3 at{ golfer->position.x, golfer->position.y, golfer->position.z + Fixed::fromInt(4) };
+        sawObstacle = Golf::GetMapObstacles().query(at, Fixed::ratio(1, 2), contact);
+        if (sawObstacle)
+        {
+            EXPECT_TRUE(contact.isGolfer);
+            EXPECT_EQ(contact.golferId, id);
+            EXPECT_EQ(contact.id, Golf::golferObstacleId(id));
+            // The ball on the tee is theirs, and ignores them once it is hit.
+            break;
+        }
+    }
+    EXPECT_TRUE(sawObstacle);
 }

@@ -30,7 +30,12 @@
 #include "../world/tile_element/BuildingElement.h"
 #include "../world/tile_element/TileElement.h"
 #include "GolfSave.h"
+#include "../Context.h"
+#include "../entity/AnimalEntity.h"
 #include "../entity/GolfBall.h"
+#include "../object/AnimalObject.h"
+#include "../object/ObjectLimits.h"
+#include "../object/ObjectManager.h"
 #include "../entity/GolfVehicleEntity.h"
 #include "../world/Parking.h"
 #include "../world/Street.h"
@@ -196,6 +201,11 @@ namespace OpenRCT2::Golf
             entity->invalidate();
             getGameState().entities.entityRemove(entity);
         }
+        std::vector<AnimalEntity*> orphanAnimals;
+        for (auto* entity : EntityList<AnimalEntity>())
+            orphanAnimals.push_back(entity);
+        for (auto* entity : orphanAnimals)
+            entity->remove();
         std::vector<GolfVehicleEntity*> orphanVehicles;
         for (auto* entity : EntityList<GolfVehicleEntity>())
             orphanVehicles.push_back(entity);
@@ -620,6 +630,194 @@ namespace OpenRCT2::Golf
         }
     }
 
+    namespace
+    {
+        constexpr size_t kMaxAnimals = 48;
+
+        AnimalSpecies speciesOf(const AnimalObject& object)
+        {
+            AnimalSpecies species;
+            species.id = std::string(object.GetIdentifier());
+            species.habitat = 0;
+            for (const auto& surface : object.AllowedSurfaces)
+            {
+                if (surface == "water")
+                    species.habitat |= kHabitatWater;
+                else if (surface == "grass")
+                    species.habitat |= kHabitatGreenBank | kHabitatFairway;
+                else if (surface == "rough")
+                    species.habitat |= kHabitatRough;
+                else if (surface == "woods")
+                    species.habitat |= kHabitatWoods;
+            }
+            if (species.habitat == 0)
+                species.habitat = kHabitatRough | kHabitatWoods;
+            species.canSwim = (species.habitat & kHabitatWater) != 0;
+            species.canFly = object.HasClip("fly");
+            species.minGroup = std::max(1, object.MinGroupSize);
+            species.maxGroup = std::max(species.minGroup, object.MaxGroupSize);
+            species.spawnPerThousandPerDay = std::clamp(object.SpawnRate * 4, 0, 1000);
+            species.bodyRadiusUnits = std::max(1, object.Collision.radius);
+            species.bodyHeightUnits = std::max(2, object.Collision.height);
+            return species;
+        }
+    } // namespace
+
+    // ANM-001: the species are the animal objects that are loaded.
+    void GolfRuntime::refreshAnimals()
+    {
+        auto& objects = GetContext()->GetObjectManager();
+        std::vector<AnimalSpecies> species;
+        std::vector<uint16_t> entries;
+        for (uint16_t i = 0; i < kMaxAnimalObjects; i++)
+        {
+            if (const auto* object = objects.GetLoadedObject<AnimalObject>(i))
+            {
+                species.push_back(speciesOf(*object));
+                entries.push_back(i);
+            }
+        }
+        const auto& known = _director->animals->species();
+        bool same = known.size() == species.size();
+        for (size_t i = 0; same && i < known.size(); i++)
+            same = known[i].id == species[i].id;
+        if (same && entries == _animalObjects)
+            return;
+        _animalObjects = entries;
+        _director->animals->setSpecies(std::move(species));
+    }
+
+    void GolfRuntime::driveAnimals()
+    {
+        auto& animals = *_director->animals;
+        auto& sim = _director->simulation();
+
+        // ANM-002: animals keep away from golfers and moving carts.
+        std::vector<Threat> threats;
+        for (const auto& golfer : sim.golfers())
+            if (golfer.state != GolferState::inCar)
+                threats.push_back({ golfer.position, false });
+        for (const auto& cart : _director->fleet.carts())
+            if (cart.state != CartState::parked)
+                threats.push_back({ cart.position, true });
+        animals.tick(threats);
+
+        // The daily roll for new groups, around the holes and the ranges and in a few places on the map.
+        const auto day = _director->currentDay();
+        if (day != _animalDay)
+        {
+            const bool first = _animalDay == 0xFFFFFFFFu;
+            _animalDay = day;
+            if (!first && animals.animals().size() < kMaxAnimals)
+            {
+                std::vector<FixedVec3> candidates;
+                for (const auto& course : getGameState().golf.courses())
+                    for (const auto& hole : course.holes)
+                        if (hole.cup)
+                            candidates.push_back({ Fixed::fromInt(hole.cup->x), Fixed::fromInt(hole.cup->y), Fixed{} });
+                for (const auto& range : getGameState().golf.ranges())
+                    candidates.push_back(
+                        { Fixed::fromInt((range.areaMin.x + range.areaMax.x + 1) * 16),
+                          Fixed::fromInt((range.areaMin.y + range.areaMax.y + 1) * 16), Fixed{} });
+                const auto size = getGameState().mapSize;
+                if (size.x > 4 && size.y > 4)
+                {
+                    for (int i = 0; i < 6; i++)
+                    {
+                        const auto roll = _rng->next();
+                        candidates.push_back({ Fixed::fromInt((2 + static_cast<int32_t>(roll % static_cast<uint32_t>(size.x - 4))) * 32),
+                                               Fixed::fromInt((2 + static_cast<int32_t>((roll >> 12) % static_cast<uint32_t>(size.y - 4))) * 32),
+                                               Fixed{} });
+                    }
+                }
+                animals.dailySpawns(candidates);
+            }
+        }
+
+        // ANM-003: what the balls hit makes a sound; a species with a sound plays its own.
+        for (const auto& event : animals.takeEvents())
+        {
+            if (event.type != AnimalEvent::Type::hitByBall)
+                continue;
+            for (const auto& animal : animals.animals())
+            {
+                if (animal.id != event.animalId)
+                    continue;
+                const CoordsXYZ where{ static_cast<int32_t>(animal.position.x.floor()), static_cast<int32_t>(animal.position.y.floor()), 0 };
+                if (_sound)
+                    _sound(Audio::SoundId::birdChirp, where);
+                else
+                    Audio::PlaySpatial(Audio::SoundId::birdChirp, where);
+            }
+        }
+
+        // The entities follow the animals.
+        auto& entities = getGameState().entities;
+        std::unordered_map<uint32_t, bool> alive;
+        for (const auto& animal : animals.animals())
+        {
+            alive[animal.id] = true;
+            const CoordsXYZ where{ static_cast<int32_t>(animal.position.x.floor()), static_cast<int32_t>(animal.position.y.floor()),
+                                   static_cast<int32_t>(animal.position.z.floor()) };
+            AnimalEntity* entity = nullptr;
+            if (auto it = _animalEntities.find(animal.id); it != _animalEntities.end())
+                entity = entities.getEntity<AnimalEntity>(EntityId::FromUnderlying(it->second));
+            if (entity == nullptr)
+            {
+                const uint16_t object = animal.species < _animalObjects.size() ? _animalObjects[animal.species] : 0;
+                entity = AnimalEntity::create(animal.id, object, where);
+                if (entity == nullptr)
+                    continue;
+                _animalEntities[animal.id] = entity->id.ToUnderlying();
+            }
+            entity->follow(where, animal.state);
+            // ANM-003: a small cylinder in the way of the balls.
+            GetMapObstacles().setDynamic(kAnimalObstacleBase + animal.id, animals.obstacleOf(animal));
+        }
+        for (auto it = _animalEntities.begin(); it != _animalEntities.end();)
+        {
+            if (alive.find(it->first) != alive.end())
+            {
+                ++it;
+                continue;
+            }
+            if (auto* entity = entities.getEntity<AnimalEntity>(EntityId::FromUnderlying(it->second)))
+                entity->remove();
+            GetMapObstacles().removeDynamic(kAnimalObstacleBase + it->first);
+            it = _animalEntities.erase(it);
+        }
+    }
+
+    // BAL-034, BAL-035: a golfer standing out on the course is a cylinder a ball can hit.
+    void GolfRuntime::syncObstacles()
+    {
+        auto& obstacles = GetMapObstacles();
+        std::vector<uint32_t> present;
+        for (const auto& golfer : _director->simulation().golfers())
+        {
+            if (golfer.state == GolferState::inCar || golfer.state == GolferState::arriving)
+                continue;
+            Obstacle o;
+            o.shape = ObstacleShape::cylinder;
+            o.centre = golfer.position;
+            o.halfX = Fixed::fromInt(3);
+            o.halfY = o.halfX;
+            o.height = Fixed::fromInt(16);
+            o.restitution = Fixed::ratio(2, 10);
+            o.friction = Fixed::ratio(5, 10);
+            o.isGolfer = true;
+            o.golferId = golfer.id;
+            obstacles.setDynamic(golferObstacleId(golfer.id) - 0x80000000u, o);
+            present.push_back(golfer.id);
+        }
+        for (const auto id : _golferObstacles)
+        {
+            if (std::find(present.begin(), present.end(), id) == present.end())
+                obstacles.removeDynamic(golferObstacleId(id) - 0x80000000u);
+        }
+        _golferObstacles = std::move(present);
+    }
+
     void GolfRuntime::refreshBuildings()
     {
         _scan = scanBuildings();
@@ -670,6 +868,9 @@ namespace OpenRCT2::Golf
         }
         // Carts are drawn wherever they stand, club or no club.
         syncCarts();
+        if (ticks % kTicksPerGameMinute == 0)
+            refreshAnimals();
+        driveAnimals();
         if (!_scan.hasClub)
             return;
         if (ticks % kTicksPerGameMinute == 0)
@@ -683,6 +884,7 @@ namespace OpenRCT2::Golf
             announce(event);
         syncEntities();
         syncBalls();
+        syncObstacles();
         settleAccounts();
         payUpkeep();
     }

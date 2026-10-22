@@ -18,6 +18,27 @@ namespace OpenRCT2::Golf
     {
         const Fixed kOne = Fixed::fromInt(1);
 
+        // On the course, walking or playing (not in a car, at the desk or leaving).
+        bool isWalkingOrPlaying(GolferState s)
+        {
+            switch (s)
+            {
+                case GolferState::goingToTee:
+                case GolferState::waitingForTeeTime:
+                case GolferState::preparingShot:
+                case GolferState::swinging:
+                case GolferState::watchingBall:
+                case GolferState::walkingToBall:
+                case GolferState::drivingToBall:
+                case GolferState::searchingBall:
+                case GolferState::putting:
+                case GolferState::holeFinished:
+                    return true;
+                default:
+                    return false;
+            }
+        }
+
         bool isWalkingState(GolferState s)
         {
             switch (s)
@@ -594,6 +615,7 @@ namespace OpenRCT2::Golf
             return;
         }
         g.score = HoleScore{};
+        g.animalSightings = 0;
         g.score.par = hole->par();
         g.waitedMinutes = 0;
         g.ballInPlay = false;
@@ -915,6 +937,23 @@ namespace OpenRCT2::Golf
             if (g.waitedMinutes > static_cast<uint32_t>(kFreeWaitMinutes))
                 applyHappiness(g.needs, HappinessEvent::waitedAMinute);
         }
+        // ANM-005: an animal in sight brightens the day, a little, a couple of times a hole. ANM-004: a thief may take a ball.
+        if (_env.animals != nullptr && isWalkingOrPlaying(g.state))
+        {
+            if (g.animalSightings < kAnimalHappinessPerHoleCap && _env.animals->animalsInSight(g.position) > 0)
+            {
+                g.animalSightings++;
+                applyHappiness(g.needs, HappinessEvent::sawAnimal);
+                emit(SimEvent::Type::sawAnimal, g);
+            }
+            if (g.ballInPlay && g.ball.state == BallState::AtRest && _env.animals->tryStealBall(g.ball.position, g.id))
+            {
+                g.score.penalties++;
+                applyHappiness(g.needs, HappinessEvent::lostBall);
+                think(g, ThoughtType::lostBall);
+                emit(SimEvent::Type::lostBall, g);
+            }
+        }
         // GLF-040: anger builds up until the golfer storms off.
         if (g.state != GolferState::leaving && g.state != GolferState::rageQuitting
             && shouldRageQuit(g.needs.happinessByte(), g.rageCauses))
@@ -1164,6 +1203,8 @@ namespace OpenRCT2::Golf
                 r.surfaceRoughness = here.roughness;
                 const auto shot = computeShot(r, *_env.rng);
                 applyShot(g.ball, shot);
+                // The golfer standing over the ball is not in its way (BAL-034).
+                g.ball.passingObstacle = golferObstacleId(g.id);
                 g.score.addShot();
                 drainSwing(g.needs, r.skills.physique);
                 emit(SimEvent::Type::shotHit, g, static_cast<int32_t>(r.club));
@@ -1172,7 +1213,21 @@ namespace OpenRCT2::Golf
             }
             case GolferState::watchingBall:
             {
-                stepBall(g.ball, *_env.world, *_env.rng);
+                const auto events = stepBall(g.ball, *_env.world, *_env.rng);
+                // BAL-034: a ball that hits a golfer hurts their day and may make them leave (GLF-013, GLF-040); one that hits an
+                // animal sends it running (ANM-003).
+                if (events.hitGolfer)
+                {
+                    if (auto* victim = find(events.golferId); victim != nullptr && victim->id != g.id)
+                    {
+                        applyHappiness(victim->needs, HappinessEvent::hitByBall);
+                        think(*victim, ThoughtType::hitByBall);
+                        victim->rageCauses |= kRageHitByBall;
+                        emit(SimEvent::Type::hitByBall, *victim);
+                    }
+                }
+                if (events.obstacleId != 0 && isAnimalObstacle(events.obstacleId) && _env.animals != nullptr)
+                    _env.animals->hitByBall(animalOfObstacle(events.obstacleId));
                 if (isSettled(g.ball.state))
                     judgeBall(g);
                 break;

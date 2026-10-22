@@ -100,6 +100,10 @@ namespace OpenRCT2::Golf
         void syncEntities();
         void syncCarts();
         void syncBalls();
+        // Animals (section 20) and the golfers as obstacles for the balls.
+        void refreshAnimals();
+        void driveAnimals();
+        void syncObstacles();
         void refreshRanges();
         // The streets and parking lots of the map, and the cars on them (STE-020 to STE-022).
         void refreshTraffic();
@@ -132,6 +136,10 @@ namespace OpenRCT2::Golf
         std::unordered_map<uint32_t, uint16_t> _carEntities;              // car id -> entity id
         std::unordered_map<uint32_t, std::vector<uint32_t>> _carGolfers;  // car id -> the golfers it brought
         std::unordered_map<uint32_t, uint16_t> _cartEntities;             // cart id -> entity id
+        std::unordered_map<uint32_t, uint16_t> _animalEntities;           // animal id -> entity id
+        std::vector<uint16_t> _animalObjects;                             // species index -> animal object entry index
+        std::vector<uint32_t> _golferObstacles;                           // golfer ids that are in the way of balls
+        uint32_t _animalDay = 0xFFFFFFFFu;                                // the game day animals last tried to spawn
         std::unordered_map<uint64_t, uint16_t> _ballEntities;             // golfer id (range balls: | 1 << 32) -> entity id
         SoundSink _sound;
         Ledger _paid; // what of the director's income has reached the cash of the park

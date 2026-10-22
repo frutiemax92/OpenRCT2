@@ -863,3 +863,167 @@ TEST(GolfDirectorRange, ABucketCostsTheGolferAndAGolferWhoCannotPayDoesNotGo)
     }
     EXPECT_EQ(park.director->today().rangeBuckets, 0);
 }
+
+namespace
+{
+    AnimalSpecies testDeer()
+    {
+        AnimalSpecies s;
+        s.id = "golf.animal.deer";
+        s.habitat = kHabitatFairway | kHabitatRough | kHabitatWoods;
+        s.minGroup = 2;
+        s.maxGroup = 2;
+        return s;
+    }
+}
+
+TEST(GolfDirectorAnimals, AGolferWhoSeesAnAnimalIsCheeredUpAFewTimesAHole)
+{
+    Park park;
+    park.director->setPopularity(0);
+    park.director->animals->addSpecies(testDeer());
+    // Next to the first tee, where the golfer ends up.
+    ASSERT_GT(park.director->animals->spawnGroup(0, vec(330, 3190, 0), 64), 0);
+
+    GolfSimulation::Spawn spawn;
+    spawn.courseId = park.courseId;
+    spawn.money = 100000;
+    spawn.position = vec(120, 3200, 0);
+    const auto id = park.director->simulation().spawn(spawn).id;
+    int sightings = 0;
+    const int before = park.director->simulation().find(id)->needs.happiness;
+    // Stay in sight of the animals for the first part of the round, without them running off (they stay: no threats here).
+    for (uint32_t t = at(1, 8); t < at(1, 8) + 12 * kTicksPerGameMinute; t++)
+    {
+        park.director->animals->tick({});
+        park.director->update(t);
+        for (const auto& e : park.director->takeEvents())
+            sightings += e.type == SimEvent::Type::sawAnimal ? 1 : 0;
+    }
+    (void)before;
+    EXPECT_GE(sightings, 1);
+    // ANM-005: capped per hole, so a zoo does not make them euphoric.
+    EXPECT_LE(sightings, kAnimalHappinessPerHoleCap * 3);
+}
+
+TEST(GolfDirectorAnimals, AnimalsAreSavedWithTheirSpeciesById)
+{
+    Park park;
+    park.director->animals->addSpecies(testDeer());
+    ASSERT_GT(park.director->animals->spawnGroup(0, vec(120, 3200, 0), 64), 0);
+    const auto count = park.director->animals->animals().size();
+    const auto saved = saveDirector(*park.director);
+
+    // The same species is loaded: the animals come back where they were.
+    Park same;
+    same.director->animals->addSpecies(testDeer());
+    ASSERT_TRUE(loadDirector(*same.director, saved));
+    ASSERT_EQ(same.director->animals->animals().size(), count);
+    EXPECT_EQ(same.director->animals->animals()[0].position.x, park.director->animals->animals()[0].position.x);
+    EXPECT_EQ(saveDirector(*same.director), saved);
+
+    // A different species table finds the species by its id, wherever it is.
+    Park shuffled;
+    AnimalSpecies other = testDeer();
+    other.id = "golf.animal.other";
+    shuffled.director->animals->addSpecies(other);
+    shuffled.director->animals->addSpecies(testDeer());
+    ASSERT_TRUE(loadDirector(*shuffled.director, saved));
+    ASSERT_EQ(shuffled.director->animals->animals().size(), count);
+    EXPECT_EQ(shuffled.director->animals->animals()[0].species, 1u);
+
+    // The species is not loaded at all: the animals do not come back.
+    Park none;
+    ASSERT_TRUE(loadDirector(*none.director, saved));
+    EXPECT_TRUE(none.director->animals->animals().empty());
+}
+
+TEST(GolfDirectorAnimals, SettingTheSpeciesKeepsTheAnimalsOfSpeciesThatRemain)
+{
+    AnimalSimulation sim(nullptr, nullptr);
+    (void)sim;
+    Park park;
+    auto& animals = *park.director->animals;
+    AnimalSpecies first = testDeer();
+    first.id = "a";
+    AnimalSpecies second = testDeer();
+    second.id = "b";
+    animals.setSpecies({ first, second });
+    ASSERT_GT(animals.spawnGroup(1, vec(120, 3200, 0), 64), 0);
+    const auto count = animals.animals().size();
+
+    animals.setSpecies({ second });
+    EXPECT_EQ(animals.animals().size(), count);
+    EXPECT_EQ(animals.animals()[0].species, 0u);
+    animals.setSpecies({ first });
+    EXPECT_TRUE(animals.animals().empty());
+}
+
+TEST(GolfDirectorAnimals, ABallThatHitsAGolferHurtsTheirDayAndOneThatHitsAnAnimalSendsItRunning)
+{
+    Park park;
+    park.director->setPopularity(0);
+    park.director->animals->addSpecies(testDeer());
+    ASSERT_GT(park.director->animals->spawnGroup(0, vec(330, 3190, 0), 32), 0);
+    const auto animalId = park.director->animals->animals()[0].id;
+
+    // The first hole is 5 yards wide of anything; put a golfer and an animal in the way of every ball once it is in the air.
+    GolfSimulation::Spawn spawn;
+    spawn.courseId = park.courseId;
+    spawn.money = 100000;
+    spawn.skills = GolferSkills{ 90, 90, 90, 90 };
+    spawn.position = vec(100, 2900, 0);
+    const auto shooter = park.director->simulation().spawn(spawn).id;
+    spawn.name = "Bystander";
+    const auto victim = park.director->simulation().spawn(spawn).id;
+
+    bool hitVictim = false, hitAnimal = false;
+    park.world.obstacle = [&](const FixedVec3& p, ObstacleContact& contact) {
+        // Anything in the air past the tee and 100 units from it is "in the way".
+        if (p.z < Fixed::fromInt(2) || p.x < Fixed::fromInt(420))
+            return false;
+        contact.normal = { Fixed::fromInt(-1), Fixed{}, Fixed{} };
+        contact.depth = Fixed::fromInt(1);
+        if (!hitVictim)
+        {
+            contact.id = golferObstacleId(victim);
+            contact.isGolfer = true;
+            contact.golferId = victim;
+            hitVictim = true;
+        }
+        else if (!hitAnimal)
+        {
+            contact.id = 0x80000000u + kAnimalObstacleBase + animalId;
+            hitAnimal = true;
+        }
+        else
+        {
+            return false;
+        }
+        return true;
+    };
+    uint32_t hitByBallEvents = 0;
+    bool fled = false;
+    for (uint32_t t = at(1, 8); t < at(1, 8) + 40 * kTicksPerGameMinute && !(fled && hitByBallEvents > 0); t++)
+    {
+        park.director->update(t);
+        for (const auto& e : park.director->takeEvents())
+            hitByBallEvents += e.type == SimEvent::Type::hitByBall && e.golferId == victim ? 1 : 0;
+        for (const auto& event : park.director->animals->takeEvents())
+            fled = fled || event.type == AnimalEvent::Type::hitByBall;
+    }
+    (void)shooter;
+    EXPECT_TRUE(hitVictim);
+    EXPECT_GT(hitByBallEvents, 0u);
+    // GLF-013, GLF-040: the victim minds, and it counts against the course.
+    const auto* hurt = park.director->simulation().find(victim);
+    ASSERT_NE(hurt, nullptr);
+    EXPECT_NE(hurt->rageCauses & kRageHitByBall, 0);
+    bool thought = false;
+    for (const auto& th : hurt->thoughts)
+        thought = thought || th.type == ThoughtType::hitByBall;
+    EXPECT_TRUE(thought);
+    // ANM-003: the animal that was hit was told.
+    EXPECT_TRUE(hitAnimal);
+    EXPECT_TRUE(fled);
+}

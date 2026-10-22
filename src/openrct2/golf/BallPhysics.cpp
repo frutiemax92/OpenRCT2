@@ -113,6 +113,7 @@ namespace OpenRCT2::Golf
                 }
             }
             ball.passingObstacle = 0;
+            c.events.obstacleId = contact.id;
             if (contact.isGolfer)
             {
                 // The ball stops dead and drops; the golfer is hit (BAL-034).

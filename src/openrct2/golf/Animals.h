@@ -99,6 +99,19 @@ namespace OpenRCT2::Golf
         uint32_t value = 0;
     };
 
+    // The obstacle ids of animals: the animal simulation gives 0x60000000 + id, and the map's dynamic obstacles add their base
+    // (MapObstacles::kDynamicBase) to what they are given.
+    constexpr uint32_t kAnimalObstacleBase = 0x60000000u;
+    constexpr uint32_t kDynamicObstacleBase = 0x80000000u;
+    constexpr bool isAnimalObstacle(uint32_t obstacleId)
+    {
+        return obstacleId >= kDynamicObstacleBase + kAnimalObstacleBase && obstacleId < kDynamicObstacleBase + kAnimalObstacleBase + 0x10000000u;
+    }
+    constexpr uint32_t animalOfObstacle(uint32_t obstacleId)
+    {
+        return obstacleId - kDynamicObstacleBase - kAnimalObstacleBase;
+    }
+
     constexpr int32_t kStealChancePerMillionPerMinute = 1500; // rare (ANM-004)
     constexpr int32_t kStealRadiusUnits = 3 * 32;
     constexpr int32_t kAnimalSightUnits = 5 * 32;             // ANM-005
@@ -115,6 +128,9 @@ namespace OpenRCT2::Golf
         }
 
         uint32_t addSpecies(const AnimalSpecies& species);
+        // Replaces the species table, for example when other animal objects are loaded. Animals follow their species to its
+        // new place by its id; animals of a species that is no longer there are dropped.
+        void setSpecies(std::vector<AnimalSpecies> species);
         const std::vector<AnimalSpecies>& species() const
         {
             return _species;
@@ -145,6 +161,7 @@ namespace OpenRCT2::Golf
         int32_t animalsInSight(const FixedVec3& position) const;
 
     private:
+        friend struct GolfSaveAccess;
         Animal* find(uint32_t id);
         bool suitable(const AnimalSpecies& species, const FixedVec3& position) const;
         void chooseWander(Animal& a, const AnimalSpecies& species);

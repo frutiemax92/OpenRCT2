@@ -428,6 +428,49 @@ namespace OpenRCT2::Golf
                 });
             }
 
+            // The animals: their species by id, since the species table comes from the animal objects.
+            if (a.format >= 5)
+            {
+                auto& animals = *d.animals;
+                a.io(animals._nextId);
+                a.io(animals._nextGroup);
+                struct SavedAnimal
+                {
+                    std::string species;
+                    Animal animal;
+                };
+                std::vector<SavedAnimal> saved;
+                if (!a.reading())
+                {
+                    for (const auto& animal : animals._animals)
+                        saved.push_back({ animals._species[animal.species].id, animal });
+                }
+                a.list(saved, [&](SavedAnimal& s) {
+                    a.io(s.species);
+                    a.io(s.animal.id);
+                    a.io(s.animal.groupId);
+                    a.io(s.animal.position);
+                    a.io(s.animal.target);
+                    a.io(s.animal.state);
+                    a.io(s.animal.ticksLeft);
+                    a.io(s.animal.hit);
+                });
+                if (a.reading())
+                {
+                    animals._animals.clear();
+                    for (auto& s : saved)
+                    {
+                        // An animal of a species that is not loaded any more does not come back.
+                        const auto it = std::find_if(
+                            animals._species.begin(), animals._species.end(), [&](const AnimalSpecies& species) { return species.id == s.species; });
+                        if (it == animals._species.end())
+                            continue;
+                        s.animal.species = static_cast<uint32_t>(it - animals._species.begin());
+                        animals._animals.push_back(s.animal);
+                    }
+                }
+            }
+
             // The registry.
             auto& registry = d._registry;
             uint64_t capacity = registry._capacity;

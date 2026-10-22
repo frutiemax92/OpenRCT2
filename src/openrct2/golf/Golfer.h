@@ -77,6 +77,13 @@ namespace OpenRCT2::Golf
     // A rage quit needs happiness under the threshold and at least one course problem behind it.
     bool shouldRageQuit(int32_t happinessByte, uint8_t causes);
 
+    // The obstacle a golfer is for the balls (BAL-034): the map's dynamic obstacles add 0x80000000 to the id they are given
+    // (MapObstacles::kDynamicBase), and golfers use 0x10000000 + their id.
+    constexpr uint32_t golferObstacleId(uint32_t golferId)
+    {
+        return 0x80000000u + 0x10000000u + golferId;
+    }
+
     struct Thought
     {
         ThoughtType type = ThoughtType::enjoyingTheRound;
@@ -129,6 +136,7 @@ namespace OpenRCT2::Golf
         bool rageQuit = false;
         bool finished = false;           // left the course
         uint32_t arrivalDay = 0;
+        int32_t animalSightings = 0;     // animals that cheered the golfer up on this hole (ANM-005)
         uint32_t rangeId = 0;            // the driving range being visited, 0 for none (DRV-005)
         bool rangeVisited = false;       // has been to the range this round
         uint32_t cartId = 0;             // the golf cart rented for the round (CRT-003), 0 for none

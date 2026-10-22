@@ -20,6 +20,8 @@ namespace OpenRCT2::Golf
         , _sources(std::move(sources))
     {
         _sim.environment().carts = &fleet;
+        animals = std::make_unique<AnimalSimulation>(_sim.environment().world, _sim.environment().rng);
+        _sim.environment().animals = animals.get();
     }
 
     uint32_t GolfDirector::openCourse() const

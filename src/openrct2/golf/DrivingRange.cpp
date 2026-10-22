@@ -260,6 +260,7 @@ namespace OpenRCT2::Golf
                 r.aimY = sin(radians);
                 r.lie = lieOf(_world->surfaceAt(s.ball.position.x, s.ball.position.y));
                 applyShot(s.ball, computeShot(r, *_rng));
+                s.ball.passingObstacle = golferObstacleId(g.id);
                 drainSwing(g.needs, r.skills.physique);
                 s.phase = Session::Phase::flying;
                 s.phaseTicks = 0;

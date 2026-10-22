@@ -136,6 +136,7 @@ namespace OpenRCT2::Golf
         bool lippedOut = false;
         bool hitGolfer = false;
         uint32_t golferId = 0;
+        uint32_t obstacleId = 0;   // the last obstacle the ball hit, 0 for none (animals are found by it, ANM-003)
         Fixed strongestImpact{};   // normal speed of the hardest impact, for the sound volume
     };
 

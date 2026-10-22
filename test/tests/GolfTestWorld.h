@@ -163,8 +163,13 @@ namespace GolfTest
             }
             return s;
         }
-        bool obstacleAt(const FixedVec3& p, Fixed, ObstacleContact&) const override
+        // Obstacles with an identity (a golfer, an animal): when set, it gives the contact for a position.
+        std::function<bool(const FixedVec3&, ObstacleContact&)> obstacle;
+
+        bool obstacleAt(const FixedVec3& p, Fixed, ObstacleContact& contact) const override
         {
+            if (obstacle && obstacle(p, contact))
+                return true;
             return blocked(p.x.toDouble(), p.y.toDouble());
         }
     };

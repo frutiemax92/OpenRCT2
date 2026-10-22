@@ -48,6 +48,22 @@ namespace OpenRCT2::Golf
         return static_cast<uint32_t>(_species.size() - 1);
     }
 
+    void AnimalSimulation::setSpecies(std::vector<AnimalSpecies> species)
+    {
+        std::vector<Animal> kept;
+        for (auto animal : _animals)
+        {
+            const auto& old = _species[animal.species];
+            const auto it = std::find_if(species.begin(), species.end(), [&](const AnimalSpecies& s) { return s.id == old.id; });
+            if (it == species.end())
+                continue;
+            animal.species = static_cast<uint32_t>(it - species.begin());
+            kept.push_back(animal);
+        }
+        _animals = std::move(kept);
+        _species = std::move(species);
+    }
+
     Animal* AnimalSimulation::find(uint32_t id)
     {
         for (auto& a : _animals)
