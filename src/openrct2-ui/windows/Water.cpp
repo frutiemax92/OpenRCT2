@@ -151,6 +151,14 @@ namespace OpenRCT2::Ui::Windows
             }
         }
 
+        // Setting the tool the window already has active would cancel it, and the window closes when its tool is gone.
+        void SetTool(Tool tool)
+        {
+            if (isToolActive(*this, WIDX_BACKGROUND))
+                ToolCancel();
+            ToolSet(*this, WIDX_BACKGROUND, tool);
+        }
+
         void onMouseUp(WidgetIndex widgetIndex) override
         {
             switch (widgetIndex)
@@ -160,19 +168,19 @@ namespace OpenRCT2::Ui::Windows
                     break;
                 case WIDX_MODE_WATER:
                     _mode = WaterToolMode::water;
-                    ToolSet(*this, WIDX_BACKGROUND, Tool::waterDown);
+                    SetTool(Tool::waterDown);
                     _status.clear();
                     invalidate();
                     break;
                 case WIDX_MODE_STREAM_PLACE:
                     _mode = WaterToolMode::streamPlace;
-                    ToolSet(*this, WIDX_BACKGROUND, Tool::crosshair);
+                    SetTool(Tool::crosshair);
                     _status.clear();
                     invalidate();
                     break;
                 case WIDX_MODE_STREAM_REMOVE:
                     _mode = WaterToolMode::streamRemove;
-                    ToolSet(*this, WIDX_BACKGROUND, Tool::crosshair);
+                    SetTool(Tool::crosshair);
                     _status.clear();
                     invalidate();
                     break;
