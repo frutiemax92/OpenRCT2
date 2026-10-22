@@ -936,6 +936,7 @@ namespace
     {
         uint32_t ticks = 0;
         uint32_t ticksOnHarshGround = 0;
+        uint32_t ticksInWater = 0;
         bool arrived = false;
     };
 
@@ -960,6 +961,8 @@ namespace
             trial.ticks++;
             if (walkSpeedHundredthsOn(c.world.surfaceAt(g.position.x, g.position.y)) == kWalkSpeedHarshHundredths)
                 trial.ticksOnHarshGround++;
+            if (c.world.surfaceAt(g.position.x, g.position.y).water)
+                trial.ticksInWater++;
         }
         return trial;
     }
@@ -980,6 +983,32 @@ TEST(GolfSimulationWalking, AGolferWalksRoundHarshGroundWhenThatIsQuicker)
     EXPECT_LT(trial.ticksOnHarshGround, 10u);
     // Straight on, 100 units of sand at 0.14 and 100 of grass at 0.24 take 1131 ticks; the way round takes less than 1000.
     EXPECT_LT(trial.ticks, 1000u);
+}
+
+TEST(GolfSimulationWalking, AGolferWalksRoundWaterInsteadOfAcrossIt)
+{
+    const auto pond = [](double x, double y) { return x > 120 && x < 220 && y > 2954 && y < 2966; };
+    Course3 c;
+    c.world.water = pond;
+    auto env = c.environment();
+    env.clubEntrance = vec(300, 2960, 0);
+    const auto trial = walkToTheClub(c, env, vec(100, 2960, 0));
+    EXPECT_TRUE(trial.arrived);
+    EXPECT_EQ(trial.ticksInWater, 0u);
+}
+
+TEST(GolfSimulationWalking, AGolferStandingInAPondWadesOutByTheShortestWay)
+{
+    // A pond 200 wide and 100 deep; the golfer stands near its edge and the club lies beyond the far side.
+    const auto pond = [](double x, double y) { return x > 100 && x < 300 && y > 2900 && y < 3000; };
+    Course3 c;
+    c.world.water = pond;
+    auto env = c.environment();
+    env.clubEntrance = vec(400, 2960, 0);
+    const auto trial = walkToTheClub(c, env, vec(110, 2960, 0));
+    EXPECT_TRUE(trial.arrived);
+    // Out through the near edge (10 units), not 190 units across.
+    EXPECT_LT(trial.ticksInWater, 100u);
 }
 
 TEST(GolfSimulationWalking, AGolferCrossesHarshGroundWhenTheWayRoundIsLonger)

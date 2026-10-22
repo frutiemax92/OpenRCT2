@@ -609,13 +609,31 @@ namespace OpenRCT2::Golf
         if (_env.world == nullptr)
             return route;
         const int64_t fx = from.x.floor(), fy = from.y.floor(), tx = to.x.floor(), ty = to.y.floor();
-        if (std::max(std::abs(tx - fx), std::abs(ty - fy)) < kPlanMinDistanceUnits)
+
+        // Whether a short line, sampled along it, passes over water.
+        const auto crossesWater = [this](int64_t ax, int64_t ay, int64_t bx, int64_t by) {
+            const int64_t dist = static_cast<int64_t>(std::hypot(static_cast<double>(bx - ax), static_cast<double>(by - ay)));
+            const int64_t steps = std::max<int64_t>(1, (dist + kPlanSampleUnits - 1) / kPlanSampleUnits);
+            for (int64_t i = 1; i < steps; i++)
+            {
+                const int64_t x = ax + (bx - ax) * i / steps;
+                const int64_t y = ay + (by - ay) * i / steps;
+                if (_env.world->surfaceAt(Fixed::fromInt(x), Fixed::fromInt(y)).water)
+                    return true;
+            }
+            return false;
+        };
+        if (std::max(std::abs(tx - fx), std::abs(ty - fy)) < kPlanMinDistanceUnits && !crossesWater(fx, fy, tx, ty))
             return route;
+
+        // Water is not forbidden, so that a golfer already standing in it still finds the way out, but it costs so much that
+        // every dry way is taken first.
+        constexpr int64_t kWaterPlanSpeed = 1;
 
         // Time to walk a short line, sampled along it, in ticks scaled by a thousand.
         const auto speedAt = [this](int64_t x, int64_t y) {
-            return static_cast<int64_t>(
-                walkSpeedHundredthsOn(_env.world->surfaceAt(Fixed::fromInt(x), Fixed::fromInt(y))));
+            const auto ground = _env.world->surfaceAt(Fixed::fromInt(x), Fixed::fromInt(y));
+            return ground.water ? kWaterPlanSpeed : static_cast<int64_t>(walkSpeedHundredthsOn(ground));
         };
         const auto lineCost = [&](int64_t ax, int64_t ay, int64_t bx, int64_t by) {
             const int64_t dist = static_cast<int64_t>(std::hypot(static_cast<double>(bx - ax), static_cast<double>(by - ay)));
@@ -657,8 +675,8 @@ namespace OpenRCT2::Golf
             for (int64_t c = 0; c < cols; c++)
             {
                 const auto ground = _env.world->surfaceAt(Fixed::fromInt(centreX(c)), Fixed::fromInt(centreY(r)));
-                blocked[static_cast<size_t>(r * cols + c)] = ground.water || ground.outOfBounds;
-                cellSpeed[static_cast<size_t>(r * cols + c)] = walkSpeedHundredthsOn(ground);
+                blocked[static_cast<size_t>(r * cols + c)] = ground.outOfBounds;
+                cellSpeed[static_cast<size_t>(r * cols + c)] = ground.water ? kWaterPlanSpeed : walkSpeedHundredthsOn(ground);
             }
         blocked[static_cast<size_t>(startCell)] = 0;
         blocked[static_cast<size_t>(goalCell)] = 0;
@@ -693,7 +711,9 @@ namespace OpenRCT2::Golf
                     if (!Stream::CanMove(a, b, false))
                         continue;
                     const int64_t length = (dc == 0 || dr == 0) ? cell : cell * 1414 / 1000;
-                    const int64_t speed = (cellSpeed[static_cast<size_t>(cur)] + cellSpeed[static_cast<size_t>(next)]) / 2;
+                    const int64_t speed = crossesWater(a.x, a.y, b.x, b.y)
+                                              ? kWaterPlanSpeed
+                                              : (cellSpeed[static_cast<size_t>(cur)] + cellSpeed[static_cast<size_t>(next)]) / 2;
                     const int64_t step = cost + length * 100000 / speed;
                     if (step < best[static_cast<size_t>(next)])
                     {
