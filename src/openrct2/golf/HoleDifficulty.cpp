@@ -32,7 +32,9 @@ namespace OpenRCT2::Golf
                 return table.par3Max;
             if (par == 4)
                 return table.par4Max;
-            return table.par4Max + (table.par4Max - table.par3Max) / 2 + 60; // par 5s run to about 600 yards
+            if (par == 5)
+                return table.par5Max;
+            return table.par5Max + (table.par5Max - table.par4Max) / 2; // par 6s run on past the par 5 range
         }
 
         std::vector<SamplePoint> sampleLine(const std::vector<HolePoint>& line)

@@ -30,6 +30,7 @@ namespace OpenRCT2::Golf
             switch (s)
             {
                 case GolferState::goingToTee:
+                case GolferState::waitingForGroup:
                 case GolferState::waitingForTeeTime:
                 case GolferState::preparingShot:
                 case GolferState::swinging:
@@ -602,7 +603,6 @@ namespace OpenRCT2::Golf
         return push;
     }
 
-    bool GolfSimulation::walk(Golfer& g, const FixedVec3& to)
     std::vector<FixedVec3> GolfSimulation::planWalk(const FixedVec3& from, const FixedVec3& to) const
     {
         std::vector<FixedVec3> route{ to };
@@ -736,10 +736,10 @@ namespace OpenRCT2::Golf
         return route;
     }
 
+    bool GolfSimulation::walk(Golfer& g, const FixedVec3& to)
     {
         if (g.onCart)
             return ride(g, to);
-        const int32_t speedHundredths = _env.world != nullptr ? walkSpeedHundredthsOn(_env.world->surfaceAt(g.position.x, g.position.y))
         // A walk that stopped for a while (a rest, a shot) plans again from where the golfer is now.
         const bool stale = static_cast<uint64_t>(_now) > g.walkRouteTick + kPlanStaleTicks;
         g.walkRouteTick = static_cast<uint64_t>(_now);
@@ -766,6 +766,7 @@ namespace OpenRCT2::Golf
 
     bool GolfSimulation::walkStraight(Golfer& g, const FixedVec3& to)
     {
+        const int32_t speedHundredths = _env.world != nullptr ? walkSpeedHundredthsOn(_env.world->surfaceAt(g.position.x, g.position.y))
                                                               : kWalkSpeedHundredths;
         const Fixed speed = Fixed::ratio(speedHundredths, 100);
         const FixedVec3 delta{ to.x - g.position.x, to.y - g.position.y, Fixed{} };
@@ -831,11 +832,18 @@ namespace OpenRCT2::Golf
             return state == GolferState::waitingForTurn || state == GolferState::followingGroup;
         }
 
+        // On the way to the tee, or standing behind it while another group uses it.
+        bool isGoingToTee(GolferState state)
+        {
+            return state == GolferState::goingToTee || state == GolferState::waitingForGroup;
+        }
+
         bool isPlayingState(GolferState state)
         {
             switch (state)
             {
                 case GolferState::goingToTee:
+                case GolferState::waitingForGroup:
                 case GolferState::waitingForTeeTime:
                 case GolferState::talking:
                 case GolferState::preparingShot:
@@ -954,7 +962,7 @@ namespace OpenRCT2::Golf
                 || mate.holeIndex != shooter.holeIndex)
                 continue;
             if (!isWaitingForTurn(mate.state) && mate.state != GolferState::waitingForTeeTime
-                && mate.state != GolferState::talking && mate.state != GolferState::goingToTee)
+                && mate.state != GolferState::talking && !isGoingToTee(mate.state))
                 continue;
             const int32_t firstSign = (index++ % 2 == 0) ? 1 : -1;
             bool found = false;
@@ -1038,7 +1046,7 @@ namespace OpenRCT2::Golf
         for (const auto& m : _golfers)
             if (m.groupId == member.groupId && !m.finished && m.courseId == member.courseId && m.holeIndex == member.holeIndex
                 && !m.ballInPlay
-                && (m.state == GolferState::goingToTee || m.state == GolferState::waitingForTeeTime
+                && (isGoingToTee(m.state) || m.state == GolferState::waitingForTeeTime
                     || m.state == GolferState::talking || isWaitingForTurn(m.state)))
                 return true;
         return false;
@@ -1066,9 +1074,12 @@ namespace OpenRCT2::Golf
 
     bool GolfSimulation::lineOfFireBlocked(const Golfer& g) const
     {
-        const Fixed length = g.decision.expectedDistance + Fixed::fromInt(kLineOfFireMargin);
+        // The aim is only where the shot is meant to land: it flies past it when it is hit well, or rolls on, so the corridor
+        // reaches well beyond the aim point and a golfer there is not safe either.
+        const Fixed length = g.decision.expectedDistance * kLineOfFireLengthPercent / 100
+            + Fixed::fromInt(kLineOfFireOvershoot);
         // The shot scatters more the further it goes.
-        const Fixed width = Fixed::fromInt(kLineOfFireMargin) + g.decision.expectedDistance / 8;
+        const Fixed width = Fixed::fromInt(kLineOfFireMargin) + g.decision.expectedDistance / 4;
         for (const auto& other : _golfers)
         {
             if (other.id == g.id || other.finished || other.state == GolferState::inCar
@@ -1104,7 +1115,7 @@ namespace OpenRCT2::Golf
             if (!sameGroup && other.ballInPlay && groupHasUntee(other))
                 return true;
             // The group's golfers still on their way go to the tee one after the other: a mate ahead in the queue goes first.
-            if (sameGroup && other.id < g.id && other.state == GolferState::goingToTee)
+            if (sameGroup && other.id < g.id && isGoingToTee(other.state))
                 return true;
             switch (other.state)
             {
@@ -1153,7 +1164,7 @@ namespace OpenRCT2::Golf
         // The place in the queue: golfers with a lower id waiting for the same tee are ahead.
         int32_t slot = 0;
         for (const auto& other : _golfers)
-            if (other.id < g.id && !other.finished && other.state == GolferState::goingToTee
+            if (other.id < g.id && !other.finished && isGoingToTee(other.state)
                 && other.courseId == g.courseId && other.holeIndex == g.holeIndex)
                 slot++;
         const Fixed back = Fixed::fromInt(kTeeQueueDistance + (slot / 3) * 16);
@@ -1730,7 +1741,7 @@ namespace OpenRCT2::Golf
             }
             case GolferState::goingToTee:
             {
-                if (g.cartId != 0 && g.stateTicks == 1)
+                if (g.cartId != 0 && g.stateTicks == 1 && !g.onCart)
                     board(g);
                 // A tee that another group is using is not walked onto: wait still behind it, away from the line of play,
                 // in a spot that depends on the tee and the other waiting golfers only, never on where the golfer stands.
@@ -1749,7 +1760,10 @@ namespace OpenRCT2::Golf
                     target = g.queueSpot;
                 // Standing at the waiting spot: nothing to do until the tee is free.
                 if (occupied && horizontal(g.position, target) <= Fixed::fromInt(kArriveDistanceUnits))
+                {
+                    setState(g, GolferState::waitingForGroup);
                     break;
+                }
                 if (!walk(g, target) || occupied)
                     break;
                 // Arrived: if a golfer (of the group too) is already on the tee, step back to the side instead of stacking.
@@ -1775,8 +1789,16 @@ namespace OpenRCT2::Golf
                 setState(g, GolferState::waitingForTeeTime);
                 break;
             }
+            case GolferState::waitingForGroup:
+                // Stands still; the tee is looked at a few times a second. Once it is free the golfer walks on to it.
+                if (g.stateTicks % kTeeQueueCheckTicks == 0 && !teeOccupied(g, g.destination))
+                {
+                    g.queueing = false;
+                    setState(g, GolferState::goingToTee);
+                }
+                break;
             case GolferState::waitingForTeeTime:
-                if (minuteNow() >= g.teeTimeMinute && !groupBusy(g) && !groupMateOnTee(g) && !groupMateAheadForTee(g))
+                if (!groupBusy(g) && !groupMateOnTee(g) && !groupMateAheadForTee(g))
                 {
                     // Walks back onto the tee first if it stood aside while a group mate played.
                     if (horizontal(g.position, g.destination) > Fixed::fromInt(kArriveDistanceUnits))
@@ -1805,7 +1827,7 @@ namespace OpenRCT2::Golf
                 }
                 break;
             case GolferState::talking:
-                if (minuteNow() >= g.teeTimeMinute || g.stateTicks >= static_cast<uint32_t>(kTalkMinutes * kTicksPerGameMinute))
+                if (g.stateTicks >= static_cast<uint32_t>(kTalkMinutes * kTicksPerGameMinute))
                 {
                     setState(g, GolferState::waitingForTeeTime);
                 }
@@ -2016,8 +2038,7 @@ namespace OpenRCT2::Golf
                 if (!g.ballInPlay)
                 {
                     // Still to tee off: back to the tee when the group's tee shot is free, else aside on the waiting spot.
-                    const bool teeFree = minuteNow() >= g.teeTimeMinute && !groupBusy(g) && !groupMateOnTee(g)
-                        && !groupMateAheadForTee(g);
+                    const bool teeFree = !groupBusy(g) && !groupMateOnTee(g) && !groupMateAheadForTee(g);
                     const FixedVec3 target = teeFree ? g.destination : (g.hasTurnSpot ? g.turnSpot : g.position);
                     const bool there = horizontal(g.position, target) <= Fixed::fromInt(kArriveDistanceUnits);
                     if (there || (g.state == GolferState::followingGroup && walk(g, target)))

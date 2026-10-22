@@ -55,6 +55,7 @@ namespace OpenRCT2::Golf
         walkingToRange,     // on the way to the kiosk of the driving range to buy a bucket (DRV-005)
         waitingForTurn,     // the ball lies still; stands aside until the rest of the group has played and it is this golfer's turn
         followingGroup,     // walking to the waiting spot beside the ball of the group mate who plays (shown as walking to the ball)
+        waitingForGroup,    // standing still behind a tee that another group is still using, until it is free
         count,
     };
     const char* golferStateName(GolferState state);
@@ -145,13 +146,13 @@ namespace OpenRCT2::Golf
         bool hasTurnSpot = false;
         bool holeScored = false;         // the hole is scored and the golfer waits for the group to finish it (not saved)
         uint32_t turnWaitTicks = 0;      // time spent waiting for or following the group's turn
-        FixedVec3 separation; // the push away from close golfers, looked at a few times a second (see GolfSimulation::walk)
         // The way planned to the destination of walk(): corners to pass on the way, taking the quickest ground (not saved, planned
         // again when the golfer starts to walk somewhere else).
         std::vector<FixedVec3> walkRoute;
         FixedVec3 walkRouteTarget;
         bool hasWalkRoute = false;
         uint64_t walkRouteTick = 0;
+        FixedVec3 separation; // the push away from close golfers, looked at a few times a second (see GolfSimulation::walk)
         bool pathBlocked = false;        // someone stands in the way of the planned shot (not saved, looked at again within a second)
         uint32_t arrivalDay = 0;
         int32_t animalSightings = 0;     // animals that cheered the golfer up on this hole (ANM-005)

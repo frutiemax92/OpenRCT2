@@ -345,7 +345,7 @@ TEST(GolfSimulation, AGroupMovesToTheNextHoleTogetherAfterTheLastGolferHolesOut)
     EXPECT_FALSE(wentAhead);
 }
 
-TEST(GolfSimulation, TwoGroupsDoNotTeeOffAtTheSameTime)
+TEST(GolfSimulation, TwoGroupsTeeOffWithoutAFixedSlotBetweenThem)
 {
     Course3 c;
     GolfSimulation sim(c.environment());
@@ -367,29 +367,30 @@ TEST(GolfSimulation, TwoGroupsDoNotTeeOffAtTheSameTime)
     for (size_t h = 0; h < 3; h++)
     {
         const auto a = teeMinutes[1][h], b = teeMinutes[2][h];
-        EXPECT_NE(a, b) << "hole " << h;
-        EXPECT_GE(std::max(a, b) - std::min(a, b), 4u) << "hole " << h; // at least the shortest slot apart
+        // No fixed slot between groups: the second one shoots as soon as the first is out of the way, so it may share the minute.
+        EXPECT_LE(std::max(a, b) - std::min(a, b), 8u) << "hole " << h;
     }
 }
 
-TEST(GolfSimulation, WaitingAtTheTeeCostsHappiness)
+TEST(GolfSimulation, AGroupDoesNotWaitForTheSlotWhenNobodyIsInTheWay)
 {
     Course3 c;
-    // A very long manual slot so the second group waits.
+    // A very long manual slot that used to hold the second group on the tee.
     c.courses.findCourse(c.courseId)->holes[0].schedule.manual = true;
     c.courses.findCourse(c.courseId)->holes[0].schedule.manualSlotMinutes = 25;
     GolfSimulation sim(c.environment());
     sim.spawn(aGolfer(c, 1));
-    auto& second = sim.spawn(aGolfer(c, 2));
-    const uint32_t secondId = second.id;
-    int lowest = 255;
+    sim.spawn(aGolfer(c, 2));
+    std::map<uint32_t, uint32_t> firstTeeOff; // golfer id -> minute of the first tee off
     for (uint32_t t = 1000; t < 1000 + 120000; t++)
     {
         sim.tick(t);
-        if (auto* g = sim.find(secondId); g != nullptr && g->state == GolferState::waitingForTeeTime)
-            lowest = std::min<int>(lowest, g->needs.happinessByte());
+        for (const auto& e : sim.takeEvents())
+            if (e.type == SimEvent::Type::teedOff && firstTeeOff.find(e.golferId) == firstTeeOff.end())
+                firstTeeOff[e.golferId] = gameMinuteAt(t);
     }
-    EXPECT_LT(lowest, 128 - 10);
+    ASSERT_EQ(firstTeeOff.size(), 2u);
+    EXPECT_LT(firstTeeOff[2] - firstTeeOff[1], 10u);
 }
 
 TEST(GolfSimulation, AHungryGolferEatsAtTheClubBetweenHoles)

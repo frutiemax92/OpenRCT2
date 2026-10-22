@@ -197,6 +197,18 @@ TEST_F(GolfNavigationTests, SetupDemoGolfCourseInitialisesPlayableCourseWithTraf
     EXPECT_EQ(regular->holes.size(), 3u);
     EXPECT_EQ(regular->greenFee, 750);
 
+    // Realistic lengths: the par comes from the length tables and no hole is a one-shot par 4.
+    ASSERT_EQ(regular->holes.size(), 3u);
+    const int32_t expectedPar[] = { 4, 3, 5 };
+    for (size_t i = 0; i < 3; i++)
+    {
+        EXPECT_EQ(regular->holes[i].parOverride, 0);
+        EXPECT_EQ(regular->holes[i].par(), expectedPar[i]);
+    }
+    EXPECT_GE(regular->holes[0].lengthYards(Golf::TeeCategory::men), 350);
+    EXPECT_GE(regular->holes[1].lengthYards(Golf::TeeCategory::men), 150);
+    EXPECT_GE(regular->holes[2].lengthYards(Golf::TeeCategory::men), 500);
+
     const auto* mini = gameState.golf.findCourse(courses[1].id);
     ASSERT_NE(mini, nullptr);
     EXPECT_EQ(mini->kind, Golf::CourseKind::miniPutt);

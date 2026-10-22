@@ -34,16 +34,18 @@ namespace OpenRCT2::Golf
     constexpr size_t kMaxHolesPerCourse = 18;
 
     // HOL-006: par from the length in yards, one table per tee category in one place. A hole of up to `par3Max` yards is
-    // par 3, up to `par4Max` par 4 and anything longer par 5.
+    // par 3, up to `par4Max` par 4, up to `par5Max` par 5 and anything longer par 6. The published ranges overlap (a 450-yard
+    // hole can be a par 4 or a par 5); the upper end of each range decides.
     struct ParTable
     {
         int32_t par3Max;
         int32_t par4Max;
+        int32_t par5Max;
     };
     constexpr std::array<ParTable, kTeeCategoryCount> kParTables = { {
-        { 250, 470 }, // men
-        { 210, 400 }, // women
-        { 150, 280 }, // children
+        { 260, 490, 710 }, // men
+        { 220, 420, 600 }, // women
+        { 150, 280, 400 }, // children
     } };
 
     int32_t parForLength(int32_t yards, TeeCategory category = TeeCategory::men);

@@ -55,10 +55,10 @@ TEST(HoleDifficulty, LongHolesForTheirParAreHarder)
 {
     FunctionWorld world;
     // Par 3 holes: the longer one is closer to the upper end of the table.
-    EXPECT_GT(rateHole(holeOfYards(240), world).length, rateHole(holeOfYards(120), world).length);
+    EXPECT_GT(rateHole(holeOfYards(250), world).length, rateHole(holeOfYards(120), world).length);
     // The same distance is harder as a par 3 than as a par 5's lay-up distance.
-    EXPECT_GT(rateHole(holeOfYards(250), world).length, rateHole(holeOfYards(251), world).length);
-    EXPECT_EQ(rateHole(holeOfYards(250), world).length, kMaxLengthDifficulty);
+    EXPECT_GT(rateHole(holeOfYards(260), world).length, rateHole(holeOfYards(261), world).length);
+    EXPECT_EQ(rateHole(holeOfYards(260), world).length, kMaxLengthDifficulty);
     // Length never exceeds its share of the total.
     EXPECT_LE(rateHole(holeOfYards(900), world).length, kMaxLengthDifficulty);
 }

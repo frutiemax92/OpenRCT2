@@ -704,8 +704,8 @@ cover restitution, rolling, cup capture and penalties.
 - HOL-004 MUST: Holes are numbered in creation order and can be reordered in the course window.
 - HOL-005 MUST: Length is measured along the **playing line**: the player MAY place 0–2 **aim points** (doglegs);
   length = sum of straight segments tee→aim points→cup, in yards (1 tile = 5 yd, so 400 yd = 80 tiles).
-- HOL-006 MUST: Par is computed from the men's tee length (overridable): par 3 ≤ 250 yd, par 4 251–470 yd,
-  par 5 > 470 yd (constants in one table, separate tables for women/children).
+- HOL-006 MUST: Par is computed from the men's tee length (overridable): par 3 ≤ 260 yd, par 4 ≤ 490 yd, par 5 ≤ 710 yd,
+  par 6 beyond (women ≤ 220/420/600 yd; constants in one table, separate tables for women/children).
 - HOL-007 MUST: The player draws the **course boundary** (out-of-bounds area) with a zone tool; defaults to all owned
   land.
 

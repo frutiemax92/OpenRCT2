@@ -65,6 +65,8 @@ namespace OpenRCT2::Golf
                 return "Waiting for a turn";
             case GolferState::followingGroup:
                 return "Walking to the ball";
+            case GolferState::waitingForGroup:
+                return "Waiting for the group ahead";
             case GolferState::rageQuitting:
                 return "Rage quitting";
             default:

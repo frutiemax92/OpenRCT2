@@ -1701,45 +1701,62 @@ namespace OpenRCT2::Golf
             regular->greenFee = kFairFeePerHole * 3;
             regular->kind = CourseKind::regular;
 
-            // Hole 1: Par 4
+            // Realistic lengths (men's tee, 5 yards a tile): a par 4 of about 380 yards, a par 3 of 180 and a par 5 of about
+            // 540, so that no golfer reaches a par 4 green in one shot. The par comes from the length tables.
+            auto paintLine = [&](int32_t ax, int32_t ay, int32_t bx, int32_t by, int32_t halfWidth, ObjectEntryIndex surf) {
+                const int32_t steps = std::max(std::abs(bx - ax), std::abs(by - ay));
+                for (int32_t i = 0; i <= steps; i++)
+                {
+                    const int32_t x = steps == 0 ? ax : ax + (bx - ax) * i / steps;
+                    const int32_t y = steps == 0 ? ay : ay + (by - ay) * i / steps;
+                    paintRect(x - halfWidth, y - halfWidth, x + halfWidth, y + halfWidth, surf);
+                }
+            };
+            auto point = [](int32_t x, int32_t y) { return HolePoint{ x * 32 + 16, y * 32 + 16 }; };
+
+            // Hole 1: Par 4, a dogleg of about 383 yards
             auto* hole1 = gameState.golf.createHole(regular->id);
             if (hole1 != nullptr)
             {
-                hole1->tees[0] = HolePoint{ 30 * 32 + 16, 38 * 32 + 16 };
-                hole1->aimPoints[0] = HolePoint{ 45 * 32 + 16, 38 * 32 + 16 };
-                hole1->cup = HolePoint{ 60 * 32 + 16, 38 * 32 + 16 };
-                hole1->parOverride = 4;
+                hole1->tees[0] = point(30, 38);
+                hole1->aimPoints[0] = point(75, 38);
+                hole1->cup = point(106, 44);
+                paintLine(33, 38, 75, 38, 2, fairwayIndex);
+                paintLine(75, 38, 101, 43, 2, fairwayIndex);
                 paintRect(29, 37, 31, 39, teeSurfIndex);
-                paintRect(32, 37, 57, 39, fairwayIndex);
-                paintRect(45, 40, 47, 41, sandIndex);
-                paintRect(58, 36, 62, 40, greenIndex);
+                paintRect(66, 41, 68, 42, sandIndex);
+                paintRect(103, 48, 105, 49, sandIndex);
+                paintRect(110, 43, 111, 45, sandIndex);
+                paintRect(103, 41, 109, 47, greenIndex);
             }
 
-            // Hole 2: Par 3
+            // Hole 2: Par 3, 180 yards
             auto* hole2 = gameState.golf.createHole(regular->id);
             if (hole2 != nullptr)
             {
-                hole2->tees[0] = HolePoint{ 62 * 32 + 16, 43 * 32 + 16 };
-                hole2->cup = HolePoint{ 78 * 32 + 16, 43 * 32 + 16 };
-                hole2->parOverride = 3;
-                paintRect(61, 42, 63, 44, teeSurfIndex);
-                paintRect(64, 42, 75, 44, fairwayIndex);
-                paintRect(72, 45, 74, 46, sandIndex);
-                paintRect(76, 41, 80, 45, greenIndex);
+                hole2->tees[0] = point(108, 52);
+                hole2->cup = point(108, 88);
+                paintLine(108, 55, 108, 83, 2, fairwayIndex);
+                paintRect(107, 51, 109, 53, teeSurfIndex);
+                paintRect(103, 86, 104, 88, sandIndex);
+                paintRect(112, 84, 113, 86, sandIndex);
+                paintRect(105, 85, 111, 91, greenIndex);
             }
 
-            // Hole 3: Par 5
+            // Hole 3: Par 5, a dogleg of about 540 yards
             auto* hole3 = gameState.golf.createHole(regular->id);
             if (hole3 != nullptr)
             {
-                hole3->tees[0] = HolePoint{ 78 * 32 + 16, 48 * 32 + 16 };
-                hole3->aimPoints[0] = HolePoint{ 58 * 32 + 16, 55 * 32 + 16 };
-                hole3->cup = HolePoint{ 38 * 32 + 16, 55 * 32 + 16 };
-                hole3->parOverride = 5;
-                paintRect(77, 47, 79, 49, teeSurfIndex);
-                paintRect(55, 50, 76, 53, fairwayIndex);
-                paintRect(39, 54, 57, 56, fairwayIndex);
-                paintRect(35, 53, 38, 57, greenIndex);
+                hole3->tees[0] = point(126, 94);
+                hole3->aimPoints[0] = point(68, 100);
+                hole3->cup = point(18, 100);
+                paintLine(123, 94, 68, 100, 2, fairwayIndex);
+                paintLine(68, 100, 23, 100, 2, fairwayIndex);
+                paintRect(125, 93, 127, 95, teeSurfIndex);
+                paintRect(88, 102, 90, 103, sandIndex);
+                paintRect(40, 102, 42, 103, sandIndex);
+                paintRect(22, 96, 23, 97, sandIndex);
+                paintRect(15, 97, 21, 103, greenIndex);
             }
         }
 

@@ -28,18 +28,23 @@ namespace
 
 TEST(GolfHole, ParFollowsTheLengthTables)
 {
-    // Men: par 3 up to 250, par 4 up to 470, par 5 beyond.
+    // Men: par 3 up to 260, par 4 up to 490, par 5 up to 710, par 6 beyond.
     EXPECT_EQ(parForLength(0), 3);
-    EXPECT_EQ(parForLength(250), 3);
-    EXPECT_EQ(parForLength(251), 4);
-    EXPECT_EQ(parForLength(470), 4);
-    EXPECT_EQ(parForLength(471), 5);
+    EXPECT_EQ(parForLength(260), 3);
+    EXPECT_EQ(parForLength(261), 4);
+    EXPECT_EQ(parForLength(490), 4);
+    EXPECT_EQ(parForLength(491), 5);
+    EXPECT_EQ(parForLength(710), 5);
+    EXPECT_EQ(parForLength(711), 6);
     // Women and children have shorter thresholds.
     EXPECT_EQ(parForLength(300, TeeCategory::men), 4);
     EXPECT_EQ(parForLength(300, TeeCategory::women), 4);
-    EXPECT_EQ(parForLength(250, TeeCategory::women), 4);
-    EXPECT_EQ(parForLength(250, TeeCategory::child), 4);
+    EXPECT_EQ(parForLength(220, TeeCategory::women), 3);
+    EXPECT_EQ(parForLength(221, TeeCategory::women), 4);
+    EXPECT_EQ(parForLength(420, TeeCategory::women), 4);
     EXPECT_EQ(parForLength(450, TeeCategory::women), 5);
+    EXPECT_EQ(parForLength(601, TeeCategory::women), 6);
+    EXPECT_EQ(parForLength(250, TeeCategory::child), 4);
     EXPECT_EQ(parForLength(150, TeeCategory::child), 3);
     EXPECT_EQ(parForLength(290, TeeCategory::child), 5);
 }
@@ -61,16 +66,18 @@ TEST(GolfHole, AFourHundredYardHoleIsPar4)
     EXPECT_EQ(hole.par(), 4);
     EXPECT_EQ(hole.computedPar(), 4);
     EXPECT_EQ(straightHole(40).par(), 3);   // 200 yards
-    EXPECT_EQ(straightHole(50).par(), 3);   // exactly 250
-    EXPECT_EQ(straightHole(51).par(), 4);   // 255
-    EXPECT_EQ(straightHole(94).par(), 4);   // exactly 470
+    EXPECT_EQ(straightHole(52).par(), 3);   // exactly 260
+    EXPECT_EQ(straightHole(53).par(), 4);   // 265
+    EXPECT_EQ(straightHole(98).par(), 4);   // exactly 490
     EXPECT_EQ(straightHole(100).par(), 5);  // 500
 }
 
-TEST(GolfHole, NinetyFiveTilesIsPar5)
+TEST(GolfHole, NinetyNineTilesIsPar5)
 {
-    EXPECT_EQ(straightHole(94).par(), 4); // 470
-    EXPECT_EQ(straightHole(95).par(), 5); // 475
+    EXPECT_EQ(straightHole(98).par(), 4);  // 490
+    EXPECT_EQ(straightHole(99).par(), 5);  // 495
+    EXPECT_EQ(straightHole(142).par(), 5); // 710
+    EXPECT_EQ(straightHole(143).par(), 6); // 715
 }
 
 TEST(GolfHole, AimPointsBendThePlayingLine)

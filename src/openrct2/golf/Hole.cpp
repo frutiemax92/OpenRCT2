@@ -22,7 +22,9 @@ namespace OpenRCT2::Golf
             return 3;
         if (yards <= table.par4Max)
             return 4;
-        return 5;
+        if (yards <= table.par5Max)
+            return 5;
+        return 6;
     }
 
     int32_t distanceYards(const HolePoint& a, const HolePoint& b)

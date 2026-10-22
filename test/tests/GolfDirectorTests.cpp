@@ -780,6 +780,7 @@ TEST(GolfDirectorRange, GolfersWarmUpAtTheRangeBeforeTheRound)
         spawn.position = vec(100, 2900, 0);
         ids.push_back(park.director->simulation().spawn(spawn).id);
     }
+    std::set<uint32_t> improvedIds;
     bool sawWalking = false, sawAtRange = false;
     const int64_t moneyBefore = 16 * 100000;
     for (uint32_t t = at(1, 8); t < at(1, 8) + 60 * kTicksPerGameMinute; t++)
@@ -789,6 +790,9 @@ TEST(GolfDirectorRange, GolfersWarmUpAtTheRangeBeforeTheRound)
         {
             sawWalking = sawWalking || golfer.state == GolferState::walkingToRange;
             sawAtRange = sawAtRange || golfer.state == GolferState::atDrivingRange;
+            // Checked on the way: a golfer who finishes the round leaves the simulation.
+            if (std::find(ids.begin(), ids.end(), golfer.id) != ids.end() && golfer.skills.longPlay > golfer.initialSkills.longPlay)
+                improvedIds.insert(golfer.id);
         }
     }
     EXPECT_TRUE(sawWalking);
@@ -800,13 +804,7 @@ TEST(GolfDirectorRange, GolfersWarmUpAtTheRangeBeforeTheRound)
     (void)rangeId;
 
     // DRV-006: whoever hit balls hits the long clubs better. Nobody's long play went down.
-    int improved = 0;
-    for (const auto id : ids)
-    {
-        const auto* golfer = park.director->simulation().find(id);
-        if (golfer != nullptr && golfer->skills.longPlay > golfer->initialSkills.longPlay)
-            improved++;
-    }
+    const int improved = static_cast<int>(improvedIds.size());
     EXPECT_GT(improved, 0);
 }
 
