@@ -4043,3 +4043,8 @@ STR_7249    :Brush: Whole tile
 STR_7250    :Brush: Quadrant
 STR_7251    :Brush: Half tile
 STR_7252    :{SMALLFONT}{BLACK}Change which part of the tile is painted: the whole tile, the quarter under the cursor, or the half under the cursor (Alt also paints a quarter, Alt+Shift a half)
+STR_7253    :Step: 1/4
+STR_7254    :Step: 1/2
+STR_7255    :Step: 3/4
+STR_7256    :Step: Full
+STR_7257    :{SMALLFONT}{BLACK}Change how far each click raises or lowers the land: a quarter, a half, three quarters or a full step (Shift also gives a quarter, Alt three quarters, Alt+Shift a full step)

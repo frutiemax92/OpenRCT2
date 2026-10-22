@@ -230,6 +230,8 @@ diagonal flag for steep slopes). The new model uses quarter steps.
 - TER-015 MUST: Land tools (raise/lower corner, raise/lower tile, smooth, level) work in Q increments. A modifier
   key (or tool option "step: ¼ / ½ / ¾ / 1") sets the increment. Smoothing propagates so neighbouring corners
   never differ by more than 4 Q across a shared edge unless a cliff edge is drawn (§6.7).
+  The Land window shows a "Step" button (¼ / ½ / ¾ / full, default ¼) so that every slope level of TER-011 can be
+  reached without a modifier key; Shift (¼), Alt (¾) and Alt+Shift (full) override it.
 - TER-016 MUST: All code that reads `getSlope()` with the old bit flags (paths, scenery placement, water,
   construction clearance, map generator, tile inspector) is migrated to the new model. A compatibility function
   `ToLegacySlope()` MAY exist during migration but MUST be removed at the end of Phase 1.

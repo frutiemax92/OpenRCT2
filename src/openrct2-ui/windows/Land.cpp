@@ -34,6 +34,7 @@
 #include <openrct2/object/TerrainSurfaceObject.h>
 #include <openrct2/ui/WindowManager.h>
 #include <openrct2/world/MapSelection.h>
+#include <openrct2/world/TerrainShape.h>
 
 using OpenRCT2::GameActions::CommandFlag;
 
@@ -62,6 +63,7 @@ namespace OpenRCT2::Ui::Windows
         WIDX_SPAWN_TREES,
         WIDX_TURF_OVERLAY,
         WIDX_BRUSH_MODE,
+        WIDX_STEP_MODE,
     };
 
     enum class SelectionMode
@@ -84,7 +86,8 @@ namespace OpenRCT2::Ui::Windows
         makeWidget     ({67, 146}, {12, 12}, WidgetType::colourBtn, WindowColour::secondary, 0xFFFFFFFF,                              STR_SELECT_COLOUR), // edge colour 1
         makeWidget     ({ 4, 186}, {90, 16}, WidgetType::checkbox,  WindowColour::secondary, STR_LAND_TOOL_SPAWN_TREES,              STR_LAND_TOOL_SPAWN_TREES_TIP), // spawn trees (TER-043)
         makeWidget     ({ 4, 204}, {90, 16}, WidgetType::checkbox,  WindowColour::secondary, STR_TURF_OVERLAY,                       STR_TURF_OVERLAY_TIP), // turf overlay (MON-003)
-        makeWidget     ({ 4, 164}, {90, 16}, WidgetType::button,    WindowColour::secondary, STR_LAND_BRUSH_TILE,                    STR_LAND_BRUSH_TIP) // brush mode (TER-022)
+        makeWidget     ({ 4, 164}, {90, 16}, WidgetType::button,    WindowColour::secondary, STR_LAND_BRUSH_TILE,                    STR_LAND_BRUSH_TIP), // brush mode (TER-022)
+        makeWidget     ({ 4, 164}, {90, 16}, WidgetType::button,    WindowColour::secondary, STR_LAND_STEP_QUARTER,                  STR_LAND_STEP_TIP) // step (TER-015)
     );
     // clang-format on
 
@@ -103,6 +106,8 @@ namespace OpenRCT2::Ui::Windows
         bool _landToolPaintMode = false;
         bool _landToolSpawnTrees = false;
         PaintBrush _paintBrush = PaintBrush::tile;
+        // Quarter steps per click, so every slope level of TER-011 can be reached from flat land.
+        static inline uint8_t _landToolStepQ = 1;
 
         money64 _landToolRaiseCost = kMoney64Undefined;
         money64 _landToolLowerCost = kMoney64Undefined;
@@ -169,6 +174,10 @@ namespace OpenRCT2::Ui::Windows
                     break;
                 case WIDX_BRUSH_MODE:
                     _paintBrush = static_cast<PaintBrush>((static_cast<uint8_t>(_paintBrush) + 1) % 3);
+                    invalidate();
+                    break;
+                case WIDX_STEP_MODE:
+                    _landToolStepQ = static_cast<uint8_t>(_landToolStepQ % Terrain::kMaxCornerOffset + 1);
                     invalidate();
                     break;
                 case WIDX_SPAWN_TREES:
@@ -344,6 +353,14 @@ namespace OpenRCT2::Ui::Windows
             else if (_paintBrush == PaintBrush::half)
                 brushString = STR_LAND_BRUSH_HALF;
             widgets[WIDX_BRUSH_MODE].text = brushString;
+            widgets[WIDX_STEP_MODE].setVisible(!_landToolPaintMode && !_landToolMountainMode);
+            static constexpr StringId kStepStrings[] = {
+                STR_LAND_STEP_QUARTER,
+                STR_LAND_STEP_HALF,
+                STR_LAND_STEP_THREE_QUARTERS,
+                STR_LAND_STEP_FULL,
+            };
+            widgets[WIDX_STEP_MODE].text = kStepStrings[_landToolStepQ - 1];
 
             auto* runtime = Golf::GetGolfRuntime();
             setCheckboxValue(WIDX_TURF_OVERLAY, runtime != nullptr && runtime->turfOverlayEnabled());
@@ -446,8 +463,8 @@ namespace OpenRCT2::Ui::Windows
             return res.error == GameActions::Status::ok ? res.cost : kMoney64Undefined;
         }
 
-        // Quarter steps per raise or lower: a half step by default, Shift for a quarter, Alt for three quarters and
-        // both for a full step (TER-015).
+        // Quarter steps per raise or lower: the step button by default, Shift for a quarter, Alt for three quarters
+        // and both for a full step (TER-015).
         static uint8_t GetLandToolStepQ()
         {
             auto& im = GetInputManager();
@@ -457,7 +474,7 @@ namespace OpenRCT2::Ui::Windows
                 return 4;
             if (alt)
                 return 3;
-            return shift ? 1 : 2;
+            return shift ? 1 : _landToolStepQ;
         }
 
         // Quadrants to paint (TER-022): chosen with the brush button; Alt forces the quadrant under the cursor and
