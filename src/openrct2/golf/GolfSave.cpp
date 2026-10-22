@@ -478,6 +478,46 @@ namespace OpenRCT2::Golf
                 }
             }
 
+            // The books of the buildings, in the order of their ids.
+            if (a.format >= 9)
+            {
+                uint32_t count = static_cast<uint32_t>(d.buildings.size());
+                a.io(count);
+                if (a.reading())
+                {
+                    if (count > kMaxCount)
+                        throw std::runtime_error("golf save: too many buildings");
+                    d.buildings.clear();
+                    for (uint32_t i = 0; i < count; i++)
+                    {
+                        uint32_t key = 0;
+                        BuildingBook book;
+                        a.io(key);
+                        a.io(book.closed);
+                        a.io(book.price);
+                        a.io(book.revenueThisMonth);
+                        a.io(book.revenueLastMonth);
+                        a.io(book.visitorsThisMonth);
+                        a.io(book.visitorsLastMonth);
+                        d.buildings[key] = book;
+                    }
+                }
+                else
+                {
+                    for (auto& [key, book] : d.buildings)
+                    {
+                        uint32_t k = key;
+                        a.io(k);
+                        a.io(book.closed);
+                        a.io(book.price);
+                        a.io(book.revenueThisMonth);
+                        a.io(book.revenueLastMonth);
+                        a.io(book.visitorsThisMonth);
+                        a.io(book.visitorsLastMonth);
+                    }
+                }
+            }
+
             // The registry.
             auto& registry = d._registry;
             uint64_t capacity = registry._capacity;

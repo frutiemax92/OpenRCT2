@@ -116,6 +116,7 @@ namespace OpenRCT2
         editRange,
         editZone,
         editTournament,
+        editBuilding,
         count,
     };
 }

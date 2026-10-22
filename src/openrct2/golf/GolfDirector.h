@@ -10,6 +10,7 @@
 #pragma once
 
 #include "Animals.h"
+#include "BuildingBook.h"
 #include "Arrivals.h"
 #include "Carts.h"
 #include "GolfObjectives.h"
@@ -18,6 +19,7 @@
 #include "Tournament.h"
 
 #include <functional>
+#include <map>
 #include <memory>
 
 namespace OpenRCT2::Golf
@@ -59,6 +61,8 @@ namespace OpenRCT2::Golf
 
         // CRT-002: the golf carts, owned here so they are saved with the golfers who ride them.
         CartFleet fleet;
+        // What the player set for each building and how it did (section 9.3), by the id of the tile it stands on.
+        std::map<uint32_t, BuildingBook> buildings;
         // Animals (section 20), owned here so they are saved with the rest of the course.
         std::unique_ptr<AnimalSimulation> animals;
 

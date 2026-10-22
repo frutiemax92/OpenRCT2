@@ -1154,3 +1154,36 @@ TEST(GolfDirector, TheHolesThatAreSlowerThanTheirSlotAreCountedForTheTournament)
     EXPECT_EQ(park.director->bottleneckHoles(), 2);
     EXPECT_EQ(park.director->playableHoles(), 3);
 }
+
+TEST(GolfDirectorBooks, TheBooksOfABuildingAreSavedAndRollOverEachMonth)
+{
+    Park park;
+    park.director->setPopularity(0);
+    auto& book = park.director->buildings[42];
+    book.closed = true;
+    book.price = 650;
+    book.revenueThisMonth = 9000;
+    book.visitorsThisMonth = 12;
+    book.revenueLastMonth = 4000;
+    book.visitorsLastMonth = 5;
+
+    const auto saved = saveDirector(*park.director);
+    Park other;
+    ASSERT_TRUE(loadDirector(*other.director, saved));
+    ASSERT_EQ(other.director->buildings.size(), 1u);
+    const auto& loaded = other.director->buildings.at(42);
+    EXPECT_TRUE(loaded.closed);
+    EXPECT_EQ(loaded.price, 650);
+    EXPECT_EQ(loaded.revenueThisMonth, 9000);
+    EXPECT_EQ(loaded.visitorsLastMonth, 5);
+    EXPECT_EQ(saveDirector(*other.director), saved);
+
+    // After thirty days this month becomes last month.
+    // (stepping a game minute at a time: the days change on the minute)
+    for (uint32_t t = at(1, 6); t < at(1, 6) + 31 * kTicksPerGameDay; t += kTicksPerGameMinute)
+        park.director->update(t);
+    const auto& rolled = park.director->buildings.at(42);
+    EXPECT_EQ(rolled.revenueLastMonth, 9000);
+    EXPECT_EQ(rolled.visitorsLastMonth, 12);
+    EXPECT_EQ(rolled.revenueThisMonth, 0);
+}

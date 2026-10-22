@@ -31,6 +31,7 @@
 #include <openrct2/world/MapAnimation.h>
 #include <openrct2/world/Building.h>
 #include <openrct2/world/Footpath.h>
+#include <openrct2/actions/golf/BuildingEditAction.h>
 #include <openrct2/actions/golf/CartEditAction.h>
 #include <openrct2/actions/golf/RangeEditAction.h>
 #include <openrct2/actions/golf/TournamentEditAction.h>
@@ -1510,4 +1511,92 @@ TEST(GolfRuntimeTests, TheTournamentChecklistComesFromTheMapAndABookingNeedsItMe
     ASSERT_EQ(GameActions::ExecuteNested(&cancel, gameState).error, GameActions::Status::ok);
     EXPECT_EQ(runtime.director().tournament.phase, Golf::TournamentPhase::none);
     EXPECT_EQ(GameActions::Query(&cancel, gameState).error, GameActions::Status::invalidParameters);
+}
+
+TEST(GolfRuntimeTests, TheClubGetsItsPriceAndCanBeClosedAndKeepsItsBooks)
+{
+    auto context = startPark();
+    ASSERT_NE(context.get(), nullptr);
+    auto& gameState = getGameState();
+    gameState.cheats.sandboxMode = true;
+    ObjectEntryIndex index{};
+    auto* club = loadClub(*context, index);
+    if (club == nullptr)
+        GTEST_SKIP() << "the club house object is not installed";
+    const auto found = findFlatBlock(3, 2);
+    ASSERT_TRUE(found.has_value());
+    insertPath(Building::GetEntrance(*club, *found, 0).outsideTile);
+    GameActions::BuildingPlaceAction place(*found, index, 0);
+    ASSERT_EQ(GameActions::ExecuteNested(&place, gameState).error, GameActions::Status::ok);
+    auto* course = gameState.golf.createCourse("Links");
+    course->open = true;
+    auto* hole = gameState.golf.createHole(course->id);
+    hole->tees[0] = Golf::HolePoint{ found->x + 64, found->y + 200 };
+    hole->cup = Golf::HolePoint{ found->x + 64, found->y + 500 };
+
+    auto& runtime = Golf::runtimeOf(gameState);
+    runtime.director().setPopularity(0);
+    runtime.update(0);
+    auto& services = runtime.director().simulation().environment().services;
+    ASSERT_EQ(services.size(), 1u);
+    EXPECT_EQ(services[0].price, Golf::defaultServicePrice(BuildingKind::golfClub));
+    const auto key = services[0].id;
+    // The id is the tile of the building, not the order it was found in.
+    EXPECT_EQ(key, Golf::buildingKey(found->x / 32, found->y / 32));
+
+    // Any tile of the building will do to name it.
+    const CoordsXY otherPart{ found->x + 32, found->y + 32 };
+    ASSERT_NE(Building::FindAt(otherPart), nullptr);
+    GameActions::BuildingEditAction price(otherPart, GameActions::BuildingEditType::setPrice, 725);
+    ASSERT_EQ(GameActions::ExecuteNested(&price, gameState).error, GameActions::Status::ok);
+    runtime.update(Golf::kTicksPerGameMinute);
+    EXPECT_EQ(runtime.director().simulation().environment().services[0].price, 725);
+
+    // -1 goes back to the usual price.
+    GameActions::BuildingEditAction usual(*found, GameActions::BuildingEditType::setPrice, -1);
+    ASSERT_EQ(GameActions::ExecuteNested(&usual, gameState).error, GameActions::Status::ok);
+    runtime.update(2 * Golf::kTicksPerGameMinute);
+    EXPECT_EQ(runtime.director().simulation().environment().services[0].price, Golf::defaultServicePrice(BuildingKind::golfClub));
+
+    // A closed building serves no one (the golfers go elsewhere), and opens again.
+    GameActions::BuildingEditAction close(*found, GameActions::BuildingEditType::setClosed, 1);
+    ASSERT_EQ(GameActions::ExecuteNested(&close, gameState).error, GameActions::Status::ok);
+    runtime.update(3 * Golf::kTicksPerGameMinute);
+    EXPECT_TRUE(runtime.director().simulation().environment().services.empty());
+    GameActions::BuildingEditAction open(*found, GameActions::BuildingEditType::setClosed, 0);
+    ASSERT_EQ(GameActions::ExecuteNested(&open, gameState).error, GameActions::Status::ok);
+    runtime.update(4 * Golf::kTicksPerGameMinute);
+    EXPECT_EQ(runtime.director().simulation().environment().services.size(), 1u);
+
+    // Errors: nothing there, a bad value, a building with nothing to set.
+    GameActions::BuildingEditAction nothing({ 50 * 32, 50 * 32 }, GameActions::BuildingEditType::setPrice, 100);
+    EXPECT_EQ(GameActions::Query(&nothing, gameState).error, GameActions::Status::invalidParameters);
+    GameActions::BuildingEditAction negative(*found, GameActions::BuildingEditType::setPrice, -5);
+    EXPECT_EQ(GameActions::Query(&negative, gameState).error, GameActions::Status::invalidParameters);
+    GameActions::BuildingEditAction twoState(*found, GameActions::BuildingEditType::setClosed, 2);
+    EXPECT_EQ(GameActions::Query(&twoState, gameState).error, GameActions::Status::invalidParameters);
+
+    // A golfer who is hungry eats at the club: the visit and its price go into the books of the building.
+    runtime.director().buildings[key].price = 500;
+    Golf::GolfSimulation::Spawn spawn;
+    spawn.courseId = course->id;
+    spawn.money = 100000;
+    spawn.position = runtime.buildings().club;
+    const uint32_t id = runtime.director().simulation().spawn(spawn).id;
+    bool starved = false;
+    const uint32_t start = Golf::kTicksPerGameDay + 7 * 60 * Golf::kTicksPerGameMinute;
+    for (uint32_t t = start; t < start + 60 * Golf::kTicksPerGameMinute; t++)
+    {
+        runtime.update(t);
+        if (auto* golfer = runtime.director().simulation().find(id); golfer != nullptr && !starved
+            && golfer->state == Golf::GolferState::preparingShot)
+        {
+            golfer->needs.hunger = 8 * 16; // critical
+            starved = true;
+        }
+    }
+    ASSERT_TRUE(starved);
+    const auto& book = runtime.director().buildings[key];
+    EXPECT_GE(book.visitorsThisMonth, 1);
+    EXPECT_EQ(book.revenueThisMonth, book.visitorsThisMonth * 500);
 }

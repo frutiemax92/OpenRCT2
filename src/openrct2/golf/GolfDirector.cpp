@@ -316,6 +316,9 @@ namespace OpenRCT2::Golf
         _total.add(_today);
         _today = Ledger{};
         _registry.decayTo(_day);
+        if (_day % kBuildingMonthDays == 0)
+            for (auto& [key, book] : buildings)
+                book.endMonth();
         // Rage quits and rounds are remembered over about ten days.
         _rageQuitsRecent = _rageQuitsRecent * 9 / 10;
         _roundsRecent = _roundsRecent * 9 / 10;
@@ -374,6 +377,12 @@ namespace OpenRCT2::Golf
                     _today.cartFees += e.value;
                     break;
                 case SimEvent::Type::usedFacility:
+                    if (e.source != 0)
+                    {
+                        auto& book = buildings[e.source];
+                        book.visitorsThisMonth++;
+                        book.revenueThisMonth += e.value;
+                    }
                     _today.buildingServices += e.value;
                     break;
                 case SimEvent::Type::rageQuit:

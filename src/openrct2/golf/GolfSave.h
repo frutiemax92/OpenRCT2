@@ -27,7 +27,8 @@ namespace OpenRCT2::Golf
     // 6: golfers in the registry can be VIPs who own a cottage (ECO-032).
     // 7: golfers can be tournament professionals (ECO-042).
     // 8: the rage quits when the tournament started (ECO-042).
-    constexpr uint32_t kGolfSaveFormat = 8;
+    // 9: the books of the buildings (section 9.3).
+    constexpr uint32_t kGolfSaveFormat = 9;
 
     std::vector<uint8_t> saveDirector(const GolfDirector& director);
     // Restores the state saved by saveDirector into a director built on the same courses. Returns false (and leaves the

@@ -92,6 +92,7 @@ namespace OpenRCT2::Golf
         uint32_t golferId = 0;
         int32_t value = 0;
         int32_t insult = -1;
+        uint32_t source = 0; // the building a service event is about (Service::id)
         ThoughtType thought = ThoughtType::enjoyingTheRound;
     };
 

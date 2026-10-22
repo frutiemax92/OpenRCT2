@@ -11,6 +11,7 @@
 
 #include "../core/Money.hpp"
 #include "../audio/Audio.h"
+#include "../object/BuildingObject.h"
 #include "GolfDirector.h"
 #include "MapBallWorld.h"
 #include "MapObstacles.h"
@@ -44,6 +45,7 @@ namespace OpenRCT2::Golf
         std::vector<LitterBin> bins;    // path additions that are litter bins (PTH-022)
     };
     BuildingScan scanBuildings();
+    int64_t defaultServicePrice(BuildingKind kind);
 
     // Ties the golf director to the game: the ball world of the map, the buildings that serve needs, the weather. It is
     // created on first use and ticked with the game logic. Nothing runs until the map has a golf club and an open course.
@@ -124,6 +126,8 @@ namespace OpenRCT2::Golf
         void payUpkeep();
         Ledger currentLedger() const;
         std::vector<Bench> mergeBenches() const;
+        // The services as the player has set them: closed buildings serve no one, and prices can be changed (section 9.3).
+        std::vector<Service> servicesWithSettings() const;
         std::vector<LitterBin> mergeBins() const;
         MapBallWorld _world;
         std::unique_ptr<GameRandom> _rng;

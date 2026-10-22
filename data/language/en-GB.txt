@@ -3986,3 +3986,6 @@ STR_7192    :There is no tournament booked
 STR_7193    :The tournament has to be on a day to come
 STR_7194    :A tournament is booked already
 STR_7195    :The course does not meet the requirements of this tournament
+STR_7196    :Can't change the building
+STR_7197    :There is no building there
+STR_7198    :This building has no services to set

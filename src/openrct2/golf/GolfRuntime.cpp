@@ -67,10 +67,23 @@ namespace OpenRCT2::Golf
         }
     } // namespace
 
+    // What a visit costs at a building of a kind until the player says otherwise.
+    int64_t defaultServicePrice(BuildingKind kind)
+    {
+        switch (kind)
+        {
+            case BuildingKind::golfClub:
+                return 400;
+            case BuildingKind::foodTruck:
+                return 350;
+            default:
+                return 0; // restrooms and the like are free
+        }
+    }
+
     BuildingScan scanBuildings()
     {
         BuildingScan scan;
-        uint32_t nextId = 1;
         TileElementIterator it;
         TileElementIteratorBegin(&it);
         do
@@ -132,7 +145,9 @@ namespace OpenRCT2::Golf
             const auto door = doorPosition(*element, *object, TileCoordsXY{ it.x, it.y });
 
             Service service;
-            service.id = nextId++;
+            // The id of a service is the tile of its building, so it stays when others are built or taken away.
+            const auto origin = Building::GetOrigin(CoordsXY{ it.x * kTileSize, it.y * kTileSize }, *element);
+            service.id = buildingKey(origin.x / kTileSize, origin.y / kTileSize);
             service.position = door;
             service.food = object->Services.has(BuildingService::food);
             service.drink = object->Services.has(BuildingService::drink);
@@ -148,7 +163,10 @@ namespace OpenRCT2::Golf
                 scan.club = door;
             }
             if (service.food || service.drink || service.toilet || service.rest || service.proShop)
+            {
+                service.price = defaultServicePrice(object->Kind);
                 scan.services.push_back(service);
+            }
         } while (TileElementIteratorNext(&it));
         return scan;
     }
@@ -175,7 +193,7 @@ namespace OpenRCT2::Golf
         env.rng = _rng.get();
 
         GolfDirector::Sources sources;
-        sources.services = [this] { return _scan.services; };
+        sources.services = [this] { return servicesWithSettings(); };
         sources.benches = [this] { return mergeBenches(); };
         sources.bins = [this] { return mergeBins(); };
         sources.spawnPoint = [this] { return _scan.club; };
@@ -1059,9 +1077,27 @@ namespace OpenRCT2::Golf
         auto& env = _director->simulation().environment();
         env.clubEntrance = _scan.club;
         env.exit = _scan.club;
-        env.services = _scan.services;
+        env.services = servicesWithSettings();
         env.benches = mergeBenches();
         env.bins = mergeBins();
+    }
+
+    std::vector<Service> GolfRuntime::servicesWithSettings() const
+    {
+        std::vector<Service> services;
+        for (auto service : _scan.services)
+        {
+            const auto it = _director->buildings.find(service.id);
+            if (it != _director->buildings.end())
+            {
+                if (it->second.closed)
+                    continue;
+                if (it->second.price >= 0)
+                    service.price = it->second.price;
+            }
+            services.push_back(service);
+        }
+        return services;
     }
 
     std::vector<Bench> GolfRuntime::mergeBenches() const

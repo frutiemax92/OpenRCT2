@@ -1346,6 +1346,7 @@ namespace OpenRCT2::Golf
                 g.money -= std::min<int64_t>(g.money, service->price);
                 _income += service->price;
                 emit(SimEvent::Type::usedFacility, g, static_cast<int32_t>(service->price));
+                _events.back().source = service->id;
 
                 // PTH-022: food and drink generate litter. If a bin is within reach, use it; otherwise litter.
                 if (service->food || service->drink)
