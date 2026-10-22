@@ -11,6 +11,9 @@
 
 #include "../Diagnostic.h"
 #include "../GameState.h"
+
+#include <array>
+#include <set>
 #include "../entity/EntityList.h"
 #include "../localisation/Formatter.h"
 #include "../localisation/StringIds.h"
@@ -1620,7 +1623,8 @@ namespace OpenRCT2::Golf
             }
         };
 
-        auto addPath = [](int32_t x, int32_t y) {
+        std::set<std::pair<int32_t, int32_t>> pathTiles;
+        auto addPath = [&pathTiles](int32_t x, int32_t y) {
             auto* surface = MapGetSurfaceElementAt(TileCoordsXY{ x, y });
             if (surface != nullptr)
             {
@@ -1629,6 +1633,7 @@ namespace OpenRCT2::Golf
                 if (path != nullptr)
                 {
                     path->setClearanceZ(baseZ + 16);
+                    pathTiles.emplace(x, y);
                 }
             }
         };
@@ -1758,6 +1763,54 @@ namespace OpenRCT2::Golf
                 paintRect(22, 96, 23, 97, sandIndex);
                 paintRect(15, 97, 21, 103, greenIndex);
             }
+        }
+
+        // Walkways that lead golfers around the course: along the first fairway, past the first green to the second tee,
+        // down the second fairway to the third tee, then back along the third fairway to the club house.
+        auto addPathLine = [&](int32_t ax, int32_t ay, int32_t bx, int32_t by) {
+            const int32_t stepX = bx > ax ? 1 : (bx < ax ? -1 : 0);
+            const int32_t stepY = by > ay ? 1 : (by < ay ? -1 : 0);
+            for (int32_t x = ax, y = ay;; x += stepX, y += stepY)
+            {
+                // Lines cross each other and the first footpath, so skip tiles that already have one.
+                auto* surface = MapGetSurfaceElementAt(TileCoordsXY{ x, y });
+                if (surface != nullptr && MapGetPathElementAt(TileCoordsXYZ{ x, y, surface->getBaseZ() / kCoordsZStep }) == nullptr)
+                    addPath(x, y);
+                if (x == bx && y == by)
+                    break;
+            }
+        };
+        addPathLine(22, 35, 113, 35);   // beside the first fairway, above its dogleg
+        addPathLine(28, 36, 28, 38);    // spur to the first tee
+        addPathLine(113, 36, 113, 49);  // past the first green
+        addPathLine(108, 49, 112, 49);  // to the second tee
+        addPathLine(108, 50, 108, 50);
+        addPathLine(114, 49, 114, 90);  // beside the second fairway
+        addPathLine(112, 88, 113, 88);  // spur to the second green
+        addPathLine(115, 90, 128, 90);
+        addPathLine(128, 91, 128, 106); // past the third tee
+        addPathLine(127, 106, 7, 106);  // back below the third fairway
+        addPathLine(18, 104, 18, 105);  // spur to the third green
+        addPathLine(7, 105, 7, 46);     // home to the club house
+
+        // Join every footpath tile to the footpath tiles next to it (direction 0 = -x, 1 = +y, 2 = +x, 3 = -y). The tiles
+        // start with every edge set, which draws them as separate pieces that golfers cannot walk between.
+        for (const auto& tile : pathTiles)
+        {
+            const int32_t x = tile.first;
+            const int32_t y = tile.second;
+            auto* surface = MapGetSurfaceElementAt(TileCoordsXY{ x, y });
+            auto* path = surface == nullptr ? nullptr : MapGetPathElementAt(TileCoordsXYZ{ x, y, surface->getBaseZ() / kCoordsZStep });
+            if (path == nullptr)
+                continue;
+            static constexpr std::array<std::pair<int32_t, int32_t>, 4> kNeighbours{ { { -1, 0 }, { 0, 1 }, { 1, 0 }, { 0, -1 } } };
+            uint8_t edges = 0;
+            for (size_t direction = 0; direction < kNeighbours.size(); direction++)
+            {
+                if (pathTiles.count({ x + kNeighbours[direction].first, y + kNeighbours[direction].second }) != 0)
+                    edges |= 1 << direction;
+            }
+            path->setEdges(edges);
         }
 
         // Mini-Putt Course

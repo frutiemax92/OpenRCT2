@@ -18,7 +18,10 @@
 #include <openrct2/entity/GolferEntity.h>
 #include <openrct2/golf/GolfRuntime.h>
 #include <openrct2/interface/Viewport.h>
+#include <openrct2/world/Map.h>
 #include <openrct2/world/MapAnimation.h>
+#include <openrct2/world/tile_element/PathElement.h>
+#include <openrct2/world/tile_element/SurfaceElement.h>
 
 using namespace OpenRCT2;
 using namespace OpenRCT2::Ui;
@@ -185,4 +188,21 @@ TEST_F(GolfGameplayFlowTests, DemoCourseAdmitsGolfersSoonAfterStartWithoutManual
     }
 
     EXPECT_GT(mostGolfers, 0u);
+}
+
+// The footpaths of the demo course join up, so that a golfer can follow them from one hole to the next.
+TEST_F(GolfGameplayFlowTests, DemoCourseFootpathsAreJoinedAlongTheHoles)
+{
+    auto& gameState = getGameState();
+    Golf::SetupDemoGolfCourse(gameState);
+
+    auto edgesAt = [](int32_t x, int32_t y) -> int {
+        auto* surface = MapGetSurfaceElementAt(TileCoordsXY{ x, y });
+        auto* path = surface == nullptr ? nullptr : MapGetPathElementAt(TileCoordsXYZ{ x, y, surface->getBaseZ() / kCoordsZStep });
+        return path == nullptr ? -1 : path->getEdges();
+    };
+    // Straight stretch beside the first fairway: joined east and west only.
+    EXPECT_EQ(edgesAt(50, 35), 0b0101);
+    EXPECT_NE(edgesAt(114, 60), -1);
+    EXPECT_NE(edgesAt(60, 106), -1);
 }
