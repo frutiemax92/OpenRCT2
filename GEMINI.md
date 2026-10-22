@@ -16,6 +16,8 @@ When you hit a problem or an open question you cannot resolve with reasonable ef
 The goal is to implement **all** features detailed in `specifications/detailed-specifications.md`, not just one.
 Do not stop after a single feature or commit. Keep iterating, feature by feature, until every requirement is implemented or you are genuinely blocked.
 
+- **Do NOT look at or touch `openrct2-claude/`**: this is an external directory and is **not** part of the code! All work is strictly for Open Golf Simulator.
+
 1. Read the specification and follow the phase order in §25. Each phase's acceptance criteria must pass before starting the next, unless the phase is marked independent.
 2. Pick the next unimplemented requirement (by ID, e.g. `TER-012`). Implement it, test it, commit it, and push it (see "Git Workflow"). Then immediately move on to the next requirement.
 3. Check `git log` and existing code/tests to see what is already completed; requirement IDs in commit messages indicate progress. Do not redo completed work.
@@ -37,7 +39,7 @@ After every feature or fix:
 
 1. Write unit tests for it (see "Unit Tests" below).
 2. Build and run the **entire** test suite, not only the new tests. Do not commit if anything fails to build or any test fails; fix all failures first.
-3. Stage only the files that belong to that change (exclude build artifacts, logs, or untracked scratch files).
+3. Stage only the files that belong to that change (exclude build artifacts, logs, untracked scratch files, or `openrct2-claude/`).
 4. Commit with a clear message describing what changed and why. Include requirement IDs (e.g., `(ANM-001 to ANM-005)`) and ensure tests are committed alongside the feature code.
    Always include Gemini as a co-author at the end of the commit message:
    ```
