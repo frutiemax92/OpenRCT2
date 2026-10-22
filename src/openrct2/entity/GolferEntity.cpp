@@ -41,10 +41,18 @@ namespace OpenRCT2
         return entity;
     }
 
-    void GolferEntity::follow(const CoordsXYZ& position, Golf::GolferState newState)
+    void GolferEntity::follow(const CoordsXYZ& position, Golf::GolferState newState, const CoordsXY* facing)
     {
         const auto here = getLocation();
-        UpdateFacingFromTravel(yaw, facingFrom, { position.x, position.y });
+        if (facing != nullptr && (facing->x != 0 || facing->y != 0))
+        {
+            yaw = YawFacing(static_cast<double>(facing->x), static_cast<double>(facing->y));
+            facingFrom = { position.x, position.y }; // walking on from here turns the golfer again
+        }
+        else
+        {
+            UpdateFacingFromTravel(yaw, facingFrom, { position.x, position.y });
+        }
         if (newState != state)
             animationTick = 0;
         else

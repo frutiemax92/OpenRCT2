@@ -30,6 +30,8 @@ namespace OpenRCT2::Model
 
         bool loadFile(const std::string& path, std::string& error);
         bool loadBytes(std::span<const uint8_t> data, const std::string& name, std::string& error);
+        // Shows a model another object registered in the sprite store (the golfer, a car, a deer): it stays the object's.
+        void showRegistered(uint32_t modelId, const std::string& name);
         void unload();
         bool isLoaded() const
         {
@@ -80,6 +82,7 @@ namespace OpenRCT2::Model
         float _time = 0;
         float _yaw = 0;
         bool _paused = false;
+        bool _owned = true; // registered by the viewer itself, so it unregisters the model
     };
 
     ModelViewer& GetModelViewer();

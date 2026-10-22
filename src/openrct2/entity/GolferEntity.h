@@ -32,7 +32,9 @@ namespace OpenRCT2
         // Creates an entity for a golfer at a position. Returns nullptr when the entity limit is hit.
         static GolferEntity* create(uint32_t golferId, const CoordsXYZ& position);
         // Moves to a position and turns towards the direction of travel; sets the state that picks the animation.
-        void follow(const CoordsXYZ& position, Golf::GolferState newState);
+        // `facing` is the map direction to look along (the shot) while playing a shot; without it the golfer looks the way it
+        // walks.
+        void follow(const CoordsXYZ& position, Golf::GolferState newState, const CoordsXY* facing = nullptr);
         void remove();
     };
 } // namespace OpenRCT2

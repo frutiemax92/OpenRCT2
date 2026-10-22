@@ -14,6 +14,7 @@
 #include <openrct2/actions/ResultWithMessage.h>
 #include <openrct2/drawing/Colour.h>
 #include <openrct2/golf/GolfRuntime.h>
+#include <openrct2/entity/GolferEntity.h>
 #include <openrct2/object/DefaultObjects.h>
 #include <openrct2/object/ObjectManager.h>
 #include <openrct2/peep/PeepAnimations.h>
@@ -96,6 +97,19 @@ TEST_F(GolfNavigationTests, DefaultObjectsLoadTheHandymanAnimations)
         objectManager.LoadObject(entry);
 
     EXPECT_NE(findPeepAnimationsIndexForType(AnimationPeepType::handyman), kObjectEntryIndexNull);
+}
+
+// A golfer over the ball looks along the shot, not the way it last walked; without an aim it looks the way it walks.
+TEST_F(GolfNavigationTests, AGolferPlayingAShotFacesTheAimAndOtherwiseItsWalk)
+{
+    auto* golfer = GolferEntity::create(1, { 640, 640, 0 });
+    ASSERT_NE(golfer, nullptr);
+    const CoordsXY alongPlusY{ 0, 500 };
+    golfer->follow({ 640, 640, 0 }, Golf::GolferState::swinging, &alongPlusY);
+    EXPECT_EQ(golfer->yaw, 192);
+    // Walking +x, far enough to count, turns it again.
+    golfer->follow({ 700, 640, 0 }, Golf::GolferState::walkingToBall);
+    EXPECT_EQ(golfer->yaw, 128);
 }
 
 // NAV-004: Editor::CheckPark succeeds on golf courses without legacy theme-park gates

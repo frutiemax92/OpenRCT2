@@ -49,20 +49,32 @@ namespace OpenRCT2::Model
         unload();
         _modelId = Drawing::ModelSpriteStore::Instance().RegisterModel(
             std::make_shared<GlbModel>(std::move(result.model)));
+        _owned = true;
         _name = name;
         _time = 0;
         _yaw = 0;
         return true;
     }
 
+    void ModelViewer::showRegistered(uint32_t modelId, const std::string& name)
+    {
+        unload();
+        _modelId = modelId;
+        _owned = false;
+        _name = name;
+        _time = 0;
+        _yaw = 0;
+    }
+
     void ModelViewer::unload()
     {
-        if (_modelId != 0)
+        if (_modelId != 0 && _owned)
         {
             Drawing::ModelSpriteStore::Instance().UnregisterModel(_modelId);
             Drawing::ModelSpriteStore::Instance().Clear();
         }
         _modelId = 0;
+        _owned = true;
         _name.clear();
     }
 

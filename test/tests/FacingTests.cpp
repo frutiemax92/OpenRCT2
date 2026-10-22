@@ -56,3 +56,12 @@ TEST(Facing, StandingStillOrShortStepsLeaveTheHeadingAlone)
     EXPECT_EQ(yaw, 77);
     EXPECT_EQ(from.x, 50);
 }
+
+// Yaw 0 faces -x and grows counter-clockwise: +x is 128, +y is 192 and -y is 64.
+TEST(Facing, YawFacingAMapDirection)
+{
+    EXPECT_EQ(YawFacing(-1, 0), 0);
+    EXPECT_EQ(YawFacing(1, 0), 128);
+    EXPECT_EQ(YawFacing(0, 1), 192);
+    EXPECT_EQ(YawFacing(0, -1), 64);
+}

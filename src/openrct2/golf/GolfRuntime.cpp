@@ -428,7 +428,19 @@ namespace OpenRCT2::Golf
                     continue; // the entity limit is hit: this golfer plays unseen
                 _entityOf[g.id] = entity->id.ToUnderlying();
             }
-            entity->follow(where, g.state);
+            // Over the ball the golfer looks along the shot; the aim is a direction of any length, kept in a fixed point.
+            const bool playingShot = g.state == GolferState::swinging || g.state == GolferState::putting
+                || g.state == GolferState::watchingBall;
+            if (playingShot)
+            {
+                const CoordsXY aim{ static_cast<int32_t>((g.decision.aimX * Fixed::fromInt(1000)).floor()),
+                                    static_cast<int32_t>((g.decision.aimY * Fixed::fromInt(1000)).floor()) };
+                entity->follow(where, g.state, &aim);
+            }
+            else
+            {
+                entity->follow(where, g.state);
+            }
         }
         for (auto it = _entityOf.begin(); it != _entityOf.end();)
         {
