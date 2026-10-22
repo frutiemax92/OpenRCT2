@@ -53,6 +53,14 @@ namespace OpenRCT2::Golf
         Fixed accuracyFactor = Fixed::fromInt(1);
     };
 
+    enum class ObstacleMaterial : uint8_t
+    {
+        generic,
+        tree,
+        building,
+        hard,
+    };
+
     // An obstacle the ball touches (BAL-034). `normal` points out of the obstacle, `depth` is how far the ball is inside.
     struct ObstacleContact
     {
@@ -64,6 +72,7 @@ namespace OpenRCT2::Golf
         uint32_t id = 0;           // stable identity, so a ball passing through is not re-rolled every sub-step
         bool isGolfer = false;
         uint32_t golferId = 0;
+        ObstacleMaterial material = ObstacleMaterial::generic;
     };
 
     // The cup of the hole the ball is on, when there is one within reach (BAL-036).
@@ -138,6 +147,7 @@ namespace OpenRCT2::Golf
         uint32_t golferId = 0;
         uint32_t obstacleId = 0;   // the last obstacle the ball hit, 0 for none (animals are found by it, ANM-003)
         Fixed strongestImpact{};   // normal speed of the hardest impact, for the sound volume
+        ObstacleMaterial obstacleMaterial = ObstacleMaterial::generic;
     };
 
     // Tunable constants, documented in one place (BAL-030..BAL-036). Defaults are tuned so that the carry of every club

@@ -220,6 +220,9 @@ namespace OpenRCT2::Golf
         e.type = type;
         e.golferId = g.id;
         e.value = value;
+        e.x = static_cast<int32_t>(g.position.x.floor());
+        e.y = static_cast<int32_t>(g.position.y.floor());
+        e.z = static_cast<int32_t>(g.position.z.floor());
         _events.push_back(e);
     }
 
@@ -883,6 +886,10 @@ namespace OpenRCT2::Golf
         // GLF-021, MPT-003: a mini putt hole trains Accuracy only; a regular hole trains everything.
         gainSkills(g.skills, course != nullptr && course->kind == CourseKind::miniPutt ? Activity::miniPuttHole : Activity::courseHole, 1);
         emit(SimEvent::Type::holeFinished, g, g.score.toPar());
+        if (g.score.toPar() <= -1)
+            emit(SimEvent::Type::cheer, g, g.score.toPar());
+        else if (g.score.toPar() >= 2)
+            emit(SimEvent::Type::groan, g, g.score.toPar());
 
         if (shouldRageQuit(g.needs.happinessByte(), g.rageCauses))
         {
@@ -1268,6 +1275,55 @@ namespace OpenRCT2::Golf
                 }
                 if (events.obstacleId != 0 && isAnimalObstacle(events.obstacleId) && _env.animals != nullptr)
                     _env.animals->hitByBall(animalOfObstacle(events.obstacleId));
+
+                // AUD-001, AUD-006: spatial sounds for ball impacts
+                if (events.enteredWater)
+                {
+                    SimEvent ev;
+                    ev.type = SimEvent::Type::ballImpact;
+                    ev.golferId = g.id;
+                    ev.value = static_cast<int32_t>(BallImpactType::water);
+                    ev.x = static_cast<int32_t>(g.ball.position.x.floor());
+                    ev.y = static_cast<int32_t>(g.ball.position.y.floor());
+                    ev.z = static_cast<int32_t>(g.ball.position.z.floor());
+                    _events.push_back(ev);
+                }
+                else if (events.obstacleHits > 0)
+                {
+                    BallImpactType impact = BallImpactType::hard;
+                    if (events.obstacleMaterial == ObstacleMaterial::tree)
+                        impact = BallImpactType::tree;
+                    else if (events.obstacleMaterial == ObstacleMaterial::building)
+                        impact = BallImpactType::building;
+                    SimEvent ev;
+                    ev.type = SimEvent::Type::ballImpact;
+                    ev.golferId = g.id;
+                    ev.value = static_cast<int32_t>(impact);
+                    ev.x = static_cast<int32_t>(g.ball.position.x.floor());
+                    ev.y = static_cast<int32_t>(g.ball.position.y.floor());
+                    ev.z = static_cast<int32_t>(g.ball.position.z.floor());
+                    _events.push_back(ev);
+                }
+                else if (events.impacts > 0)
+                {
+                    BallImpactType impact = BallImpactType::grass;
+                    const auto s = _env.world->surfaceAt(g.ball.position.x, g.ball.position.y);
+                    if (s.water)
+                        impact = BallImpactType::water;
+                    else if (s.hazard)
+                        impact = BallImpactType::sand;
+                    else if (s.path)
+                        impact = BallImpactType::hard;
+                    SimEvent ev;
+                    ev.type = SimEvent::Type::ballImpact;
+                    ev.golferId = g.id;
+                    ev.value = static_cast<int32_t>(impact);
+                    ev.x = static_cast<int32_t>(g.ball.position.x.floor());
+                    ev.y = static_cast<int32_t>(g.ball.position.y.floor());
+                    ev.z = static_cast<int32_t>(g.ball.position.z.floor());
+                    _events.push_back(ev);
+                }
+
                 if (isSettled(g.ball.state))
                     judgeBall(g);
                 break;
@@ -1525,6 +1581,17 @@ namespace OpenRCT2::Golf
                 else if (event.type == RangeEvent::Type::ballHit)
                 {
                     emit(SimEvent::Type::shotHit, *golfer, static_cast<int32_t>(ClubId::driver));
+                }
+                else if (event.type == RangeEvent::Type::ballLanded)
+                {
+                    SimEvent ev;
+                    ev.type = SimEvent::Type::ballImpact;
+                    ev.golferId = golfer->id;
+                    ev.value = static_cast<int32_t>(BallImpactType::grass);
+                    ev.x = static_cast<int32_t>(golfer->position.x.floor());
+                    ev.y = static_cast<int32_t>(golfer->position.y.floor());
+                    ev.z = static_cast<int32_t>(golfer->position.z.floor());
+                    _events.push_back(ev);
                 }
             }
         }

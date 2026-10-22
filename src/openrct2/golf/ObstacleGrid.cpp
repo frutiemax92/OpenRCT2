@@ -237,6 +237,7 @@ namespace OpenRCT2::Golf
         out.id = o.id;
         out.isGolfer = o.isGolfer;
         out.golferId = o.golferId;
+        out.material = o.material;
         return true;
     }
 

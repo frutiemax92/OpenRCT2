@@ -100,6 +100,7 @@ namespace OpenRCT2::Golf
                 obstacle = makeObstacle(
                     id, object->Collision,
                     { Fixed::fromInt(centre.x), Fixed::fromInt(centre.y), Fixed::fromInt(small->getBaseZ()) });
+                obstacle.material = ObstacleMaterial::tree;
             }
             else if (auto* large = element->as<LargeSceneryElement>())
             {
@@ -107,6 +108,7 @@ namespace OpenRCT2::Golf
                 if (object == nullptr)
                     return;
                 obstacle = fullTileBox(id, origin, large->getBaseZ(), object->Collision);
+                obstacle.material = ObstacleMaterial::building;
             }
             else if (auto* wall = element->as<WallElement>())
             {
@@ -140,6 +142,7 @@ namespace OpenRCT2::Golf
                 obstacle.shape = ObstacleShape::box;
                 obstacle.halfX = hx;
                 obstacle.halfY = hy;
+                obstacle.material = ObstacleMaterial::hard;
             }
             else if (auto* building = element->as<BuildingElement>())
             {
@@ -147,6 +150,7 @@ namespace OpenRCT2::Golf
                 if (object == nullptr)
                     return;
                 obstacle = fullTileBox(id, origin, building->getBaseZ(), object->Collision);
+                obstacle.material = ObstacleMaterial::building;
             }
             else
             {

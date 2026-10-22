@@ -40,6 +40,7 @@ namespace OpenRCT2::Golf
         Fixed passThroughChance{};
         bool isGolfer = false;
         uint32_t golferId = 0;
+        ObstacleMaterial material = ObstacleMaterial::generic;
     };
 
     // The obstacle for an object with a collision block (spec 5.3) placed with the centre of its base at `base`.

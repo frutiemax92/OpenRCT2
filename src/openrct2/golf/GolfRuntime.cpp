@@ -264,7 +264,7 @@ namespace OpenRCT2::Golf
         return getGameState().entities.getEntity<GolferEntity>(EntityId::FromUnderlying(it->second));
     }
 
-    // AUD-006: swings, putts, the ball dropping into the cup, and the crowd.
+    // AUD-006: swings, putts, ball impacts, crowds, and golfer vocal reactions.
     void GolfRuntime::sound(const SimEvent& event)
     {
         Audio::SoundId id = Audio::SoundId::null;
@@ -285,16 +285,56 @@ namespace OpenRCT2::Golf
                 // The ball drops into the cup; a birdie or better gets a hand.
                 id = event.value <= -1 ? Audio::SoundId::crowdClap : Audio::SoundId::cupDrop;
                 break;
+            case SimEvent::Type::cheer:
+                id = Audio::SoundId::golferCheer;
+                break;
+            case SimEvent::Type::groan:
+            case SimEvent::Type::hitByBall:
+                id = Audio::SoundId::golferGroan;
+                break;
+            case SimEvent::Type::ballImpact:
+            {
+                const auto impact = static_cast<BallImpactType>(event.value);
+                switch (impact)
+                {
+                    case BallImpactType::water:
+                        id = Audio::SoundId::ballImpactWater;
+                        break;
+                    case BallImpactType::sand:
+                        id = Audio::SoundId::ballImpactSand;
+                        break;
+                    case BallImpactType::hard:
+                        id = Audio::SoundId::ballImpactHard;
+                        break;
+                    case BallImpactType::tree:
+                        id = Audio::SoundId::ballImpactTree;
+                        break;
+                    case BallImpactType::building:
+                        id = Audio::SoundId::ballImpactBuilding;
+                        break;
+                    case BallImpactType::grass:
+                    default:
+                        id = Audio::SoundId::ballImpactGrass;
+                        break;
+                }
+                break;
+            }
             case SimEvent::Type::rageQuit:
                 id = Audio::SoundId::golferInsultGrumble;
                 break;
             default:
                 return;
         }
-        const auto known = _known.find(event.golferId);
-        if (known == _known.end())
-            return;
-        const CoordsXYZ where{ known->second.x, known->second.y, 0 };
+
+        CoordsXYZ where{ event.x, event.y, event.z };
+        if (where.x == 0 && where.y == 0)
+        {
+            const auto known = _known.find(event.golferId);
+            if (known == _known.end())
+                return;
+            where = { known->second.x, known->second.y, 0 };
+        }
+
         if (_sound)
             _sound(id, where);
         else
@@ -590,7 +630,25 @@ namespace OpenRCT2::Golf
             if (event.type == TrafficEvent::Type::parked)
             {
                 if (const auto* car = _traffic.find(event.carId))
+                {
+                    const CoordsXYZ where{ static_cast<int32_t>(car->position.x.floor()), static_cast<int32_t>(car->position.y.floor()), static_cast<int32_t>(car->position.z.floor()) };
+                    if (_sound)
+                        _sound(Audio::SoundId::carDoor, where);
+                    else
+                        Audio::PlaySpatial(Audio::SoundId::carDoor, where);
                     getOut(*car);
+                }
+            }
+            else if (event.type == TrafficEvent::Type::departed)
+            {
+                if (const auto* car = _traffic.find(event.carId))
+                {
+                    const CoordsXYZ where{ static_cast<int32_t>(car->position.x.floor()), static_cast<int32_t>(car->position.y.floor()), static_cast<int32_t>(car->position.z.floor()) };
+                    if (_sound)
+                        _sound(Audio::SoundId::carDoor, where);
+                    else
+                        Audio::PlaySpatial(Audio::SoundId::carDoor, where);
+                }
             }
             else if (event.type == TrafficEvent::Type::despawned)
             {

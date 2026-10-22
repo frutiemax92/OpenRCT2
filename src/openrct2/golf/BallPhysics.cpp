@@ -135,6 +135,7 @@ namespace OpenRCT2::Golf
                 const FixedVec3 tangent = ball.velocity - normalPart;
                 ball.velocity = tangent * (kOne - contact.friction) - normalPart * contact.restitution;
                 c.events.obstacleHits++;
+                c.events.obstacleMaterial = contact.material;
                 if (ball.state == BallState::InFlight)
                     ball.state = BallState::Bouncing;
             }

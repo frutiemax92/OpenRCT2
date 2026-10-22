@@ -78,6 +78,16 @@ namespace OpenRCT2::Golf
         FixedVec3 position;
     };
 
+    enum class BallImpactType : uint8_t
+    {
+        grass,
+        sand,
+        hard,
+        water,
+        tree,
+        building,
+    };
+
     // What the simulation did, for the interface (thoughts, news, sounds) and the economy.
     struct SimEvent
     {
@@ -102,6 +112,9 @@ namespace OpenRCT2::Golf
             hitByBall,      // golferId is the victim (BAL-034, GLF-013)
             sawAnimal,      // a golfer saw an animal (ANM-005)
             washedBall,     // cleaned golf ball at ball washer (PTH-023)
+            ballImpact,     // value = BallImpactType, coordinates x/y/z (AUD-001, AUD-006)
+            cheer,          // golfer cheered (AUD-006)
+            groan,          // golfer groaned (AUD-006)
         };
         Type type = Type::thought;
         uint32_t golferId = 0;
@@ -109,6 +122,9 @@ namespace OpenRCT2::Golf
         int32_t insult = -1;
         uint32_t source = 0; // the building a service event is about (Service::id)
         ThoughtType thought = ThoughtType::enjoyingTheRound;
+        int32_t x = 0;
+        int32_t y = 0;
+        int32_t z = 0;
     };
 
     // Timings in ticks.

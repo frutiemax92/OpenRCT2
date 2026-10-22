@@ -381,6 +381,7 @@ namespace OpenRCT2::Golf
         {
             auto o = makeObstacle(0x50000000u + cart.id, cartObj->Collision, cart.position, 0);
             o.id = 0x50000000u + cart.id;
+            o.material = ObstacleMaterial::hard;
             return o;
         }
         Obstacle o;

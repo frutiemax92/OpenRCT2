@@ -1015,6 +1015,85 @@ TEST(GolfRuntimeTests, SwingsPuttsAndTheCupMakeTheirSounds)
     EXPECT_EQ(heard.size(), expected.size());
 }
 
+TEST(GolfRuntimeTests, BallImpactsAndGolferReactionsMakeSounds)
+{
+    auto context = startPark();
+    ASSERT_NE(context.get(), nullptr);
+    auto& gameState = getGameState();
+    gameState.cheats.sandboxMode = true;
+    ObjectEntryIndex index{};
+    auto* club = loadClub(*context, index);
+    if (club == nullptr)
+        GTEST_SKIP() << "the club house object is not installed";
+    const auto found = findFlatBlock(3, 2);
+    ASSERT_TRUE(found.has_value());
+    insertPath(Building::GetEntrance(*club, *found, 0).outsideTile);
+    GameActions::BuildingPlaceAction place(*found, index, 0);
+    ASSERT_EQ(GameActions::ExecuteNested(&place, gameState).error, GameActions::Status::ok);
+    gameState.mapSize = { 60, 60 };
+    gameState.golf.createCourse("Links");
+    auto& runtime = Golf::runtimeOf(gameState);
+
+    Golf::GolfSimulation::Spawn spawn;
+    spawn.name = "Audible";
+    spawn.position = { Fixed::fromInt(100), Fixed::fromInt(200), Fixed::fromInt(16) };
+    const uint32_t id = runtime.director().simulation().spawn(spawn).id;
+    runtime.update(0);
+
+    std::vector<std::pair<Audio::SoundId, CoordsXYZ>> heard;
+    runtime.setSoundSink([&](Audio::SoundId sound, const CoordsXYZ& where) { heard.emplace_back(sound, where); });
+
+    auto event = [&](Golf::SimEvent::Type type, int32_t value, int32_t x = 0, int32_t y = 0, int32_t z = 0) {
+        Golf::SimEvent e;
+        e.type = type;
+        e.golferId = id;
+        e.value = value;
+        e.x = x;
+        e.y = y;
+        e.z = z;
+        runtime.announce(e);
+    };
+
+    using Audio::SoundId;
+    using Golf::BallImpactType;
+
+    event(Golf::SimEvent::Type::cheer, 0);
+    event(Golf::SimEvent::Type::groan, 0);
+    event(Golf::SimEvent::Type::hitByBall, 0);
+
+    event(Golf::SimEvent::Type::ballImpact, static_cast<int32_t>(BallImpactType::grass), 120, 220, 10);
+    event(Golf::SimEvent::Type::ballImpact, static_cast<int32_t>(BallImpactType::sand), 130, 230, 10);
+    event(Golf::SimEvent::Type::ballImpact, static_cast<int32_t>(BallImpactType::hard), 140, 240, 10);
+    event(Golf::SimEvent::Type::ballImpact, static_cast<int32_t>(BallImpactType::water), 150, 250, 10);
+    event(Golf::SimEvent::Type::ballImpact, static_cast<int32_t>(BallImpactType::tree), 160, 260, 10);
+    event(Golf::SimEvent::Type::ballImpact, static_cast<int32_t>(BallImpactType::building), 170, 270, 10);
+
+    const std::vector<SoundId> expected = {
+        SoundId::golferCheer,
+        SoundId::golferGroan,
+        SoundId::golferGroan,
+        SoundId::ballImpactGrass,
+        SoundId::ballImpactSand,
+        SoundId::ballImpactHard,
+        SoundId::ballImpactWater,
+        SoundId::ballImpactTree,
+        SoundId::ballImpactBuilding,
+    };
+
+    ASSERT_EQ(heard.size(), expected.size());
+    for (size_t i = 0; i < expected.size(); i++)
+        EXPECT_EQ(heard[i].first, expected[i]) << "sound " << i;
+
+    // Golfer reactions with 0,0 coords fallback to golfer's position
+    EXPECT_NEAR(heard[0].second.x, 100, 12);
+    EXPECT_NEAR(heard[0].second.y, 200, 12);
+
+    // Ball impacts use the impact coordinates
+    EXPECT_EQ(heard[3].second.x, 120);
+    EXPECT_EQ(heard[3].second.y, 220);
+    EXPECT_EQ(heard[3].second.z, 10);
+}
+
 TEST(GolfRuntimeTests, TheDuckAndTheDeerLoadWithTheirClipsWithinBudget)
 {
     auto context = startPark();
