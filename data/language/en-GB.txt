@@ -4035,3 +4035,11 @@ STR_7241    :Hole overlay
 STR_7242    :{SMALLFONT}{BLACK}Toggle the hole and shot trajectory overlay
 STR_7243    :3D Model viewer
 STR_7244    :{SMALLFONT}{BLACK}Open the 3D model viewer debug window
+STR_7245    :Spawn VIP group
+STR_7246    :{SMALLFONT}{BLACK}Spawn a group of VIP golfers at the clubhouse
+STR_7247    :Zone overlay
+STR_7248    :{SMALLFONT}{BLACK}Tint cottage lots, driving ranges and out-of-bounds land
+STR_7249    :Brush: Whole tile
+STR_7250    :Brush: Quadrant
+STR_7251    :Brush: Half tile
+STR_7252    :{SMALLFONT}{BLACK}Change which part of the tile is painted: the whole tile, the quarter under the cursor, or the half under the cursor (Alt also paints a quarter, Alt+Shift a half)

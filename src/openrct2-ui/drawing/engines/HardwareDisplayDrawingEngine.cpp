@@ -13,6 +13,7 @@
 #include <SDL_render.h>
 #include <SDL_version.h>
 #include <cmath>
+#include <cstdio>
 #include <memory>
 #include <openrct2/Diagnostic.h>
 #include <openrct2/Game.h>
@@ -21,6 +22,7 @@
 #include <openrct2/drawing/IDrawingEngine.h>
 #include <openrct2/drawing/LightFX.h>
 #include <openrct2/drawing/X8DrawingEngine.h>
+#include <openrct2/interface/Screenshot.h>
 #include <openrct2/interface/Window.h>
 #include <openrct2/paint/Paint.h>
 #include <openrct2/ui/UiContext.h>
@@ -209,6 +211,7 @@ public:
     {
         X8DrawingEngine::EndDraw();
 
+        DumpFrameIfRequested();
         Display();
     }
 
@@ -233,6 +236,20 @@ protected:
     }
 
 private:
+    // Debug aid: the game's own screenshot only covers the map viewport. While the request file exists, the whole frame
+    // (toolbar and windows included) is written to the screenshots folder, so the UI can be checked without a desktop grab.
+    void DumpFrameIfRequested()
+    {
+        static constexpr const char* kRequestFile = "/tmp/openrct2-frame-dump.request";
+        if ((_dumpPollCounter++ % 20) != 0)
+            return;
+        if (std::remove(kRequestFile) != 0)
+            return;
+        const auto path = ScreenshotDumpPNG(_mainRT);
+        LOG_INFO("Frame dump: %s", path.c_str());
+    }
+    uint32_t _dumpPollCounter = 0;
+
     void Display()
     {
         auto* viewport = WindowGetViewport(WindowGetMain());

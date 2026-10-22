@@ -7,6 +7,7 @@
  * OpenRCT2 is licensed under the GNU General Public License version 3.
  *****************************************************************************/
 
+#include <cstdio>
 #include <openrct2-ui/interface/Dropdown.h>
 #include <openrct2-ui/interface/Widget.h>
 #include <openrct2-ui/interface/Window.h>
@@ -140,12 +141,26 @@ namespace OpenRCT2::Ui::Windows
                     x += kMenuButtonDims.width;
                 }
             }
+            // The menu sprites are placeholders that mean nothing to the player: plain text buttons instead.
+            static constexpr const char* kLabels[] = { "New Game", "Load Game", "Multiplayer", "Tools" };
+            for (size_t i = 0; i < std::size(kLabels); i++)
+            {
+                widgets[i].type = WidgetType::button;
+                widgets[i].setString(kLabels[i]);
+            }
             width = x;
             widgets[WIDX_NEW_VERSION].right = width;
             windowPos.x = (ContextGetWidth() - width) / 2;
             colours[1] = ColourWithFlags{ Drawing::Colour::lightOrange }.withFlag(ColourFlag::translucent, true);
 
             initScrollWidgets();
+        }
+
+        void onUpdate() override
+        {
+            // Debug aid, with the frame dump of the drawing engine: start the demo course without clicking.
+            if (std::remove("/tmp/openrct2-start-demo.request") == 0)
+                StartGolfGame(false);
         }
 
         void onMouseUp(WidgetIndex widgetIndex) override

@@ -166,3 +166,23 @@ TEST_F(GolfGameplayFlowTests, ViewportInteractionPreservesBuildingAndGolferItems
     }
     EXPECT_GT(count, 0u);
 }
+
+// Golfers must arrive on their own soon after a new demo game starts, without the sandbox spawn buttons.
+TEST_F(GolfGameplayFlowTests, DemoCourseAdmitsGolfersSoonAfterStartWithoutManualSpawning)
+{
+    auto& gameState = getGameState();
+    Golf::SetupDemoGolfCourse(gameState);
+    auto& runtime = Golf::runtimeOf(gameState);
+
+    // Three game hours from the start of a new game.
+    size_t mostGolfers = 0;
+    const uint32_t start = gameState.currentTicks;
+    for (uint32_t tick = start; tick < start + static_cast<uint32_t>(Golf::hhmm(3, 0) * Golf::kTicksPerGameMinute); tick++)
+    {
+        gameState.currentTicks = tick;
+        Golf::updateGolf(gameState);
+        mostGolfers = std::max(mostGolfers, runtime.director().simulation().golfers().size());
+    }
+
+    EXPECT_GT(mostGolfers, 0u);
+}

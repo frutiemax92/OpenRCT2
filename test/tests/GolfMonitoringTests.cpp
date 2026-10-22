@@ -139,3 +139,4 @@ TEST_F(GolfMonitoringTests, TurfOverlayToggle)
     runtime->setTurfOverlayEnabled(false);
     EXPECT_FALSE(runtime->turfOverlayEnabled());
 }
+

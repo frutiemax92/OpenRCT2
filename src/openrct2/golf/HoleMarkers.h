@@ -58,6 +58,15 @@ namespace OpenRCT2::Golf
         {
             return _showAimPoints;
         }
+        // Zone overlay (TEST-001): tints cottage lots, driving ranges and out-of-bounds land.
+        void setShowZones(bool show)
+        {
+            _showZones = show;
+        }
+        bool showZones() const
+        {
+            return _showZones;
+        }
         // The distances the signs show, so their pictures can be made before painting starts.
         std::vector<int32_t> signDistances() const;
         size_t markerCount() const
@@ -80,6 +89,7 @@ namespace OpenRCT2::Golf
         uint64_t _fingerprint = 0;
         bool _built = false;
         bool _showAimPoints = false;
+        bool _showZones = false;
         size_t _count = 0;
     };
 

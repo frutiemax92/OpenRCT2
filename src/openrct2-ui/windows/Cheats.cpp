@@ -9,7 +9,10 @@
 
 #include "../UiStringIds.h"
 
+#include <array>
 #include <iterator>
+#include <string>
+#include <vector>
 #include <openrct2-ui/interface/Dropdown.h>
 #include <openrct2-ui/interface/Widget.h>
 #include <openrct2-ui/interface/Window.h>
@@ -26,6 +29,7 @@
 #include <openrct2/drawing/Drawing.h>
 #include <openrct2/drawing/Text.h>
 #include <openrct2/golf/GolfRuntime.h>
+#include <openrct2/golf/HoleMarkers.h>
 #include <openrct2/localisation/Currency.h>
 #include <openrct2/localisation/Formatter.h>
 #include <openrct2/localisation/Formatting.h>
@@ -211,14 +215,19 @@ enum WindowCheatsWidgetIdx : WidgetIndex
     WIDX_SPAWN_ACTORS_GROUP,
     WIDX_SPAWN_REGULAR_GOLFERS,
     WIDX_SPAWN_PRO_GOLFERS,
+    WIDX_SPAWN_VIP_GOLFERS,
     WIDX_SPAWN_RANGE_CUSTOMER,
     WIDX_SPAWN_WILDLIFE,
+    WIDX_WILDLIFE_SPECIES,
     WIDX_EVENTS_SIM_GROUP,
     WIDX_START_TOURNAMENT,
-    WIDX_OVERRIDE_WEATHER_WIND,
+    WIDX_TOURNAMENT_TIER,
+    WIDX_WEATHER_CYCLE,
+    WIDX_WIND_DIRECTION_CYCLE,
+    WIDX_WIND_STRENGTH_CYCLE,
     WIDX_DEBUG_OVERLAYS_GROUP,
     WIDX_TOGGLE_HOLE_OVERLAY,
-    WIDX_TOGGLE_TURF_OVERLAY,
+    WIDX_TOGGLE_ZONE_OVERLAY,
     WIDX_OPEN_MODEL_VIEWER,
 };
 
@@ -385,18 +394,23 @@ static constexpr auto window_cheats_golf_widgets = makeWidgets(
     makeWidget                ({  5,  48}, {244,  60},       WidgetType::groupbox,     WindowColour::secondary, STR_DEMO_COURSE_SETUP                                        ),
     makeWidget                ({ 11,  62}, {232,  17},       WidgetType::button,       WindowColour::secondary, STR_LOAD_DEMO_COURSE,            STR_LOAD_DEMO_COURSE_TIP        ),
     makeWidget                ({ 11,  84}, {232,  17},       WidgetType::button,       WindowColour::secondary, STR_EVALUATE_VIP_COTTAGES,        STR_EVALUATE_VIP_COTTAGES_TIP    ),
-    makeWidget                ({  5, 112}, {244,  60},       WidgetType::groupbox,     WindowColour::secondary, STR_SPAWN_ACTORS                                             ),
+    makeWidget                ({  5, 112}, {244,  80},       WidgetType::groupbox,     WindowColour::secondary, STR_SPAWN_ACTORS                                             ),
     makeWidget                ({ 11, 126}, {112,  17},       WidgetType::button,       WindowColour::secondary, STR_SPAWN_REGULAR_GOLFERS,        STR_SPAWN_REGULAR_GOLFERS_TIP    ),
     makeWidget                ({131, 126}, {112,  17},       WidgetType::button,       WindowColour::secondary, STR_SPAWN_PRO_GOLFERS,            STR_SPAWN_PRO_GOLFERS_TIP        ),
-    makeWidget                ({ 11, 148}, {112,  17},       WidgetType::button,       WindowColour::secondary, STR_SPAWN_RANGE_CUSTOMER,         STR_SPAWN_RANGE_CUSTOMER_TIP     ),
-    makeWidget                ({131, 148}, {112,  17},       WidgetType::button,       WindowColour::secondary, STR_SPAWN_WILDLIFE,               STR_SPAWN_WILDLIFE_TIP           ),
-    makeWidget                ({  5, 176}, {244,  40},       WidgetType::groupbox,     WindowColour::secondary, STR_EVENTS_SIMULATION                                        ),
-    makeWidget                ({ 11, 190}, {112,  17},       WidgetType::button,       WindowColour::secondary, STR_START_TOURNAMENT,            STR_START_TOURNAMENT_TIP         ),
-    makeWidget                ({131, 190}, {112,  17},       WidgetType::button,       WindowColour::secondary, STR_OVERRIDE_WEATHER_WIND,        STR_OVERRIDE_WEATHER_WIND_TIP     ),
-    makeWidget                ({  5, 220}, {244,  68},       WidgetType::groupbox,     WindowColour::secondary, STR_DEBUG_OVERLAYS                                           ),
-    makeWidget                ({ 11, 234}, {112,  14},       WidgetType::checkbox,     WindowColour::secondary, STR_TOGGLE_HOLE_OVERLAY,         STR_TOGGLE_HOLE_OVERLAY_TIP      ),
-    makeWidget                ({131, 234}, {112,  14},       WidgetType::checkbox,     WindowColour::secondary, STR_TURF_OVERLAY,                STR_TURF_OVERLAY_TIP             ),
-    makeWidget                ({ 11, 256}, {232,  17},       WidgetType::button,       WindowColour::secondary, STR_OPEN_MODEL_VIEWER,            STR_OPEN_MODEL_VIEWER_TIP        )
+    makeWidget                ({ 11, 148}, {112,  17},       WidgetType::button,       WindowColour::secondary, STR_SPAWN_VIP_GOLFERS,            STR_SPAWN_VIP_GOLFERS_TIP        ),
+    makeWidget                ({131, 148}, {112,  17},       WidgetType::button,       WindowColour::secondary, STR_SPAWN_RANGE_CUSTOMER,         STR_SPAWN_RANGE_CUSTOMER_TIP     ),
+    makeWidget                ({ 11, 170}, {112,  17},       WidgetType::button,       WindowColour::secondary, STR_SPAWN_WILDLIFE,               STR_SPAWN_WILDLIFE_TIP           ),
+    makeWidget                ({131, 170}, {112,  17},       WidgetType::button,       WindowColour::secondary, kStringIdNone,                    STR_SPAWN_WILDLIFE_TIP           ),
+    makeWidget                ({  5, 196}, {244,  84},       WidgetType::groupbox,     WindowColour::secondary, STR_EVENTS_SIMULATION                                        ),
+    makeWidget                ({ 11, 210}, {112,  17},       WidgetType::button,       WindowColour::secondary, STR_START_TOURNAMENT,            STR_START_TOURNAMENT_TIP         ),
+    makeWidget                ({131, 210}, {112,  17},       WidgetType::button,       WindowColour::secondary, kStringIdNone,                    STR_START_TOURNAMENT_TIP         ),
+    makeWidget                ({ 11, 232}, {112,  17},       WidgetType::button,       WindowColour::secondary, kStringIdNone,                    STR_OVERRIDE_WEATHER_WIND_TIP    ),
+    makeWidget                ({131, 232}, {112,  17},       WidgetType::button,       WindowColour::secondary, kStringIdNone,                    STR_OVERRIDE_WEATHER_WIND_TIP    ),
+    makeWidget                ({ 11, 254}, {232,  17},       WidgetType::button,       WindowColour::secondary, kStringIdNone,                    STR_OVERRIDE_WEATHER_WIND_TIP    ),
+    makeWidget                ({  5, 284}, {244,  62},       WidgetType::groupbox,     WindowColour::secondary, STR_DEBUG_OVERLAYS                                           ),
+    makeWidget                ({ 11, 298}, {112,  14},       WidgetType::checkbox,     WindowColour::secondary, STR_TOGGLE_HOLE_OVERLAY,         STR_TOGGLE_HOLE_OVERLAY_TIP      ),
+    makeWidget                ({131, 298}, {112,  14},       WidgetType::checkbox,     WindowColour::secondary, STR_TOGGLE_ZONE_OVERLAY,         STR_TOGGLE_ZONE_OVERLAY_TIP      ),
+    makeWidget                ({ 11, 320}, {232,  17},       WidgetType::button,       WindowColour::secondary, STR_OPEN_MODEL_VIEWER,            STR_OPEN_MODEL_VIEWER_TIP        )
 );
 
 static constexpr std::span<const Widget> window_cheats_page_widgets[] =
@@ -434,6 +448,50 @@ static StringId window_cheats_page_titles[] = {
         int32_t _daySpinnerValue = 1;
         u8string _moneyButtonText = FormatStringID(STR_CURRENCY_FORMAT, 1000.00_GBP);
         u8string _weatherDropdownText{};
+
+        // Golf testing page (TEST-001): choices the cycle buttons step through.
+        int32_t _tournamentTier = 0;
+        int32_t _speciesIndex = -1; // -1 = random
+        int32_t _sandboxWeather = 0;
+        int32_t _windDirectionIndex = 0;
+        int32_t _windStrengthIndex = 2;
+        u8string _speciesText{};
+        u8string _tierText{};
+        u8string _sandboxWeatherText{};
+        u8string _windDirectionText{};
+        u8string _windStrengthText{};
+
+        static constexpr std::array<const char*, 8> kCompass = { "E", "SE", "S", "SW", "W", "NW", "N", "NE" };
+        static constexpr std::array<int32_t, 5> kWindPercent = { 0, 25, 50, 75, 100 };
+        static constexpr std::array<const char*, 3> kTierNames = { "Local", "Regional", "National" };
+        static constexpr std::array<const char*, 4> kSandboxWeather = { "Sunny", "Rain", "Heavy rain", "Snow" };
+        static constexpr std::array<Weather::Type, 4> kSandboxWeatherTypes = {
+            Weather::Type::sunny, Weather::Type::rain, Weather::Type::heavyRain, Weather::Type::snow
+        };
+
+        std::vector<std::string> speciesIds() const
+        {
+            std::vector<std::string> ids;
+            if (auto* runtime = Golf::GetGolfRuntime())
+            {
+                if (runtime->director().animals != nullptr)
+                {
+                    for (const auto& sp : runtime->director().animals->species())
+                        ids.push_back(sp.id);
+                }
+            }
+            return ids;
+        }
+
+        void applySandboxWeather()
+        {
+            if (auto* runtime = Golf::GetGolfRuntime())
+            {
+                runtime->setWeatherAndWind(
+                    kSandboxWeatherTypes[_sandboxWeather], static_cast<int16_t>(_windDirectionIndex * 45),
+                    static_cast<uint16_t>(kWindPercent[_windStrengthIndex] * 10));
+            }
+        }
 
     public:
         void onOpen() override
@@ -614,8 +672,22 @@ static StringId window_cheats_page_titles[] = {
                 if (auto* runtime = Golf::GetGolfRuntime())
                 {
                     setCheckboxValue(WIDX_TOGGLE_HOLE_OVERLAY, runtime->holeOverlayEnabled());
-                    setCheckboxValue(WIDX_TOGGLE_TURF_OVERLAY, runtime->turfOverlayEnabled());
                 }
+                setCheckboxValue(WIDX_TOGGLE_ZONE_OVERLAY, Golf::GetHoleMarkers().showZones());
+
+                const auto ids = speciesIds();
+                if (_speciesIndex >= static_cast<int32_t>(ids.size()))
+                    _speciesIndex = -1;
+                _speciesText = "Species: " + (_speciesIndex < 0 ? std::string("random") : ids[_speciesIndex]);
+                _tierText = std::string("Tier: ") + kTierNames[_tournamentTier];
+                _sandboxWeatherText = std::string("Weather: ") + kSandboxWeather[_sandboxWeather];
+                _windDirectionText = std::string("Wind from: ") + kCompass[_windDirectionIndex];
+                _windStrengthText = "Wind strength: " + std::to_string(kWindPercent[_windStrengthIndex]) + "%";
+                widgets[WIDX_WILDLIFE_SPECIES].setString(_speciesText.c_str());
+                widgets[WIDX_TOURNAMENT_TIER].setString(_tierText.c_str());
+                widgets[WIDX_WEATHER_CYCLE].setString(_sandboxWeatherText.c_str());
+                widgets[WIDX_WIND_DIRECTION_CYCLE].setString(_windDirectionText.c_str());
+                widgets[WIDX_WIND_STRENGTH_CYCLE].setString(_windStrengthText.c_str());
             }
 
             setWidgetDisabled(WIDX_TAB_2, isInEditorMode());
@@ -756,6 +828,12 @@ static StringId window_cheats_page_titles[] = {
                 return { fallback, ft };
             }
             return { fallback, {} };
+        }
+
+    public:
+        void showGolfPage()
+        {
+            setPage(WINDOW_CHEATS_PAGE_GOLF);
         }
 
     private:
@@ -1431,31 +1509,56 @@ static StringId window_cheats_page_titles[] = {
                         runtime->spawnDrivingRangeCustomer();
                     break;
                 }
+                case WIDX_SPAWN_VIP_GOLFERS:
+                {
+                    if (auto* runtime = Golf::GetGolfRuntime())
+                        runtime->spawnGolferGroup(2);
+                    break;
+                }
                 case WIDX_SPAWN_WILDLIFE:
                 {
                     if (auto* runtime = Golf::GetGolfRuntime())
-                        runtime->spawnWildlife();
+                        runtime->spawnWildlife(_speciesIndex);
+                    break;
+                }
+                case WIDX_WILDLIFE_SPECIES:
+                {
+                    const auto count = static_cast<int32_t>(speciesIds().size());
+                    _speciesIndex = (_speciesIndex + 2) % (count + 1) - 1;
+                    invalidate();
                     break;
                 }
                 case WIDX_START_TOURNAMENT:
                 {
                     if (auto* runtime = Golf::GetGolfRuntime())
-                        runtime->startOrAdvanceTournament();
+                        runtime->startOrAdvanceTournament(_tournamentTier);
                     break;
                 }
-                case WIDX_OVERRIDE_WEATHER_WIND:
+                case WIDX_TOURNAMENT_TIER:
                 {
-                    static int32_t weatherStep = 0;
-                    weatherStep = (weatherStep + 1) % 4;
-                    Weather::Type w = Weather::Type::sunny;
-                    if (weatherStep == 1)
-                        w = Weather::Type::rain;
-                    else if (weatherStep == 2)
-                        w = Weather::Type::heavyRain;
-                    else if (weatherStep == 3)
-                        w = Weather::Type::snow;
-                    if (auto* runtime = Golf::GetGolfRuntime())
-                        runtime->setWeatherAndWind(w, 45, 800);
+                    _tournamentTier = (_tournamentTier + 1) % static_cast<int32_t>(kTierNames.size());
+                    invalidate();
+                    break;
+                }
+                case WIDX_WEATHER_CYCLE:
+                {
+                    _sandboxWeather = (_sandboxWeather + 1) % static_cast<int32_t>(kSandboxWeather.size());
+                    applySandboxWeather();
+                    invalidate();
+                    break;
+                }
+                case WIDX_WIND_DIRECTION_CYCLE:
+                {
+                    _windDirectionIndex = (_windDirectionIndex + 1) % static_cast<int32_t>(kCompass.size());
+                    applySandboxWeather();
+                    invalidate();
+                    break;
+                }
+                case WIDX_WIND_STRENGTH_CYCLE:
+                {
+                    _windStrengthIndex = (_windStrengthIndex + 1) % static_cast<int32_t>(kWindPercent.size());
+                    applySandboxWeather();
+                    invalidate();
                     break;
                 }
                 case WIDX_TOGGLE_HOLE_OVERLAY:
@@ -1463,17 +1566,17 @@ static StringId window_cheats_page_titles[] = {
                     if (auto* runtime = Golf::GetGolfRuntime())
                     {
                         runtime->toggleHoleOverlay();
+                        // The overlay shows the aim points of every hole, which are otherwise only drawn while building.
+                        Golf::GetHoleMarkers().setShowAimPoints(runtime->holeOverlayEnabled());
                         invalidate();
                     }
                     break;
                 }
-                case WIDX_TOGGLE_TURF_OVERLAY:
+                case WIDX_TOGGLE_ZONE_OVERLAY:
                 {
-                    if (auto* runtime = Golf::GetGolfRuntime())
-                    {
-                        runtime->toggleTurfOverlay();
-                        invalidate();
-                    }
+                    auto& markers = Golf::GetHoleMarkers();
+                    markers.setShowZones(!markers.showZones());
+                    invalidate();
                     break;
                 }
                 case WIDX_OPEN_MODEL_VIEWER:
@@ -1493,6 +1596,14 @@ static StringId window_cheats_page_titles[] = {
         {
             window = windowMgr->Create<CheatsWindow>(WindowClass::cheats, ScreenCoordsXY(32, 32), kWindowSize);
         }
+        return window;
+    }
+
+    WindowBase* CheatsOpenGolfPage()
+    {
+        auto* window = CheatsOpen();
+        if (window != nullptr)
+            static_cast<CheatsWindow*>(window)->showGolfPage();
         return window;
     }
 } // namespace OpenRCT2::Ui::Windows

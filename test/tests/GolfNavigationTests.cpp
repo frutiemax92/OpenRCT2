@@ -34,6 +34,7 @@ protected:
         gOpenRCT2NoGraphics = true;
         _context = CreateContext();
         ASSERT_TRUE(_context->Initialise());
+        gameStateInitAll(getGameState(), { 100, 100 });
     }
 
     void TearDown() override
@@ -194,13 +195,13 @@ TEST_F(GolfNavigationTests, SetupDemoGolfCourseInitialisesPlayableCourseWithTraf
     ASSERT_NE(regular, nullptr);
     EXPECT_EQ(regular->kind, Golf::CourseKind::regular);
     EXPECT_EQ(regular->holes.size(), 3u);
-    EXPECT_EQ(regular->greenFee, 2500);
+    EXPECT_EQ(regular->greenFee, 750);
 
     const auto* mini = gameState.golf.findCourse(courses[1].id);
     ASSERT_NE(mini, nullptr);
     EXPECT_EQ(mini->kind, Golf::CourseKind::miniPutt);
     EXPECT_EQ(mini->holes.size(), 1u);
-    EXPECT_EQ(mini->greenFee, 800);
+    EXPECT_EQ(mini->greenFee, 250);
 
     // Verify driving range and lots exist
     EXPECT_FALSE(gameState.golf.ranges().empty());

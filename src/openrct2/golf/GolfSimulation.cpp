@@ -685,11 +685,16 @@ namespace OpenRCT2::Golf
     {
         for (const auto& other : _golfers)
         {
-            if (other.id == g.id || other.groupId == g.groupId || other.finished || other.courseId != g.courseId
-                || other.holeIndex != g.holeIndex)
+            if (other.id == g.id || other.finished || other.courseId != g.courseId || other.holeIndex != g.holeIndex)
                 continue;
+            // The golfers of a group take the tee one at a time: the others wait on the side until the shooter has left it.
+            const bool sameGroup = other.groupId == g.groupId;
             switch (other.state)
             {
+                case GolferState::watchingBall:
+                    if (!sameGroup)
+                        continue;
+                    break;
                 case GolferState::waitingForTeeTime:
                 case GolferState::talking:
                 case GolferState::preparingShot:
@@ -1297,6 +1302,13 @@ namespace OpenRCT2::Golf
                     break;
                 if (!walk(g, target) || occupied)
                     break;
+                // Arrived: if a golfer (of the group too) is already on the tee, step back to the side instead of stacking.
+                if (teeOccupied(g, g.destination))
+                {
+                    g.queueing = true;
+                    g.queueSpot = teeQueueSpot(g);
+                    break;
+                }
                 if (g.onCart)
                     dismount(g);
                 const auto* course = courseOf(g);

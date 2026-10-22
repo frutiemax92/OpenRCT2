@@ -186,7 +186,8 @@ namespace OpenRCT2::Ui::Windows
             setWidgets(window_guest_list_widgets);
             WindowInitScrollWidgets(*this);
 
-            _selectedTab = TabId::summarised;
+            // Golf has no thoughts summary worth showing first: open on the list of golfers.
+            _selectedTab = isGolfMode() ? TabId::individual : TabId::summarised;
             _selectedView = GuestViewType::thoughts;
             _numPages = 1;
 
@@ -415,6 +416,8 @@ namespace OpenRCT2::Ui::Windows
             setWidgetPressed(WIDX_TAB_2, false);
             setWidgetPressed(WIDX_TAB_1 + static_cast<int32_t>(_selectedTab), true);
 
+            if (isGolfMode())
+                widgets[WIDX_TITLE].setString("Golfers");
             widgets[WIDX_INFO_TYPE_DROPDOWN].text = GetViewName(_selectedView);
             widgets[WIDX_MAP].setVisible(_selectedTab == TabId::individual && _selectedFilter);
 
@@ -491,7 +494,6 @@ namespace OpenRCT2::Ui::Windows
                 {
                     std::string label = std::to_string(_golfersList.size()) + (_golfersList.size() == 1 ? " golfer" : " golfers");
                     auto ft = Formatter();
-                    ft.Add<StringId>(STR_STRING);
                     ft.Add<const char*>(label.c_str());
                     drawText(rt, screenCoords, STR_STRING, ft);
                 }
@@ -731,13 +733,30 @@ namespace OpenRCT2::Ui::Windows
     private:
         void DrawTabImages(RenderTarget& rt)
         {
+            if (isGolfMode())
+            {
+                // The tab sprites are placeholders: name the tabs instead.
+                for (auto [tab, name] : { std::pair{ WIDX_TAB_1, "List" }, std::pair{ WIDX_TAB_2, "Summary" } })
+                {
+                    auto ft = Formatter();
+                    ft.Add<const char*>(name);
+                    drawText(
+                        rt, windowPos + ScreenCoordsXY{ widgets[tab].midX(), widgets[tab].top + 8 }, STR_STRING, ft,
+                        { TextAlignment::centre });
+                }
+                return;
+            }
+
             // Tab 1 image
             auto i = (_selectedTab == TabId::individual ? _tabAnimationIndex & ~3 : 0);
-            auto* animObj = findPeepAnimationsObjectForType(AnimationPeepType::guest);
-            i += animObj->GetPeepAnimation(PeepAnimationGroup::normal).baseImage + 1;
-            GfxDrawSprite(
-                rt, ImageId(i, Drawing::Colour::grey, Drawing::Colour::darkOliveGreen),
-                windowPos + ScreenCoordsXY{ widgets[WIDX_TAB_1].midX(), widgets[WIDX_TAB_1].bottom - 6 });
+            // Golf has no guest animation object: the tab shows no peep then.
+            if (auto* animObj = findPeepAnimationsObjectForType(AnimationPeepType::guest); animObj != nullptr)
+            {
+                i += animObj->GetPeepAnimation(PeepAnimationGroup::normal).baseImage + 1;
+                GfxDrawSprite(
+                    rt, ImageId(i, Drawing::Colour::grey, Drawing::Colour::darkOliveGreen),
+                    windowPos + ScreenCoordsXY{ widgets[WIDX_TAB_1].midX(), widgets[WIDX_TAB_1].bottom - 6 });
+            }
 
             // Tab 2 image
             i = (_selectedTab == TabId::summarised ? _tabAnimationIndex / 4 : 0);
@@ -762,36 +781,20 @@ namespace OpenRCT2::Ui::Windows
                         format = STR_WINDOW_COLOUR_2_STRINGID;
                     }
 
-                    // Golfer name
-                    auto ftName = Formatter();
-                    ftName.Add<StringId>(STR_STRING);
-                    ftName.Add<const char*>(golferItem.name.c_str());
-                    drawTextEllipsised(rt, { 0, y }, 100, format, ftName);
+                    // Both row formats are STRINGID formats: they take the id of STR_STRING, then the text.
+                    auto cell = [&](int32_t x, int32_t columnWidth, const char* text) {
+                        auto ft = Formatter();
+                        ft.Add<StringId>(STR_STRING);
+                        ft.Add<const char*>(text);
+                        drawTextEllipsised(rt, { x, y }, columnWidth, format, ft);
+                    };
 
-                    // Skill Tier
-                    auto ftTier = Formatter();
-                    ftTier.Add<StringId>(STR_STRING);
-                    ftTier.Add<const char*>(golferItem.tier.c_str());
-                    drawTextEllipsised(rt, { 104, y }, 48, format, ftTier);
-
-                    // Current State
-                    auto ftState = Formatter();
-                    ftState.Add<StringId>(STR_STRING);
-                    ftState.Add<const char*>(golferItem.state.c_str());
-                    drawTextEllipsised(rt, { 156, y }, 90, format, ftState);
-
-                    // Current Hole & Score vs Par
-                    auto ftScore = Formatter();
-                    ftScore.Add<StringId>(STR_STRING);
-                    ftScore.Add<const char*>(golferItem.holeAndScore.c_str());
-                    drawTextEllipsised(rt, { 250, y }, 60, format, ftScore);
-
-                    // Satisfaction
-                    std::string sat = std::to_string(golferItem.satisfaction) + "%";
-                    auto ftSat = Formatter();
-                    ftSat.Add<StringId>(STR_STRING);
-                    ftSat.Add<const char*>(sat.c_str());
-                    drawTextEllipsised(rt, { 314, y }, 30, format, ftSat);
+                    cell(0, 100, golferItem.name.c_str());          // Golfer name
+                    cell(104, 48, golferItem.tier.c_str());         // Skill tier
+                    cell(156, 90, golferItem.state.c_str());        // Current state
+                    cell(250, 60, golferItem.holeAndScore.c_str()); // Current hole and score against par
+                    const std::string sat = std::to_string(golferItem.satisfaction) + "%";
+                    cell(314, 30, sat.c_str());                     // Satisfaction
                 }
                 y += kScrollableRowHeight;
                 index++;

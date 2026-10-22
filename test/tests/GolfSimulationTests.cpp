@@ -651,27 +651,29 @@ TEST(GolfSimulation, BenchCapacityIsLimitedToTwoOccupants)
     EXPECT_EQ(tally.count[SimEvent::Type::restedOnBench], 0);
 }
 
-TEST(GolfSimulation, GolfersTalkWhileWaitingAtTee)
+TEST(GolfSimulation, OnlyOneGolferOfAGroupStandsOnTheTee)
 {
     Course3 c;
     auto env = c.environment();
     GolfSimulation sim(env);
-    // Group 1 books first tee time
-    auto g1 = aGolfer(c);
-    g1.groupId = 1;
-    sim.spawn(g1);
+    for (int i = 0; i < 3; i++)
+    {
+        auto s = aGolfer(c);
+        s.groupId = 2;
+        sim.spawn(s);
+    }
 
-    // Group 2 will have a tee time in the future and wait at the tee
-    auto s1 = aGolfer(c);
-    s1.groupId = 2;
-    auto s2 = aGolfer(c);
-    s2.groupId = 2;
-    sim.spawn(s1);
-    sim.spawn(s2);
-
-    Tally tally;
-    runUntilEmpty(sim, tally);
-    EXPECT_GE(tally.count[SimEvent::Type::talkedWithGolfer], 2);
+    int32_t mostOnTee = 0;
+    for (uint32_t t = 1000; t < 200000 && !sim.golfers().empty(); t++)
+    {
+        sim.tick(t);
+        int32_t onTee = 0;
+        for (const auto& g : sim.golfers())
+            if (!g.finished && g.holeIndex == 0 && g.score.shots == 0 && g.state == GolferState::waitingForTeeTime)
+                onTee++;
+        mostOnTee = std::max(mostOnTee, onTee);
+    }
+    EXPECT_LE(mostOnTee, 1);
 }
 
 TEST(GolfSimulation, GolferDisposesTrashInNearbyBin)

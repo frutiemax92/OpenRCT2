@@ -1219,15 +1219,18 @@ namespace OpenRCT2::Ui::Windows
                     spriteIdx = spriteIdx.WithIndexOffset((currentFrame / 8) % 8);
                 GfxDrawSprite(rt, spriteIdx, windowPos + ScreenCoordsXY{ widgets[WIDX_TAB_3].left, widgets[WIDX_TAB_3].top });
 
-                auto* animObj = findPeepAnimationsObjectForType(AnimationPeepType::guest);
-                ImageId peepImage(
-                    animObj->GetPeepAnimation(PeepAnimationGroup::normal).baseImage + 1, Drawing::Colour::brightRed,
-                    Drawing::Colour::darkWater);
-                if (page == WINDOW_PARK_PAGE_GUESTS)
-                    peepImage = peepImage.WithIndexOffset(_peepAnimationFrame & 0xFFFFFFFC);
+                if (auto* animObj = findPeepAnimationsObjectForType(AnimationPeepType::guest); animObj != nullptr)
+                {
+                    ImageId peepImage(
+                        animObj->GetPeepAnimation(PeepAnimationGroup::normal).baseImage + 1, Drawing::Colour::brightRed,
+                        Drawing::Colour::darkWater);
+                    if (page == WINDOW_PARK_PAGE_GUESTS)
+                        peepImage = peepImage.WithIndexOffset(_peepAnimationFrame & 0xFFFFFFFC);
 
-                GfxDrawSprite(
-                    rt, peepImage, windowPos + ScreenCoordsXY{ widgets[WIDX_TAB_3].midX(), widgets[WIDX_TAB_3].bottom - 9 });
+                    GfxDrawSprite(
+                        rt, peepImage,
+                        windowPos + ScreenCoordsXY{ widgets[WIDX_TAB_3].midX(), widgets[WIDX_TAB_3].bottom - 9 });
+                }
             }
 
             // Price tab

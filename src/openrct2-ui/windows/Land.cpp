@@ -43,7 +43,7 @@ namespace OpenRCT2::Ui::Windows
     static Drawing::Colour _edgeColour1 = Drawing::Colour::black;
 
     static constexpr StringId kWindowTitle = STR_LAND;
-    static constexpr ScreenSize kWindowSize = { 98, 206 };
+    static constexpr ScreenSize kWindowSize = { 98, 226 };
 
     enum WindowLandWidgetIdx : WidgetIndex
     {
@@ -61,6 +61,7 @@ namespace OpenRCT2::Ui::Windows
         WIDX_EDGE_COLOUR_1,
         WIDX_SPAWN_TREES,
         WIDX_TURF_OVERLAY,
+        WIDX_BRUSH_MODE,
     };
 
     enum class SelectionMode
@@ -81,10 +82,18 @@ namespace OpenRCT2::Ui::Windows
         makeWidget     ({49, 106}, {47, 36}, WidgetType::flatBtn,   WindowColour::secondary, 0xFFFFFFFF,                              STR_CHANGE_VERTICAL_LAND_TIP),  // wall texture
         makeWidget     ({20, 146}, {12, 12}, WidgetType::colourBtn, WindowColour::secondary, 0xFFFFFFFF,                              STR_SELECT_COLOUR), // surface colour 1
         makeWidget     ({67, 146}, {12, 12}, WidgetType::colourBtn, WindowColour::secondary, 0xFFFFFFFF,                              STR_SELECT_COLOUR), // edge colour 1
-        makeWidget     ({ 4, 166}, {90, 16}, WidgetType::checkbox,  WindowColour::secondary, STR_LAND_TOOL_SPAWN_TREES,              STR_LAND_TOOL_SPAWN_TREES_TIP), // spawn trees (TER-043)
-        makeWidget     ({ 4, 184}, {90, 16}, WidgetType::checkbox,  WindowColour::secondary, STR_TURF_OVERLAY,                       STR_TURF_OVERLAY_TIP) // turf overlay (MON-003)
+        makeWidget     ({ 4, 186}, {90, 16}, WidgetType::checkbox,  WindowColour::secondary, STR_LAND_TOOL_SPAWN_TREES,              STR_LAND_TOOL_SPAWN_TREES_TIP), // spawn trees (TER-043)
+        makeWidget     ({ 4, 204}, {90, 16}, WidgetType::checkbox,  WindowColour::secondary, STR_TURF_OVERLAY,                       STR_TURF_OVERLAY_TIP), // turf overlay (MON-003)
+        makeWidget     ({ 4, 164}, {90, 16}, WidgetType::button,    WindowColour::secondary, STR_LAND_BRUSH_TILE,                    STR_LAND_BRUSH_TIP) // brush mode (TER-022)
     );
     // clang-format on
+
+    enum class PaintBrush : uint8_t
+    {
+        tile,
+        quadrant,
+        half,
+    };
 
     class LandWindow final : public Window
     {
@@ -93,6 +102,7 @@ namespace OpenRCT2::Ui::Windows
         bool _landToolMountainMode = false;
         bool _landToolPaintMode = false;
         bool _landToolSpawnTrees = false;
+        PaintBrush _paintBrush = PaintBrush::tile;
 
         money64 _landToolRaiseCost = kMoney64Undefined;
         money64 _landToolLowerCost = kMoney64Undefined;
@@ -155,6 +165,10 @@ namespace OpenRCT2::Ui::Windows
                 case WIDX_PAINTMODE:
                     _landToolMountainMode = false;
                     _landToolPaintMode ^= 1;
+                    invalidate();
+                    break;
+                case WIDX_BRUSH_MODE:
+                    _paintBrush = static_cast<PaintBrush>((static_cast<uint8_t>(_paintBrush) + 1) % 3);
                     invalidate();
                     break;
                 case WIDX_SPAWN_TREES:
@@ -323,6 +337,13 @@ namespace OpenRCT2::Ui::Windows
             widgets[WIDX_EDGE_COLOUR_1].setVisible(_edgeColour1Enabled && edgeButtonSelected);
             widgets[WIDX_SPAWN_TREES].setVisible(_landToolPaintMode);
             setCheckboxValue(WIDX_SPAWN_TREES, _landToolSpawnTrees);
+            widgets[WIDX_BRUSH_MODE].setVisible(_landToolPaintMode);
+            StringId brushString = STR_LAND_BRUSH_TILE;
+            if (_paintBrush == PaintBrush::quadrant)
+                brushString = STR_LAND_BRUSH_QUADRANT;
+            else if (_paintBrush == PaintBrush::half)
+                brushString = STR_LAND_BRUSH_HALF;
+            widgets[WIDX_BRUSH_MODE].text = brushString;
 
             auto* runtime = Golf::GetGolfRuntime();
             setCheckboxValue(WIDX_TURF_OVERLAY, runtime != nullptr && runtime->turfOverlayEnabled());
@@ -439,12 +460,15 @@ namespace OpenRCT2::Ui::Windows
             return shift ? 1 : 2;
         }
 
-        // Quadrants to paint (TER-022): the whole tile by default; with Alt only the quadrant under the cursor, and with
-        // Alt and Shift the half tile on the side of the diagonal the cursor is clearly on.
-        static uint8_t GetPaintQuadrantMask(const ScreenCoordsXY& screenPos)
+        // Quadrants to paint (TER-022): chosen with the brush button; Alt forces the quadrant under the cursor and
+        // Alt and Shift the half tile, whatever the button says.
+        uint8_t GetPaintQuadrantMask(const ScreenCoordsXY& screenPos) const
         {
             auto& im = GetInputManager();
-            if (!im.isModifierKeyPressed(ModifierKey::alt))
+            auto brush = _paintBrush;
+            if (im.isModifierKeyPressed(ModifierKey::alt))
+                brush = im.isModifierKeyPressed(ModifierKey::shift) ? PaintBrush::half : PaintBrush::quadrant;
+            if (brush == PaintBrush::tile)
                 return 0xF;
             const auto mapCoords = ScreenGetMapXY(screenPos, nullptr);
             if (!mapCoords.has_value())
@@ -453,7 +477,7 @@ namespace OpenRCT2::Ui::Windows
             const int32_t xl = mapCoords->x & 31, yl = mapCoords->y & 31;
             using Terrain::Quadrant;
             auto bit = [](Quadrant q) { return static_cast<uint8_t>(1 << static_cast<int>(q)); };
-            if (!im.isModifierKeyPressed(ModifierKey::shift))
+            if (brush == PaintBrush::quadrant)
                 return bit(Terrain::GetQuadrantAt(xl, yl));
 
             const int32_t acrossNorthSouth = xl - yl;      // > 0: north-east and south-east side

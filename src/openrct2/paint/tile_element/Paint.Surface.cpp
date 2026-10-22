@@ -11,6 +11,7 @@
 
 #include "../../Cheats.h"
 #include "../../GameState.h"
+#include "../../golf/HoleMarkers.h"
 #include "../../OpenRCT2.h"
 #include "../../SpriteIds.h"
 #include "../../config/Config.h"
@@ -703,6 +704,44 @@ static void PaintPatrolArea(PaintSession& session, const SurfaceElement& element
     }
 }
 
+// Zone overlay (TEST-001): lots orange, driving ranges blue, land outside the course boundary red.
+static void PaintGolfZones(PaintSession& session, const SurfaceElement& element, int32_t height)
+{
+    if (!Golf::GetHoleMarkers().showZones())
+        return;
+    const TileCoordsXY tile{ session.MapPosition };
+    const auto& golf = getGameState().golf;
+    std::optional<Drawing::Colour> colour;
+    for (const auto& lot : golf.lots())
+    {
+        if (lot.contains(tile))
+        {
+            colour = lot.sold ? Drawing::Colour::darkOrange : Drawing::Colour::lightOrange;
+            break;
+        }
+    }
+    if (!colour)
+    {
+        for (const auto& range : golf.ranges())
+        {
+            if (range.containsTile(tile))
+            {
+                colour = Drawing::Colour::lightBlue;
+                break;
+            }
+        }
+    }
+    if (!colour && element.hasOwnership(OwnershipFlag::landOwned) && golf.boundary().defined()
+        && !golf.boundary().isInPlay(tile))
+    {
+        colour = Drawing::Colour::brightRed;
+    }
+    if (colour)
+    {
+        PaintTerrainOverlay(session, element, height, { Drawing::TerrainOverlayKind::fill, 0, OverlayColour(*colour, 5) }, false);
+    }
+}
+
 static void PaintSurfaceLandOwnership(PaintSession& session, const SurfaceElement& tileElement, uint16_t height)
 {
     if (tileElement.hasOwnership(OwnershipFlag::landOwned))
@@ -1051,6 +1090,7 @@ void PaintSurface(PaintSession& session, uint8_t direction, uint16_t height, con
     }
 
     PaintPatrolArea(session, tileElement, height);
+    PaintGolfZones(session, tileElement, height);
 
     auto& gameState = getGameState();
     // Draw Peep Spawns

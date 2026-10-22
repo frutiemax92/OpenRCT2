@@ -72,6 +72,7 @@ namespace OpenRCT2::Ui::Windows
 
     // Cheats
     WindowBase* CheatsOpen();
+    WindowBase* CheatsOpenGolfPage();
 
     // ClearScenery
     WindowBase* ClearSceneryOpen();
