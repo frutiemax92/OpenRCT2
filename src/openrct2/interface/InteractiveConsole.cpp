@@ -537,13 +537,13 @@ static void ConsoleCommandGet(InteractiveConsole& console, const arguments_t& ar
 
     if (!argv.empty())
     {
-        if (argv[0] == "park_rating")
+        if (argv[0] == "course_popularity")
         {
-            console.WriteFormatLine("park_rating %d", gameState.park.rating);
+            console.WriteFormatLine("course_popularity %d", gameState.park.rating);
         }
-        else if (argv[0] == "park_value")
+        else if (argv[0] == "course_value")
         {
-            console.WriteLine(FormatString("park_value {CURRENCY2DP}", gameState.park.value));
+            console.WriteLine(FormatString("course_value {CURRENCY2DP}", gameState.park.value));
         }
         else if (argv[0] == "company_value")
         {
@@ -643,18 +643,18 @@ static void ConsoleCommandGet(InteractiveConsole& console, const arguments_t& ar
         {
             console.WriteFormatLine("no_money %d", gameState.park.flags.has(ParkFlag::noMoney));
         }
-        else if (argv[0] == "difficult_park_rating")
+        else if (argv[0] == "difficult_course_popularity")
         {
-            console.WriteFormatLine("difficult_park_rating %d", gameState.park.flags.has(ParkFlag::difficultParkRating));
+            console.WriteFormatLine("difficult_course_popularity %d", gameState.park.flags.has(ParkFlag::difficultParkRating));
         }
         else if (argv[0] == "difficult_guest_generation")
         {
             console.WriteFormatLine(
                 "difficult_guest_generation %d", gameState.park.flags.has(ParkFlag::difficultGuestGeneration));
         }
-        else if (argv[0] == "park_open")
+        else if (argv[0] == "course_open")
         {
-            console.WriteFormatLine("park_open %d", gameState.park.flags.has(ParkFlag::parkOpen));
+            console.WriteFormatLine("course_open %d", gameState.park.flags.has(ParkFlag::parkOpen));
         }
         else if (argv[0] == "game_speed")
         {
@@ -870,7 +870,7 @@ static void ConsoleCommandSet(InteractiveConsole& console, const arguments_t& ar
         {
             ConsoleSetVariableAction<GameActions::CheatSetAction>(console, varName, CheatType::noMoney, int_val[0] != 0);
         }
-        else if (varName == "difficult_park_rating" && InvalidArguments(&invalidArgs, int_valid[0]))
+        else if (varName == "difficult_course_popularity" && InvalidArguments(&invalidArgs, int_valid[0]))
         {
             ConsoleSetVariableAction<GameActions::ScenarioSetSettingAction>(
                 console, varName, GameActions::ScenarioSetSetting::parkRatingHigherDifficultyLevel, int_val[0]);
@@ -880,7 +880,7 @@ static void ConsoleCommandSet(InteractiveConsole& console, const arguments_t& ar
             ConsoleSetVariableAction<GameActions::ScenarioSetSettingAction>(
                 console, varName, GameActions::ScenarioSetSetting::guestGenerationHigherDifficultyLevel, int_val[0]);
         }
-        else if (varName == "park_open" && InvalidArguments(&invalidArgs, int_valid[0]))
+        else if (varName == "course_open" && InvalidArguments(&invalidArgs, int_valid[0]))
         {
             ConsoleSetVariableAction<GameActions::ParkSetParameterAction>(
                 console, varName, (int_val[0] == 1) ? GameActions::ParkParameter::open : GameActions::ParkParameter::close);
@@ -1380,17 +1380,17 @@ static void ConsoleCommandLoadPark([[maybe_unused]] InteractiveConsole& console,
     {
         savePath = argv[0];
     }
-    if (!String::endsWith(savePath, ".park", true))
+    if (!String::endsWith(savePath, ".golf", true) && !String::endsWith(savePath, ".park", true))
     {
-        savePath += ".park";
+        savePath += ".golf";
     }
     if (GetContext()->LoadParkFromFile(savePath))
     {
-        console.WriteFormatLine("Park %s was loaded successfully", savePath.c_str());
+        console.WriteFormatLine("Course %s was loaded successfully", savePath.c_str());
     }
     else
     {
-        console.WriteFormatLine("Loading Park %s failed", savePath.c_str());
+        console.WriteFormatLine("Loading course %s failed", savePath.c_str());
     }
 }
 
@@ -1815,8 +1815,8 @@ struct ConsoleCommand
 
 // clang-format off
 static constexpr const utf8* console_variable_table[] = {
-    "park_rating",
-    "park_value",
+    "course_popularity",
+    "course_value",
     "company_value",
     "money",
     "scenario_initial_cash",
@@ -1834,11 +1834,11 @@ static constexpr const utf8* console_variable_table[] = {
     "forbid_high_construction",
     "pay_for_rides",
     "no_money",
-    "difficult_park_rating",
+    "difficult_course_popularity",
     "difficult_guest_generation",
     "land_rights_cost",
     "construction_rights_cost",
-    "park_open",
+    "course_open",
     "game_speed",
     "console_small_font",
     "location",
@@ -1887,7 +1887,7 @@ static constexpr ConsoleCommand console_command_table[] = {
       "Loading a scenery group will not load its associated objects.\n"
       "This is a safer method opposed to \"open object_selection\".",
       "load_object <objectfilenodat>" },
-    { "load_park", ConsoleCommandLoadPark, "Load park from save directory or by absolute path", "load_park <filename>" },
+    { "load_course", ConsoleCommandLoadPark, "Load a golf course from the save directory or by absolute path", "load_course <filename>" },
     { "model_view", ConsoleCommandModelView, "Shows a .glb model with all its animations and rotations.",
       "model_view <file.glb>" },
     { "object_count", ConsoleCommandCountObjects, "Shows the number of objects of each type in the scenario.", "object_count" },
@@ -1897,8 +1897,8 @@ static constexpr ConsoleCommand console_command_table[] = {
       "remove_unused_objects" },
     { "remove_floating_objects", ConsoleCommandRemoveFloatingObjects, "Removes floating objects", "remove_floating_objects" },
     { "rides", ConsoleCommandRides, "Ride management.", "rides <subcommand>" },
-    { "save_park", ConsoleCommandSavePark, "Save current state of park. If no name specified default path will be used.",
-      "save_park [name]" },
+    { "save_course", ConsoleCommandSavePark, "Save the current state of the golf course. If no name specified default path will be used.",
+      "save_course [name]" },
     { "say", ConsoleCommandSay, "Say to other players.", "say <message>" },
     { "set", ConsoleCommandSet, "Sets the variable to the specified value.", "set <variable> <value>" },
     { "show_limits", ConsoleCommandShowLimits, "Shows the map data counts and limits.", "show_limits" },
@@ -1979,6 +1979,25 @@ static bool InvalidArguments(bool* invalid, bool arguments)
     return true;
 }
 
+// Console names from before the golf rename. They still work but are not listed by help or in the variable table.
+static std::string_view ConsoleResolveLegacyName(std::string_view name)
+{
+    static constexpr std::pair<std::string_view, std::string_view> kLegacyNames[] = {
+        { "park_rating", "course_popularity" },
+        { "park_value", "course_value" },
+        { "difficult_park_rating", "difficult_course_popularity" },
+        { "park_open", "course_open" },
+        { "load_park", "load_course" },
+        { "save_park", "save_course" },
+    };
+    for (const auto& [legacy, current] : kLegacyNames)
+    {
+        if (name == legacy)
+            return current;
+    }
+    return name;
+}
+
 void InteractiveConsole::Execute(const std::string& s)
 {
     arguments_t argv;
@@ -2023,6 +2042,10 @@ void InteractiveConsole::Execute(const std::string& s)
 
     if (argv.empty())
         return;
+
+    argv[0] = ConsoleResolveLegacyName(argv[0]);
+    if (argv.size() > 1 && (argv[0] == "get" || argv[0] == "set"))
+        argv[1] = ConsoleResolveLegacyName(argv[1]);
 
     bool validCommand = false;
     for (const auto& c : console_command_table)
