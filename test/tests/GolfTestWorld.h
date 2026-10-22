@@ -138,6 +138,7 @@ namespace GolfTest
         std::function<double(double, double)> height = [](double, double) { return 0.0; };
         std::function<bool(double, double)> hazard = [](double, double) { return false; };
         std::function<bool(double, double)> blocked = [](double, double) { return false; };
+        std::function<bool(double, double)> path = [](double, double) { return false; };
         std::function<bool(double, double)> puttable = [](double, double) { return false; };
         std::function<bool(double, double)> water = [](double, double) { return false; };
         std::function<double(double, double)> roughness = [](double, double) { return 0.15; };
@@ -153,6 +154,7 @@ namespace GolfTest
             s.normal = normalised(FixedVec3{ Fixed::fromRaw(static_cast<int64_t>(-gx * 65536.0)),
                                              Fixed::fromRaw(static_cast<int64_t>(-gy * 65536.0)), Fixed::fromInt(1) });
             s.hazard = hazard(px, py);
+            s.path = path(px, py);
             s.puttable = puttable(px, py);
             s.water = water(px, py);
             s.roughness = Fixed::fromRaw(static_cast<int64_t>(roughness(px, py) * 65536.0));

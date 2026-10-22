@@ -13,6 +13,10 @@
 #include "Cottages.h"
 
 #include <algorithm>
+#include <cmath>
+#include <functional>
+#include <limits>
+#include <queue>
 
 namespace OpenRCT2::Golf
 {
@@ -599,10 +603,169 @@ namespace OpenRCT2::Golf
     }
 
     bool GolfSimulation::walk(Golfer& g, const FixedVec3& to)
+    std::vector<FixedVec3> GolfSimulation::planWalk(const FixedVec3& from, const FixedVec3& to) const
+    {
+        std::vector<FixedVec3> route{ to };
+        if (_env.world == nullptr)
+            return route;
+        const int64_t fx = from.x.floor(), fy = from.y.floor(), tx = to.x.floor(), ty = to.y.floor();
+        if (std::max(std::abs(tx - fx), std::abs(ty - fy)) < kPlanMinDistanceUnits)
+            return route;
+
+        // Time to walk a short line, sampled along it, in ticks scaled by a thousand.
+        const auto speedAt = [this](int64_t x, int64_t y) {
+            return static_cast<int64_t>(
+                walkSpeedHundredthsOn(_env.world->surfaceAt(Fixed::fromInt(x), Fixed::fromInt(y))));
+        };
+        const auto lineCost = [&](int64_t ax, int64_t ay, int64_t bx, int64_t by) {
+            const int64_t dist = static_cast<int64_t>(std::hypot(static_cast<double>(bx - ax), static_cast<double>(by - ay)));
+            const int64_t steps = std::max<int64_t>(1, (dist + kPlanSampleUnits - 1) / kPlanSampleUnits);
+            int64_t cost = 0;
+            for (int64_t i = 0; i < steps; i++)
+            {
+                const int64_t x = ax + (bx - ax) * (2 * i + 1) / (2 * steps);
+                const int64_t y = ay + (by - ay) * (2 * i + 1) / (2 * steps);
+                cost += dist * 100000 / steps / speedAt(x, y);
+            }
+            return cost;
+        };
+
+        // The grid covers both ends with a margin to go round things; a long walk gets coarser cells.
+        int64_t cell = kPlanCellUnits;
+        int64_t x0 = 0, y0 = 0, cols = 0, rows = 0;
+        for (;; cell *= 2)
+        {
+            x0 = std::max<int64_t>(0, (std::min(fx, tx) - kPlanMarginUnits) / cell * cell);
+            y0 = std::max<int64_t>(0, (std::min(fy, ty) - kPlanMarginUnits) / cell * cell);
+            cols = (std::max(fx, tx) + kPlanMarginUnits - x0) / cell + 1;
+            rows = (std::max(fy, ty) + kPlanMarginUnits - y0) / cell + 1;
+            if (cols <= 0 || rows <= 0)
+                return route;
+            if (cols * rows <= kPlanMaxCells)
+                break;
+        }
+        const auto centreX = [&](int64_t c) { return x0 + c * cell + cell / 2; };
+        const auto centreY = [&](int64_t r) { return y0 + r * cell + cell / 2; };
+        const int64_t startCell = std::clamp((fy - y0) / cell, int64_t{ 0 }, rows - 1) * cols
+                                  + std::clamp((fx - x0) / cell, int64_t{ 0 }, cols - 1);
+        const int64_t goalCell = std::clamp((ty - y0) / cell, int64_t{ 0 }, rows - 1) * cols
+                                 + std::clamp((tx - x0) / cell, int64_t{ 0 }, cols - 1);
+
+        std::vector<uint8_t> blocked(static_cast<size_t>(cols * rows), 0);
+        std::vector<int64_t> cellSpeed(static_cast<size_t>(cols * rows), 1);
+        for (int64_t r = 0; r < rows; r++)
+            for (int64_t c = 0; c < cols; c++)
+            {
+                const auto ground = _env.world->surfaceAt(Fixed::fromInt(centreX(c)), Fixed::fromInt(centreY(r)));
+                blocked[static_cast<size_t>(r * cols + c)] = ground.water || ground.outOfBounds;
+                cellSpeed[static_cast<size_t>(r * cols + c)] = walkSpeedHundredthsOn(ground);
+            }
+        blocked[static_cast<size_t>(startCell)] = 0;
+        blocked[static_cast<size_t>(goalCell)] = 0;
+
+        constexpr int64_t kInfinite = std::numeric_limits<int64_t>::max();
+        std::vector<int64_t> best(static_cast<size_t>(cols * rows), kInfinite);
+        std::vector<int64_t> parent(static_cast<size_t>(cols * rows), -1);
+        using Entry = std::pair<int64_t, int64_t>;
+        std::priority_queue<Entry, std::vector<Entry>, std::greater<Entry>> open;
+        best[static_cast<size_t>(startCell)] = 0;
+        open.push({ 0, startCell });
+        while (!open.empty())
+        {
+            const auto [cost, cur] = open.top();
+            open.pop();
+            if (cost > best[static_cast<size_t>(cur)])
+                continue;
+            if (cur == goalCell)
+                break;
+            const int64_t cc = cur % cols, cr = cur / cols;
+            for (int64_t dr = -1; dr <= 1; dr++)
+                for (int64_t dc = -1; dc <= 1; dc++)
+                {
+                    const int64_t nc = cc + dc, nr = cr + dr;
+                    if ((dc == 0 && dr == 0) || nc < 0 || nr < 0 || nc >= cols || nr >= rows)
+                        continue;
+                    const int64_t next = nr * cols + nc;
+                    if (blocked[static_cast<size_t>(next)])
+                        continue;
+                    const CoordsXY a{ static_cast<int32_t>(centreX(cc)), static_cast<int32_t>(centreY(cr)) };
+                    const CoordsXY b{ static_cast<int32_t>(centreX(nc)), static_cast<int32_t>(centreY(nr)) };
+                    if (!Stream::CanMove(a, b, false))
+                        continue;
+                    const int64_t length = (dc == 0 || dr == 0) ? cell : cell * 1414 / 1000;
+                    const int64_t speed = (cellSpeed[static_cast<size_t>(cur)] + cellSpeed[static_cast<size_t>(next)]) / 2;
+                    const int64_t step = cost + length * 100000 / speed;
+                    if (step < best[static_cast<size_t>(next)])
+                    {
+                        best[static_cast<size_t>(next)] = step;
+                        parent[static_cast<size_t>(next)] = cur;
+                        open.push({ step, next });
+                    }
+                }
+        }
+        if (best[static_cast<size_t>(goalCell)] == kInfinite)
+            return route;
+
+        // The corners: from, the centres of the cells on the way, to.
+        std::vector<std::pair<int64_t, int64_t>> points{ { fx, fy } };
+        std::vector<std::pair<int64_t, int64_t>> cells;
+        for (int64_t cur = goalCell; cur != startCell; cur = parent[static_cast<size_t>(cur)])
+            cells.push_back({ centreX(cur % cols), centreY(cur / cols) });
+        points.insert(points.end(), cells.rbegin(), cells.rend());
+        points.push_back({ tx, ty });
+
+        // Pull the line tight: skip corners whenever walking straight on is no slower than following the cells.
+        std::vector<int64_t> prefix{ 0 };
+        for (size_t i = 1; i < points.size(); i++)
+            prefix.push_back(prefix.back()
+                             + lineCost(points[i - 1].first, points[i - 1].second, points[i].first, points[i].second));
+        route.clear();
+        size_t anchor = 0;
+        while (anchor + 1 < points.size())
+        {
+            size_t reach = points.size() - 1;
+            while (reach > anchor + 1
+                   && lineCost(points[anchor].first, points[anchor].second, points[reach].first, points[reach].second)
+                          > prefix[reach] - prefix[anchor])
+                reach--;
+            route.push_back(reach + 1 == points.size() ? to
+                                                       : FixedVec3{ Fixed::fromInt(points[reach].first),
+                                                                    Fixed::fromInt(points[reach].second), to.z });
+            anchor = reach;
+        }
+        return route;
+    }
+
     {
         if (g.onCart)
             return ride(g, to);
         const int32_t speedHundredths = _env.world != nullptr ? walkSpeedHundredthsOn(_env.world->surfaceAt(g.position.x, g.position.y))
+        // A walk that stopped for a while (a rest, a shot) plans again from where the golfer is now.
+        const bool stale = static_cast<uint64_t>(_now) > g.walkRouteTick + kPlanStaleTicks;
+        g.walkRouteTick = static_cast<uint64_t>(_now);
+        if (!g.hasWalkRoute || stale || length(FixedVec3{ to.x - g.walkRouteTarget.x, to.y - g.walkRouteTarget.y, Fixed{} })
+                                   > Fixed::fromInt(kPlanRetargetUnits))
+        {
+            g.walkRoute = planWalk(g.position, to);
+            std::reverse(g.walkRoute.begin(), g.walkRoute.end());
+            g.walkRouteTarget = to;
+            g.hasWalkRoute = true;
+        }
+        // The route is kept with the next corner last; the walk ends when the target (the first one kept) is reached.
+        if (g.walkRoute.size() > 1)
+        {
+            if (walkStraight(g, g.walkRoute.back()))
+                g.walkRoute.pop_back();
+            return false;
+        }
+        const bool arrived = walkStraight(g, to);
+        if (arrived)
+            g.hasWalkRoute = false;
+        return arrived;
+    }
+
+    bool GolfSimulation::walkStraight(Golfer& g, const FixedVec3& to)
+    {
                                                               : kWalkSpeedHundredths;
         const Fixed speed = Fixed::ratio(speedHundredths, 100);
         const FixedVec3 delta{ to.x - g.position.x, to.y - g.position.y, Fixed{} };

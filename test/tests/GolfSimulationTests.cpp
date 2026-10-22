@@ -928,3 +928,88 @@ TEST(GolfSimulationWalking, SpeedDependsOnTheGroundUnderTheGolfer)
     slope.path = true;
     EXPECT_EQ(Golf::walkSpeedHundredthsOn(slope), Golf::kWalkSpeedPathHundredths);
 }
+
+namespace
+{
+    struct WalkTrial
+    {
+        uint32_t ticks = 0;
+        uint32_t ticksOnHarshGround = 0;
+        bool arrived = false;
+    };
+
+    // Walks a golfer from `start` to the club entrance of the environment and reports how long it took and for how many ticks it
+    // stood on harsh ground on the way.
+    WalkTrial walkToTheClub(Course3& c, GolfSimulation::Environment env, FixedVec3 start)
+    {
+        GolfSimulation sim(env);
+        auto spawn = aGolfer(c);
+        spawn.position = start;
+        sim.spawn(spawn);
+        WalkTrial trial;
+        for (uint32_t t = 1000; t < 6000; t++)
+        {
+            sim.tick(t);
+            const auto& g = sim.golfers().front();
+            if (g.state != GolferState::walkingToCheckIn && g.state != GolferState::arriving)
+            {
+                trial.arrived = true;
+                break;
+            }
+            trial.ticks++;
+            if (walkSpeedHundredthsOn(c.world.surfaceAt(g.position.x, g.position.y)) == kWalkSpeedHarshHundredths)
+                trial.ticksOnHarshGround++;
+        }
+        return trial;
+    }
+} // namespace
+
+TEST(GolfSimulationWalking, AGolferWalksRoundHarshGroundWhenThatIsQuicker)
+{
+    // A strip of sand, 100 units long and 12 wide, lies on the straight way from (100, 2960) to the club at (300, 2960).
+    const auto sand = [](double x, double y) { return x > 120 && x < 220 && y > 2954 && y < 2966; };
+    Course3 c;
+    c.world.hazard = sand;
+    c.world.roughness = [sand](double x, double y) { return sand(x, y) ? 0.9 : 0.15; };
+    auto env = c.environment();
+    env.clubEntrance = vec(300, 2960, 0);
+    const auto trial = walkToTheClub(c, env, vec(100, 2960, 0));
+    EXPECT_TRUE(trial.arrived);
+    // Only the edge of the strip is grazed on the corner.
+    EXPECT_LT(trial.ticksOnHarshGround, 10u);
+    // Straight on, 100 units of sand at 0.14 and 100 of grass at 0.24 take 1131 ticks; the way round takes less than 1000.
+    EXPECT_LT(trial.ticks, 1000u);
+}
+
+TEST(GolfSimulationWalking, AGolferCrossesHarshGroundWhenTheWayRoundIsLonger)
+{
+    // A narrow strip of sand reaching far to both sides is cheaper to cross than to walk round.
+    const auto sand = [](double x, double y) { return x > 120 && x < 124 && y > 2000 && y < 4000; };
+    Course3 c;
+    c.world.hazard = sand;
+    c.world.roughness = [sand](double x, double y) { return sand(x, y) ? 0.9 : 0.15; };
+    auto env = c.environment();
+    env.clubEntrance = vec(160, 2960, 0);
+    const auto trial = walkToTheClub(c, env, vec(100, 2960, 0));
+    EXPECT_TRUE(trial.arrived);
+    EXPECT_GT(trial.ticksOnHarshGround, 0u);
+}
+
+TEST(GolfSimulationWalking, AGolferPrefersAPathOverFlatGround)
+{
+    // A path runs east along y 2880..2920 and the club lies 40 units north of its end: following the path before cutting
+    // across the grass is faster than the straight line (1135 ticks against 1267).
+    Course3 withPath;
+    withPath.world.path = [](double x, double y) { return y > 2880 && y < 2920 && x > 80 && x < 420; };
+    auto env = withPath.environment();
+    env.clubEntrance = vec(400, 2960, 0);
+    const auto onPath = walkToTheClub(withPath, env, vec(100, 2900, 0));
+
+    Course3 plain;
+    auto plainEnv = plain.environment();
+    plainEnv.clubEntrance = vec(400, 2960, 0);
+    const auto onGrass = walkToTheClub(plain, plainEnv, vec(100, 2900, 0));
+    EXPECT_TRUE(onPath.arrived);
+    EXPECT_TRUE(onGrass.arrived);
+    EXPECT_LT(onPath.ticks + 50, onGrass.ticks);
+}

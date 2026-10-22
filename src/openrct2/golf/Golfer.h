@@ -146,6 +146,12 @@ namespace OpenRCT2::Golf
         bool holeScored = false;         // the hole is scored and the golfer waits for the group to finish it (not saved)
         uint32_t turnWaitTicks = 0;      // time spent waiting for or following the group's turn
         FixedVec3 separation; // the push away from close golfers, looked at a few times a second (see GolfSimulation::walk)
+        // The way planned to the destination of walk(): corners to pass on the way, taking the quickest ground (not saved, planned
+        // again when the golfer starts to walk somewhere else).
+        std::vector<FixedVec3> walkRoute;
+        FixedVec3 walkRouteTarget;
+        bool hasWalkRoute = false;
+        uint64_t walkRouteTick = 0;
         bool pathBlocked = false;        // someone stands in the way of the planned shot (not saved, looked at again within a second)
         uint32_t arrivalDay = 0;
         int32_t animalSightings = 0;     // animals that cheered the golfer up on this hole (ANM-005)

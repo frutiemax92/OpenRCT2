@@ -169,6 +169,14 @@ namespace OpenRCT2::Golf
     constexpr int32_t kArriveDistanceUnits = 2;
     constexpr int32_t kPersonalSpaceUnits = 6;  // golfers on foot keep this far apart
     constexpr int32_t kSeparationCheckTicks = 8; // golfers look for company this often, not every tick
+    // Planning the way of a walk: the grid it is planned on, and when a walk is short or its target moved enough to plan again.
+    constexpr int64_t kPlanCellUnits = 16;
+    constexpr int64_t kPlanMarginUnits = 96;
+    constexpr int64_t kPlanMaxCells = 6000;
+    constexpr int64_t kPlanSampleUnits = 4;
+    constexpr int64_t kPlanMinDistanceUnits = 40;
+    constexpr int32_t kPlanRetargetUnits = 16;
+    constexpr uint64_t kPlanStaleTicks = 40;
     constexpr int32_t kQueueDistanceUnits = 14; // within this of its target a walker no longer steps aside: the target is shared
     // A group waiting at a tee longer than this many minutes counts it as a course problem (GLF-013, GLF-040).
     constexpr int32_t kLongWaitMinutes = 8;
@@ -287,6 +295,11 @@ namespace OpenRCT2::Golf
         FixedVec3 separationPush(const Golfer& g) const;
         // The driving ranges (section 17).
         void syncRanges();
+        bool walkStraight(Golfer& g, const FixedVec3& to);
+        // The corners of the quickest way from one place to another over the ground in between: a golfer takes a path or flat
+        // ground round harsh going (sand, deep rough, steep slopes) when that is faster than walking through it. The last
+        // corner is the target itself.
+        std::vector<FixedVec3> planWalk(const FixedVec3& from, const FixedVec3& to) const;
         bool wantsRange(const Golfer& g);
         void visitRange(Golfer& g, const DrivingRange& range);
         void beginRound(Golfer& g, const Course& course);
