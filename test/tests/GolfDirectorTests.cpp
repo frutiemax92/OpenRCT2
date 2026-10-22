@@ -524,7 +524,7 @@ TEST(GolfDirectorCarts, AGroupTakesCartsTwoToACartAndPaysTheFee)
 
     // Run until everyone has checked in.
     uint32_t t = at(1, 8);
-    for (; t < at(1, 8) + 6 * kTicksPerGameMinute; t++)
+    for (; t < at(1, 8) + 3 * kTicksPerGameMinute; t++)
         park.director->update(t);
 
     std::set<uint32_t> carts;
@@ -552,12 +552,12 @@ TEST(GolfDirectorCarts, ALaterGroupFindsNoCartAndWalks)
     addCarts(park, 2, 2);
     const auto first = spawnUnfitGroup(park, 4, 1);
     uint32_t t = at(1, 8);
-    for (; t < at(1, 8) + 6 * kTicksPerGameMinute; t++)
+    for (; t < at(1, 8) + 3 * kTicksPerGameMinute; t++)
         park.director->update(t);
     ASSERT_EQ(park.director->fleet.freeCarts(), 0);
 
     const auto second = spawnUnfitGroup(park, 2, 2);
-    for (uint32_t end = t + 6 * kTicksPerGameMinute; t < end; t++)
+    for (uint32_t end = t + 3 * kTicksPerGameMinute; t < end; t++)
         park.director->update(t);
     for (const auto id : second)
     {
@@ -590,7 +590,12 @@ TEST(GolfDirectorCarts, TheCartDrivesWithItsRidersAndComesBackAfterTheRound)
         park.director->update(t);
         const auto* leader = park.director->simulation().find(ids[0]);
         if (leader == nullptr)
-            break;
+        {
+            // The riders finish a few ticks apart: wait for the last one.
+            if (park.director->simulation().find(ids[1]) == nullptr)
+                break;
+            continue;
+        }
         if (leader->onCart)
         {
             const auto* cart = park.director->fleet.find(leader->cartId);
@@ -623,7 +628,7 @@ TEST(GolfDirectorCarts, AGolferWhoRageQuitsGivesTheCartBack)
     addCarts(park, 1, 1);
     const auto ids = spawnUnfitGroup(park, 1, 1);
     uint32_t t = at(1, 8);
-    for (; t < at(1, 8) + 6 * kTicksPerGameMinute; t++)
+    for (; t < at(1, 8) + 3 * kTicksPerGameMinute; t++)
         park.director->update(t);
     auto* golfer = park.director->simulation().find(ids[0]);
     ASSERT_NE(golfer, nullptr);
@@ -633,7 +638,7 @@ TEST(GolfDirectorCarts, AGolferWhoRageQuitsGivesTheCartBack)
     // Make them furious about a hole that is too hard.
     golfer->needs.happiness = 0;
     golfer->rageCauses = kRageTooHard;
-    for (uint32_t end = t + 3 * kTicksPerGameMinute; t < end; t++)
+    for (uint32_t end = t + kTicksPerGameMinute; t < end; t++)
         park.director->update(t);
     EXPECT_EQ(park.director->fleet.freeCarts(), 1);
     EXPECT_EQ(park.director->fleet.carts()[0].state, CartState::parked);
@@ -647,7 +652,7 @@ TEST(GolfDirectorCarts, TheFleetAndItsRidersAreSaved)
     park.director->fleet.cartFee = 900;
     const auto ids = spawnUnfitGroup(park, 2, 1);
     uint32_t t = at(1, 8);
-    for (; t < at(1, 8) + 20 * kTicksPerGameMinute; t++)
+    for (; t < at(1, 8) + 3 * kTicksPerGameMinute; t++)
         park.director->update(t);
     const auto* golfer = park.director->simulation().find(ids[0]);
     ASSERT_NE(golfer, nullptr);
@@ -699,7 +704,7 @@ TEST(GolfDirectorCarts, ACartWithAFlatBatteryIsLeftAndItsRidersWalkOn)
     addCarts(park, 2, 1);
     const auto ids = spawnUnfitGroup(park, 2, 1);
     uint32_t t = at(1, 8);
-    for (; t < at(1, 8) + 8 * kTicksPerGameMinute; t++)
+    for (; t < at(1, 8) + 4 * kTicksPerGameMinute; t++)
         park.director->update(t);
     auto* golfer = park.director->simulation().find(ids[0]);
     ASSERT_NE(golfer, nullptr);
@@ -708,7 +713,7 @@ TEST(GolfDirectorCarts, ACartWithAFlatBatteryIsLeftAndItsRidersWalkOn)
 
     // The battery dies while they ride.
     park.director->fleet.find(cartId)->battery = 0;
-    for (uint32_t end = t + 3 * kTicksPerGameMinute; t < end; t++)
+    for (uint32_t end = t + kTicksPerGameMinute; t < end; t++)
         park.director->update(t);
     for (const auto id : ids)
     {
@@ -882,8 +887,8 @@ TEST(GolfDirectorAnimals, AGolferWhoSeesAnAnimalIsCheeredUpAFewTimesAHole)
     Park park;
     park.director->setPopularity(0);
     park.director->animals->addSpecies(testDeer());
-    // Next to the first tee, where the golfer ends up.
-    ASSERT_GT(park.director->animals->spawnGroup(0, vec(330, 3190, 0), 64), 0);
+    // On the first fairway, where the golfer is walking when a game minute (now 60 seconds) ticks over.
+    ASSERT_GT(park.director->animals->spawnGroup(0, vec(910, 3140, 0), 64), 0);
 
     GolfSimulation::Spawn spawn;
     spawn.courseId = park.courseId;
@@ -893,7 +898,7 @@ TEST(GolfDirectorAnimals, AGolferWhoSeesAnAnimalIsCheeredUpAFewTimesAHole)
     int sightings = 0;
     const int before = park.director->simulation().find(id)->needs.happiness;
     // Stay in sight of the animals for the first part of the round, without them running off (they stay: no threats here).
-    for (uint32_t t = at(1, 8); t < at(1, 8) + 12 * kTicksPerGameMinute; t++)
+    for (uint32_t t = at(1, 8); t < at(1, 8) + 40 * kTicksPerGameMinute; t++)
     {
         park.director->animals->tick({});
         park.director->update(t);
@@ -1048,7 +1053,9 @@ TEST(GolfDirector, GroupsChooseBetweenTheCoursesAndAMiniPuttIsLessLikelyThanAReg
         for (uint32_t t = at(day, 6); t < at(day, 18); t += kTicksPerGameMinute)
         {
             const auto before = park.director->groupsArrived();
-            park.director->update(t);
+            // A golfer walks 0.24 units a tick, so each minute is run for a few seconds, enough to reach the club.
+            for (uint32_t i = 0; i < 300; i++)
+                park.director->update(t + i);
             if (park.director->groupsArrived() > before)
             {
                 // The newest golfers are the group that just arrived.

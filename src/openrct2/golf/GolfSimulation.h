@@ -134,12 +134,12 @@ namespace OpenRCT2::Golf
     constexpr int32_t kRestTicksPerMinute = kTicksPerGameMinute;
     constexpr int32_t kRestEnergyPerMinute = 30;
     constexpr int32_t kTalkMinutes = 1;
-    // Walking speed in world units per tick. A game second is 200 / 60 ticks and a yard is 6.4 units, so 1.5 yards per
-    // second on normal ground is 90 yards per game minute (HoleSchedule), 1.96 on a path is the fast end of a human's
-    // 1.22 to 1.96, and rough going (a slope, sand, deep rough, woods) is slower still.
-    constexpr int32_t kWalkSpeedHundredths = 288;
-    constexpr int32_t kWalkSpeedPathHundredths = 376;
-    constexpr int32_t kWalkSpeedHarshHundredths = 173; // 0.9 yards per second
+    // Walking speed in world units per tick, 40 ticks a second and 6.4 units to the yard: 1.5 yards per second on normal
+    // ground (a 5 yard tile in 3.33 seconds), 1.96 on a path (the fast end of a human's 1.22 to 1.96), and slower on rough
+    // going (a slope, sand, deep rough, woods).
+    constexpr int32_t kWalkSpeedHundredths = 24;
+    constexpr int32_t kWalkSpeedPathHundredths = 31;
+    constexpr int32_t kWalkSpeedHarshHundredths = 14; // 0.9 yards per second
     // The roughness from which ground is hard going, and the steepest slope (the z of the surface normal) that is not.
     constexpr int32_t kHarshRoughnessHundredths = 60;
     constexpr int32_t kHarshSlopeNormalZHundredths = 95;

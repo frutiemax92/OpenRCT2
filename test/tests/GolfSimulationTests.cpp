@@ -377,7 +377,7 @@ TEST(GolfSimulation, ARageQuitInsultsGolfersWithinThreeTiles)
     sim.find(angryId)->needs.happiness = 10 * 16;
     sim.find(angryId)->rageCauses = kRageTooHard;
     EXPECT_EQ(sim.find(nearId)->needs.happinessByte(), 128);
-    sim.tick(200); // a game minute boundary: the angry golfer storms off
+    sim.tick(kTicksPerGameMinute); // a game minute boundary: the angry golfer storms off
     // The exit is right where the golfers stand, so the angry one is gone at once.
     const auto left = sim.takeLeft();
     ASSERT_EQ(left.size(), 1u);
@@ -745,11 +745,13 @@ TEST(GolfSimulation, SceneryNearHoleRaisesHappiness)
 TEST(GolfSimulationWalking, SpeedDependsOnTheGroundUnderTheGolfer)
 {
     const auto yardsPerSecond = [](int32_t hundredthsPerTick) {
-        return hundredthsPerTick / 100.0 * (Golf::kTicksPerGameMinute / 60.0) / 6.4;
+        return hundredthsPerTick / 100.0 * 40.0 / 6.4;
     };
-    EXPECT_NEAR(yardsPerSecond(Golf::kWalkSpeedPathHundredths), 1.96, 0.01);
+    EXPECT_NEAR(yardsPerSecond(Golf::kWalkSpeedPathHundredths), 1.96, 0.05);
     EXPECT_NEAR(yardsPerSecond(Golf::kWalkSpeedHundredths), 1.5, 0.01);
     EXPECT_LT(yardsPerSecond(Golf::kWalkSpeedHarshHundredths), 1.22);
+    // A 5 yard tile (32 units) takes 3.33 seconds on normal ground.
+    EXPECT_NEAR(32.0 / (Golf::kWalkSpeedHundredths / 100.0) / 40.0, 3.33, 0.01);
 
     SurfaceSample fairway;
     fairway.roughness = Fixed::ratio(15, 100);

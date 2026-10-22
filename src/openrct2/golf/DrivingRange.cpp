@@ -21,7 +21,7 @@ namespace OpenRCT2::Golf
         constexpr int32_t kPrepareTicks = 30;
         constexpr int32_t kSwingTicks = 30;
         constexpr int32_t kMaxFlightTicks = 2000;
-        constexpr int32_t kWalkSpeedHundredths = 288;
+        constexpr int32_t kWalkSpeedHundredths = 24;
 
         Fixed distanceXY(const FixedVec3& a, const FixedVec3& b)
         {

@@ -24,13 +24,13 @@ namespace
     }
 } // namespace
 
-TEST(GameClock, OneGameMinuteIsTwoHundredTicks)
+TEST(GameClock, OneGameMinuteIsSixtySecondsOfTicks)
 {
-    EXPECT_EQ(kTicksPerGameMinute, 200);
+    EXPECT_EQ(kTicksPerGameMinute, 40 * 60);
     EXPECT_EQ(gameMinuteAt(0), 0u);
-    EXPECT_EQ(gameMinuteAt(199), 0u);
-    EXPECT_EQ(gameMinuteAt(200), 1u);
-    EXPECT_EQ(minuteOfDayAt(static_cast<uint32_t>(kTicksPerGameDay) + 600), 3);
+    EXPECT_EQ(gameMinuteAt(kTicksPerGameMinute - 1), 0u);
+    EXPECT_EQ(gameMinuteAt(kTicksPerGameMinute), 1u);
+    EXPECT_EQ(minuteOfDayAt(static_cast<uint32_t>(kTicksPerGameDay) + 3 * kTicksPerGameMinute), 3);
     EXPECT_EQ(gameDayAt(static_cast<uint32_t>(kTicksPerGameDay) * 3 + 5), 3u);
     EXPECT_EQ(hhmm(6, 30), 390);
     EXPECT_EQ(kMinutesPerDay, 1440);
