@@ -321,15 +321,41 @@ namespace OpenRCT2::Golf
         _roundsRecent = _roundsRecent * 9 / 10;
         _popularity = movePopularity(_popularity, computePopularity(popularityInputs()));
 
-        // The tournament moves on: it starts on its day and is over the next one.
+        // The tournament moves on: it starts on its day and is over the next one. Its result counts the slow holes and the
+        // rage quits of that day (ECO-042).
         if (tournament.phase == TournamentPhase::running)
         {
-            finish(tournament, _averageHappiness, 0, 0, 18, _popularity);
+            finish(
+                tournament, _averageHappiness, bottleneckHoles(), _rageQuitsTotal - _rageQuitsAtTournamentStart,
+                std::max(1, playableHoles()), _popularity);
             _today.tournamentRevenue += tournament.revenue;
             _popularity = std::min(kPopularityMax, _popularity + tournament.popularityGained);
             tiersHosted |= static_cast<uint8_t>(1u << static_cast<int>(tournament.tier));
         }
-        advanceDay(tournament, _day);
+        if (advanceDay(tournament, _day))
+            _rageQuitsAtTournamentStart = _rageQuitsTotal;
+    }
+
+    int32_t GolfDirector::playableHoles() const
+    {
+        if (_sim.environment().courses == nullptr)
+            return 0;
+        int32_t most = 0;
+        for (const auto& course : _sim.environment().courses->courses())
+            most = std::max(most, static_cast<int32_t>(course.playableHoles()));
+        return most;
+    }
+
+    int32_t GolfDirector::bottleneckHoles() const
+    {
+        if (_sim.environment().courses == nullptr)
+            return 0;
+        int32_t slow = 0;
+        for (const auto& course : _sim.environment().courses->courses())
+            for (const auto& hole : course.holes)
+                if (hole.isComplete() && isBottleneck(hole, std::max(0, hole.estimatedDifficulty) / 10))
+                    slow++;
+        return slow;
     }
 
     void GolfDirector::processEvents()

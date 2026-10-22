@@ -509,6 +509,8 @@ namespace OpenRCT2::Golf
             a.io(d._rageQuitsRecent);
             a.io(d._rageQuitsTotal);
             a.io(d._averageHappiness);
+            if (a.format >= 8)
+                a.io(d._rageQuitsAtTournamentStart);
             a.io(d._day);
             a.io(d._groupsArrived);
             a.io(d._nextGroup);

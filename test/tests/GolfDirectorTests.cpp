@@ -1138,3 +1138,19 @@ TEST(GolfDirectorVip, VipsAreNotForgottenWhenTheRegistryIsFull)
     ASSERT_NE(park.director->registry().find(vip), nullptr);
     EXPECT_TRUE(park.director->registry().find(vip)->vip);
 }
+
+TEST(GolfDirector, TheHolesThatAreSlowerThanTheirSlotAreCountedForTheTournament)
+{
+    Park park;
+    EXPECT_EQ(park.director->bottleneckHoles(), 0);
+    auto* course = park.courses.findCourse(park.courseId);
+    ASSERT_EQ(course->holes.size(), 3u);
+    // Groups take far longer than the slot allows on two of the three holes (HOL-024).
+    for (size_t i = 0; i < 2; i++)
+    {
+        course->holes[i].schedule.samples = 20;
+        course->holes[i].schedule.measuredPlayTenths = 2000;
+    }
+    EXPECT_EQ(park.director->bottleneckHoles(), 2);
+    EXPECT_EQ(park.director->playableHoles(), 3);
+}

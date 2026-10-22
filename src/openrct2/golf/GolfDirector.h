@@ -136,6 +136,10 @@ namespace OpenRCT2::Golf
         // no such owner, they are on the course already, or the course is closed.
         uint32_t admitVip(uint32_t registryId, const FixedVec3& door);
 
+        // ECO-042: how many holes of the courses are slower than their time slot allows (HOL-024).
+        int32_t bottleneckHoles() const;
+        int32_t playableHoles() const;
+
     private:
         friend struct GolfSaveAccess;
         void everyMinute(uint32_t ticks);
@@ -159,6 +163,7 @@ namespace OpenRCT2::Golf
         int32_t _rageQuitsRecent = 0;
         int32_t _rageQuitsTotal = 0;
         int32_t _averageHappiness = 128;
+        int32_t _rageQuitsAtTournamentStart = 0;
         uint32_t _day = 0;
         uint32_t _groupsArrived = 0;
         uint32_t _nextGroup = 1;
