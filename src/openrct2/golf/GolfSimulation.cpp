@@ -740,6 +740,15 @@ namespace OpenRCT2::Golf
         setState(g, GolferState::walkingToBall);
     }
 
+    bool GolfSimulation::groupMateOnTee(const Golfer& g) const
+    {
+        for (const auto& other : _golfers)
+            if (other.id != g.id && other.groupId == g.groupId && !other.finished && other.courseId == g.courseId
+                && other.holeIndex == g.holeIndex && other.state == GolferState::preparingShot && other.score.shots == 0)
+                return true;
+        return false;
+    }
+
     bool GolfSimulation::lineOfFireBlocked(const Golfer& g) const
     {
         const Fixed length = g.decision.expectedDistance + Fixed::fromInt(kLineOfFireMargin);
@@ -749,6 +758,9 @@ namespace OpenRCT2::Golf
         {
             if (other.id == g.id || other.finished || other.state == GolferState::inCar
                 || other.state == GolferState::arriving)
+                continue;
+            // A group mate waiting for the turn stands aside on purpose: the shooter does not wait for them to leave.
+            if (other.groupId == g.groupId && other.state == GolferState::waitingForTurn)
                 continue;
             const Fixed dx = other.position.x - g.ball.position.x;
             const Fixed dy = other.position.y - g.ball.position.y;
@@ -1404,7 +1416,7 @@ namespace OpenRCT2::Golf
                 break;
             }
             case GolferState::waitingForTeeTime:
-                if (minuteNow() >= g.teeTimeMinute && !groupBusy(g))
+                if (minuteNow() >= g.teeTimeMinute && !groupBusy(g) && !groupMateOnTee(g))
                 {
                     teeOff(g);
                     break;

@@ -314,6 +314,8 @@ namespace OpenRCT2::Golf
         void emit(SimEvent::Type type, const Golfer& g, int32_t value = 0);
         void think(Golfer& g, ThoughtType thought);
         bool groupBusy(const Golfer& g) const;
+        // Whether a group mate is already on the tee getting ready for the tee shot: the group takes the tee one at a time.
+        bool groupMateOnTee(const Golfer& g) const;
         // Sends a golfer whose ball lies still towards it: at once when alone, otherwise after the group mates have played.
         void goToBall(Golfer& g);
         // Whether it is the golfer's turn to walk to the ball: no group mate is still playing, and none waiting is farther

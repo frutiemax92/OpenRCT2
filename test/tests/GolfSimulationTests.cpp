@@ -206,6 +206,8 @@ TEST(GolfSimulation, AGolferWaitsAsideForTheGroupAndTheFarthestBallPlaysNext)
     std::map<uint32_t, GolferState> before;
     int waited = 0;
     int turnsChecked = 0;
+    bool twoOnTee = false;
+    uint32_t longestPreparing = 0;
     bool walkedWhileMateHit = false;
     bool notFarthest = false;
     for (uint32_t t = 1000; t < 1000 + 400000 && !sim.golfers().empty(); t++)
@@ -236,9 +238,20 @@ TEST(GolfSimulation, AGolferWaitsAsideForTheGroupAndTheFarthestBallPlaysNext)
                 turnsChecked++;
             }
         }
+        int preparing = 0;
         for (const auto& g : sim.golfers())
+        {
             before[g.id] = g.state;
+            if (g.state == GolferState::preparingShot)
+            {
+                preparing++;
+                longestPreparing = std::max(longestPreparing, g.stateTicks);
+            }
+        }
+        twoOnTee |= preparing > 1;
     }
+    EXPECT_FALSE(twoOnTee); // one golfer of the group at a time gets ready on the tee
+    EXPECT_LT(longestPreparing, 3000u); // and nobody stands there stuck
     EXPECT_GT(waited, 0); // after the tee shot the golfer stands aside instead of walking to the ball
     EXPECT_GT(turnsChecked, 3);
     EXPECT_FALSE(walkedWhileMateHit);
