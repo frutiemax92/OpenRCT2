@@ -1027,3 +1027,41 @@ TEST(GolfDirectorAnimals, ABallThatHitsAGolferHurtsTheirDayAndOneThatHitsAnAnima
     EXPECT_TRUE(hitAnimal);
     EXPECT_TRUE(fled);
 }
+
+TEST(GolfDirector, GroupsChooseBetweenTheCoursesAndAMiniPuttIsLessLikelyThanARegularCourse)
+{
+    Park park;
+    // A mini putt of its own, with its own fee.
+    auto* mini = park.courses.createCourse("Mini putt");
+    mini->kind = CourseKind::miniPutt;
+    mini->open = true;
+    mini->greenFee = 300;
+    const auto miniId = mini->id;
+    auto* hole = park.courses.createHole(miniId);
+    hole->tees[0] = HolePoint{ 336, 4800 };
+    hole->cup = HolePoint{ 336 + 120, 4800 };
+    park.director->setPopularity(1000);
+
+    std::map<uint32_t, int> groups;
+    for (int day = 1; day <= 3; day++)
+    {
+        for (uint32_t t = at(day, 6); t < at(day, 18); t += kTicksPerGameMinute)
+        {
+            const auto before = park.director->groupsArrived();
+            park.director->update(t);
+            if (park.director->groupsArrived() > before)
+            {
+                // The newest golfers are the group that just arrived.
+                const auto& golfers = park.director->simulation().golfers();
+                if (!golfers.empty())
+                    groups[golfers.back().courseId]++;
+            }
+        }
+    }
+    EXPECT_GT(groups[park.courseId], 0);
+    EXPECT_GT(groups[miniId], 0);
+    EXPECT_GT(groups[park.courseId], groups[miniId]);
+    // MPT-004: each is paid its own fee.
+    EXPECT_GT(park.courses.findCourse(miniId)->stats.revenue, 0);
+    EXPECT_GT(park.courses.findCourse(park.courseId)->stats.revenue, 0);
+}

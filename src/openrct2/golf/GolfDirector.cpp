@@ -24,15 +24,34 @@ namespace OpenRCT2::Golf
         _sim.environment().animals = animals.get();
     }
 
+    // The course a group arriving chooses: of the courses that are open and have something to play, a regular course is three
+    // times as likely as a mini putt (MPT-004: each has its own fee and tee sheet). With one course open it is that one.
     uint32_t GolfDirector::openCourse() const
     {
-        // The first open course with something to play; arrivals choose it.
         if (_sim.environment().courses == nullptr)
             return 0;
+        std::vector<const Course*> open;
+        int32_t total = 0;
         for (const auto& course : _sim.environment().courses->courses())
+        {
             if (course.open && course.playableHoles() > 0)
-                return course.id;
-        return 0;
+            {
+                open.push_back(&course);
+                total += course.kind == CourseKind::miniPutt ? 1 : 3;
+            }
+        }
+        if (open.empty())
+            return 0;
+        if (open.size() == 1 || _sim.environment().rng == nullptr)
+            return open.front()->id;
+        int32_t roll = static_cast<int32_t>(_sim.environment().rng->next() % static_cast<uint32_t>(total));
+        for (const auto* course : open)
+        {
+            roll -= course->kind == CourseKind::miniPutt ? 1 : 3;
+            if (roll < 0)
+                return course->id;
+        }
+        return open.back()->id;
     }
 
     std::vector<SimEvent> GolfDirector::takeEvents()
