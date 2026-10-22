@@ -24,6 +24,8 @@
 #include <openrct2/entity/EntityList.h>
 #include <openrct2/entity/EntityRegistry.h>
 #include <openrct2/entity/Guest.h>
+#include <openrct2/golf/GolfRuntime.h>
+#include <openrct2/golf/Golfer.h>
 #include <openrct2/localisation/Formatter.h>
 #include <openrct2/localisation/Formatting.h>
 #include <openrct2/object/PeepAnimationsObject.h>
@@ -157,6 +159,23 @@ namespace OpenRCT2::Ui::Windows
         std::vector<GuestItem> _guestList;
         std::optional<size_t> _highlightedIndex;
 
+        struct GolferListItem
+        {
+            uint32_t id;
+            std::string name;
+            std::string tier;
+            std::string state;
+            std::string holeAndScore;
+            uint8_t satisfaction;
+        };
+        std::vector<GolferListItem> _golfersList;
+
+        bool isGolfMode() const
+        {
+            auto* runtime = Golf::GetGolfRuntime();
+            return runtime != nullptr;
+        }
+
         uint32_t _tabAnimationIndex{};
 
         u8string _pageDropdownCaption{};
@@ -254,6 +273,12 @@ namespace OpenRCT2::Ui::Windows
 
         void onUpdate() override
         {
+            if (isGolfMode() && _selectedTab == TabId::individual)
+            {
+                RefreshList();
+                invalidateWidget(WIDX_GUEST_LIST);
+            }
+
             if (_lastFindGroupsWait != 0)
             {
                 _lastFindGroupsWait--;
@@ -462,37 +487,60 @@ namespace OpenRCT2::Ui::Windows
             if (_selectedTab == TabId::individual)
             {
                 screenCoords = windowPos + ScreenCoordsXY{ 4, widgets[WIDX_GUEST_LIST].bottom + 2 };
-                auto ft = Formatter();
-                ft.Add<int32_t>(static_cast<int32_t>(_guestList.size()));
-                drawText(
-                    rt, screenCoords, (_guestList.size() == 1 ? STR_FORMAT_NUM_GUESTS_SINGULAR : STR_FORMAT_NUM_GUESTS_PLURAL),
-                    ft);
+                if (isGolfMode())
+                {
+                    std::string label = std::to_string(_golfersList.size()) + (_golfersList.size() == 1 ? " golfer" : " golfers");
+                    auto ft = Formatter();
+                    ft.Add<StringId>(STR_STRING);
+                    ft.Add<const char*>(label.c_str());
+                    drawText(rt, screenCoords, STR_STRING, ft);
+                }
+                else
+                {
+                    auto ft = Formatter();
+                    ft.Add<int32_t>(static_cast<int32_t>(_guestList.size()));
+                    drawText(
+                        rt, screenCoords, (_guestList.size() == 1 ? STR_FORMAT_NUM_GUESTS_SINGULAR : STR_FORMAT_NUM_GUESTS_PLURAL),
+                        ft);
+                }
             }
         }
 
         ScreenSize onScrollGetSize(int32_t scrollIndex) override
         {
             int32_t y = 0;
-            switch (_selectedTab)
+            if (isGolfMode() && _selectedTab == TabId::individual)
             {
-                case TabId::individual:
-                    // Count the number of guests
-                    y = static_cast<int32_t>(_guestList.size()) * kScrollableRowHeight;
-                    _numPages = (_guestList.size() + kGuestsPerPage - 1) / kGuestsPerPage;
-                    if (_numPages == 0)
-                        _selectedPage = 0;
-                    else if (_selectedPage >= _numPages)
-                        _selectedPage = _numPages - 1;
-                    break;
-                case TabId::summarised:
-                default:
-                    // Find the groups
-                    if (IsRefreshOfGroupsRequired())
-                    {
-                        RefreshGroups();
-                    }
-                    y = static_cast<int32_t>(_groups.size() * kSummarisedGuestsRowHeight);
-                    break;
+                y = static_cast<int32_t>(_golfersList.size()) * kScrollableRowHeight;
+                _numPages = (_golfersList.size() + kGuestsPerPage - 1) / kGuestsPerPage;
+                if (_numPages == 0)
+                    _selectedPage = 0;
+                else if (_selectedPage >= _numPages)
+                    _selectedPage = _numPages - 1;
+            }
+            else
+            {
+                switch (_selectedTab)
+                {
+                    case TabId::individual:
+                        // Count the number of guests
+                        y = static_cast<int32_t>(_guestList.size()) * kScrollableRowHeight;
+                        _numPages = (_guestList.size() + kGuestsPerPage - 1) / kGuestsPerPage;
+                        if (_numPages == 0)
+                            _selectedPage = 0;
+                        else if (_selectedPage >= _numPages)
+                            _selectedPage = _numPages - 1;
+                        break;
+                    case TabId::summarised:
+                    default:
+                        // Find the groups
+                        if (IsRefreshOfGroupsRequired())
+                        {
+                            RefreshGroups();
+                        }
+                        y = static_cast<int32_t>(_groups.size() * kSummarisedGuestsRowHeight);
+                        break;
+                }
             }
 
             y -= static_cast<int32_t>(kGuestPageHeight * _selectedPage);
@@ -527,6 +575,17 @@ namespace OpenRCT2::Ui::Windows
 
         void onScrollMouseDown(int32_t scrollIndex, const ScreenCoordsXY& screenCoords) override
         {
+            if (isGolfMode() && _selectedTab == TabId::individual)
+            {
+                auto i = screenCoords.y / kScrollableRowHeight;
+                i += static_cast<int32_t>(_selectedPage * kGuestsPerPage);
+                if (i >= 0 && static_cast<size_t>(i) < _golfersList.size())
+                {
+                    Windows::GolferOpen(EntityId::FromUnderlying(_golfersList[i].id));
+                }
+                return;
+            }
+
             switch (_selectedTab)
             {
                 case TabId::individual:
@@ -573,6 +632,11 @@ namespace OpenRCT2::Ui::Windows
             Rectangle::fill(
                 rt, { { rt.x, rt.y }, { rt.x + rt.width - 1, rt.y + rt.height - 1 } },
                 getColourMap(colours[1].colour).midLight);
+            if (isGolfMode() && _selectedTab == TabId::individual)
+            {
+                DrawScrollGolfers(rt);
+                return;
+            }
             switch (_selectedTab)
             {
                 case TabId::individual:
@@ -586,6 +650,49 @@ namespace OpenRCT2::Ui::Windows
 
         void RefreshList()
         {
+            if (isGolfMode() && _selectedTab == TabId::individual)
+            {
+                _golfersList.clear();
+                auto* runtime = Golf::GetGolfRuntime();
+                if (runtime != nullptr)
+                {
+                    for (const auto& golfer : runtime->director().simulation().golfers())
+                    {
+                        if (golfer.finished)
+                            continue;
+                        if (!_filterName.empty() && golfer.name.find(_filterName) == std::string::npos)
+                            continue;
+
+                        std::string tier;
+                        if (golfer.vip)
+                            tier = "VIP";
+                        else if (golfer.professional)
+                            tier = "Pro";
+                        else
+                        {
+                            int32_t avg = (golfer.skills.longPlay + golfer.skills.accuracy + golfer.skills.foolproof + golfer.skills.physique) / (4 * 256);
+                            if (avg < 30)
+                                tier = "Beginner";
+                            else if (avg < 60)
+                                tier = "Casual";
+                            else if (avg < 80)
+                                tier = "Amateur";
+                            else
+                                tier = "Pro";
+                        }
+
+                        std::string state = Golf::golferStateName(golfer.state);
+                        int32_t toPar = golfer.toParSoFar();
+                        std::string scoreStr = (toPar > 0 ? "+" + std::to_string(toPar) : (toPar == 0 ? "E" : std::to_string(toPar)));
+                        std::string holeAndScore = "Hole " + std::to_string(golfer.holeIndex + 1) + " (" + scoreStr + ")";
+                        uint8_t satisfaction = static_cast<uint8_t>((golfer.needs.happinessByte() * 100) / 255);
+
+                        _golfersList.push_back({ golfer.id, golfer.name, tier, state, holeAndScore, satisfaction });
+                    }
+                }
+                return;
+            }
+
             // only the individual tab uses the GuestList so no point calculating it
             if (_selectedTab != TabId::individual)
             {
@@ -637,6 +744,58 @@ namespace OpenRCT2::Ui::Windows
             GfxDrawSprite(
                 rt, ImageId(SPR_TAB_GUESTS_0 + i),
                 windowPos + ScreenCoordsXY{ widgets[WIDX_TAB_2].left, widgets[WIDX_TAB_2].top });
+        }
+
+        void DrawScrollGolfers(RenderTarget& rt)
+        {
+            size_t index = 0;
+            auto y = static_cast<int32_t>(_selectedPage) * -kGuestPageHeight;
+            for (const auto& golferItem : _golfersList)
+            {
+                if (y + kScrollableRowHeight + 1 >= -0x7FFF && y + kScrollableRowHeight + 1 > rt.y && y < 0x7FFF
+                    && y < rt.y + rt.height)
+                {
+                    StringId format = STR_BLACK_STRING;
+                    if (index == _highlightedIndex)
+                    {
+                        Rectangle::filter(rt, { 0, y, 800, y + kScrollableRowHeight - 1 }, FilterPaletteID::paletteDarken1);
+                        format = STR_WINDOW_COLOUR_2_STRINGID;
+                    }
+
+                    // Golfer name
+                    auto ftName = Formatter();
+                    ftName.Add<StringId>(STR_STRING);
+                    ftName.Add<const char*>(golferItem.name.c_str());
+                    drawTextEllipsised(rt, { 0, y }, 100, format, ftName);
+
+                    // Skill Tier
+                    auto ftTier = Formatter();
+                    ftTier.Add<StringId>(STR_STRING);
+                    ftTier.Add<const char*>(golferItem.tier.c_str());
+                    drawTextEllipsised(rt, { 104, y }, 48, format, ftTier);
+
+                    // Current State
+                    auto ftState = Formatter();
+                    ftState.Add<StringId>(STR_STRING);
+                    ftState.Add<const char*>(golferItem.state.c_str());
+                    drawTextEllipsised(rt, { 156, y }, 90, format, ftState);
+
+                    // Current Hole & Score vs Par
+                    auto ftScore = Formatter();
+                    ftScore.Add<StringId>(STR_STRING);
+                    ftScore.Add<const char*>(golferItem.holeAndScore.c_str());
+                    drawTextEllipsised(rt, { 250, y }, 60, format, ftScore);
+
+                    // Satisfaction
+                    std::string sat = std::to_string(golferItem.satisfaction) + "%";
+                    auto ftSat = Formatter();
+                    ftSat.Add<StringId>(STR_STRING);
+                    ftSat.Add<const char*>(sat.c_str());
+                    drawTextEllipsised(rt, { 314, y }, 30, format, ftSat);
+                }
+                y += kScrollableRowHeight;
+                index++;
+            }
         }
 
         void DrawScrollIndividual(RenderTarget& rt)

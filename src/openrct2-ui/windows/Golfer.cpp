@@ -20,10 +20,13 @@
 #include <openrct2/drawing/Rectangle.h>
 #include <openrct2/drawing/RenderTarget.h>
 #include <openrct2/drawing/Text.h>
+#include <openrct2/entity/EntityList.h>
 #include <openrct2/entity/EntityRegistry.h>
 #include <openrct2/entity/GolferEntity.h>
+#include <openrct2/golf/Clubs.h>
 #include <openrct2/golf/CourseManager.h>
 #include <openrct2/golf/GolfRuntime.h>
+#include <openrct2/interface/Window.h>
 #include <openrct2/localisation/Formatter.h>
 #include <openrct2/localisation/StringIds.h>
 #include <openrct2/ui/WindowManager.h>
@@ -60,6 +63,7 @@ namespace OpenRCT2::Ui::Windows
         WIDX_TAB_4,
         WIDX_TAB_5,
         WIDX_TAB_6,
+        WIDX_LOCATE,
     };
 
     // clang-format off
@@ -71,7 +75,8 @@ namespace OpenRCT2::Ui::Windows
         makeTab   ({  65, 17 }, STR_GOLFER_TAB_SKILLS    ),
         makeTab   ({  96, 17 }, STR_GOLFER_TAB_SCORECARD ),
         makeTab   ({ 127, 17 }, STR_GOLFER_TAB_THOUGHTS  ),
-        makeTab   ({ 158, 17 }, STR_GOLFER_TAB_MONEY     )
+        makeTab   ({ 158, 17 }, STR_GOLFER_TAB_MONEY     ),
+        makeWidget({ 212, 19 }, { 24, 24 }, WidgetType::flatBtn, WindowColour::secondary, ImageId(SPR_LOCATE), STR_LOCATE_SUBJECT_TIP)
     );
     // clang-format on
 
@@ -111,6 +116,23 @@ namespace OpenRCT2::Ui::Windows
                 case WIDX_TAB_6:
                     setPage(widgetIndex - WIDX_TAB_1);
                     break;
+                case WIDX_LOCATE:
+                {
+                    const auto* golfer = findGolfer();
+                    if (golfer != nullptr)
+                    {
+                        auto* mainWnd = WindowGetMain();
+                        if (mainWnd != nullptr)
+                        {
+                            WindowScrollToLocation(
+                                *mainWnd,
+                                { static_cast<int32_t>(golfer->position.x.floor()),
+                                  static_cast<int32_t>(golfer->position.y.floor()),
+                                  static_cast<int32_t>(golfer->position.z.floor()) });
+                        }
+                    }
+                    break;
+                }
             }
         }
 
@@ -163,16 +185,26 @@ namespace OpenRCT2::Ui::Windows
     private:
         const GolferEntity* findEntity() const
         {
-            return getGameState().entities.getEntity<GolferEntity>(EntityId::FromUnderlying(number));
+            auto* entity = getGameState().entities.getEntity<GolferEntity>(EntityId::FromUnderlying(number));
+            if (entity != nullptr)
+                return entity;
+            for (auto* e : EntityList<GolferEntity>())
+            {
+                if (e->golfer == static_cast<uint32_t>(number))
+                    return e;
+            }
+            return nullptr;
         }
 
         const Golfer* findGolfer() const
         {
-            const auto* entity = findEntity();
             const auto& runtime = getGameState().golfRuntime;
-            if (entity == nullptr || runtime == nullptr)
+            if (runtime == nullptr)
                 return nullptr;
-            return const_cast<GolfSimulation&>(runtime->director().simulation()).find(entity->golfer);
+            const auto* entity = findEntity();
+            if (entity != nullptr)
+                return const_cast<GolfSimulation&>(runtime->director().simulation()).find(entity->golfer);
+            return const_cast<GolfSimulation&>(runtime->director().simulation()).find(static_cast<uint32_t>(number));
         }
 
         void text(RenderTarget& rt, int32_t x, int32_t y, const std::string& s, Colour colour = Colour::black)
@@ -212,6 +244,10 @@ namespace OpenRCT2::Ui::Windows
             y += kRowHeight;
             const int32_t toPar = golfer.toParSoFar();
             text(rt, 12, y, "Round so far: " + std::string(toPar > 0 ? "+" : "") + std::to_string(toPar));
+            y += kRowHeight;
+            text(rt, 12, y, "Active club: " + std::string(clubInfo(golfer.decision.club).name));
+            y += kRowHeight;
+            text(rt, 12, y, "Ball lie: " + std::string(golfer.ballInPlay ? "In Play" : "Tee / At Rest"));
             y += kRowHeight;
             text(rt, 12, y, "Group: " + std::to_string(golfer.groupId));
             y += kRowHeight;

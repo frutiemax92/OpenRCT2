@@ -17,11 +17,16 @@
 #include "../../entity/EntityRegistry.h"
 #include "../../entity/Staff.h"
 #include "../../localisation/StringIds.h"
+#include "../../golf/GolfRuntime.h"
 #include "../../management/Finance.h"
+#include "../../object/BuildingObject.h"
 #include "../../object/ObjectManager.h"
 #include "../../object/PeepAnimationsObject.h"
 #include "../../scenario/Scenario.h"
+#include "../../world/Building.h"
 #include "../../world/Map.h"
+#include "../../world/tile_element/BuildingElement.h"
+#include "../../world/tile_element/SurfaceElement.h"
 
 #include <set>
 
@@ -283,9 +288,31 @@ namespace OpenRCT2::GameActions
             }
             else
             {
-                // User must pick a location
-                newPeep->state = PeepState::picked;
-                newLocation = newPeep->getLocation();
+                // Golf course spawn fallback (MON-003):
+                // 1) Near the Golf Club entrance or origin
+                // 2) Or at the first road tile
+                // 3) Or at map center
+                CoordsXY spawnTile{};
+                bool foundSpawn = false;
+
+                if (gameState.golfRuntime != nullptr && gameState.golfRuntime->buildings().hasClub)
+                {
+                    const auto& clubPos = gameState.golfRuntime->buildings().club;
+                    spawnTile.x = static_cast<int32_t>(clubPos.x.floor());
+                    spawnTile.y = static_cast<int32_t>(clubPos.y.floor());
+                    foundSpawn = true;
+                }
+
+                if (!foundSpawn)
+                {
+                    spawnTile.x = std::max<int32_t>(16, gameState.mapSize.x / 2) * 32;
+                    spawnTile.y = std::max<int32_t>(16, gameState.mapSize.y / 2) * 32;
+                }
+
+                auto* surface = MapGetSurfaceElementAt(spawnTile);
+                int16_t z = surface != nullptr ? surface->getBaseZ() : 16;
+                newLocation = CoordsXYZ{ spawnTile.x + 16, spawnTile.y + 16, z };
+                newPeep->state = PeepState::falling;
             }
         }
 

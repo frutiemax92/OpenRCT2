@@ -26,6 +26,7 @@
 #include <openrct2/actions/terraform/SurfaceSetStyleAction.h>
 #include <openrct2/drawing/Drawing.h>
 #include <openrct2/drawing/Text.h>
+#include <openrct2/golf/GolfRuntime.h>
 #include <openrct2/interface/Viewport.h>
 #include <openrct2/localisation/Formatter.h>
 #include <openrct2/object/ObjectManager.h>
@@ -42,7 +43,7 @@ namespace OpenRCT2::Ui::Windows
     static Drawing::Colour _edgeColour1 = Drawing::Colour::black;
 
     static constexpr StringId kWindowTitle = STR_LAND;
-    static constexpr ScreenSize kWindowSize = { 98, 192 };
+    static constexpr ScreenSize kWindowSize = { 98, 206 };
 
     enum WindowLandWidgetIdx : WidgetIndex
     {
@@ -59,6 +60,7 @@ namespace OpenRCT2::Ui::Windows
         WIDX_SURFACE_COLOUR_1,
         WIDX_EDGE_COLOUR_1,
         WIDX_SPAWN_TREES,
+        WIDX_TURF_OVERLAY,
     };
 
     enum class SelectionMode
@@ -79,7 +81,8 @@ namespace OpenRCT2::Ui::Windows
         makeWidget     ({49, 106}, {47, 36}, WidgetType::flatBtn,   WindowColour::secondary, 0xFFFFFFFF,                              STR_CHANGE_VERTICAL_LAND_TIP),  // wall texture
         makeWidget     ({20, 146}, {12, 12}, WidgetType::colourBtn, WindowColour::secondary, 0xFFFFFFFF,                              STR_SELECT_COLOUR), // surface colour 1
         makeWidget     ({67, 146}, {12, 12}, WidgetType::colourBtn, WindowColour::secondary, 0xFFFFFFFF,                              STR_SELECT_COLOUR), // edge colour 1
-        makeWidget     ({ 4, 166}, {90, 16}, WidgetType::checkbox,  WindowColour::secondary, STR_LAND_TOOL_SPAWN_TREES,              STR_LAND_TOOL_SPAWN_TREES_TIP) // spawn trees (TER-043)
+        makeWidget     ({ 4, 166}, {90, 16}, WidgetType::checkbox,  WindowColour::secondary, STR_LAND_TOOL_SPAWN_TREES,              STR_LAND_TOOL_SPAWN_TREES_TIP), // spawn trees (TER-043)
+        makeWidget     ({ 4, 184}, {90, 16}, WidgetType::checkbox,  WindowColour::secondary, STR_TURF_OVERLAY,                       STR_TURF_OVERLAY_TIP) // turf overlay (MON-003)
     );
     // clang-format on
 
@@ -157,6 +160,13 @@ namespace OpenRCT2::Ui::Windows
                 case WIDX_SPAWN_TREES:
                     _landToolSpawnTrees ^= 1;
                     invalidate();
+                    break;
+                case WIDX_TURF_OVERLAY:
+                    if (auto* runtime = Golf::GetGolfRuntime(); runtime != nullptr)
+                    {
+                        runtime->setTurfOverlayEnabled(!runtime->turfOverlayEnabled());
+                        invalidate();
+                    }
                     break;
                 case WIDX_PREVIEW:
                     InputSize();
@@ -313,6 +323,9 @@ namespace OpenRCT2::Ui::Windows
             widgets[WIDX_EDGE_COLOUR_1].setVisible(_edgeColour1Enabled && edgeButtonSelected);
             widgets[WIDX_SPAWN_TREES].setVisible(_landToolPaintMode);
             setCheckboxValue(WIDX_SPAWN_TREES, _landToolSpawnTrees);
+
+            auto* runtime = Golf::GetGolfRuntime();
+            setCheckboxValue(WIDX_TURF_OVERLAY, runtime != nullptr && runtime->turfOverlayEnabled());
 
             // Update the preview image (for tool sizes up to 7)
             widgets[WIDX_PREVIEW].image = ImageId(LandTool::SizeToSpriteIndex(gLandToolSize));

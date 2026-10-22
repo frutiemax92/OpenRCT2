@@ -4008,3 +4008,5 @@ STR_7214    :Book it
 STR_7215    :Cancel it
 STR_7216    :Plant trees
 STR_7217    :{SMALLFONT}{BLACK}Plant trees automatically when painting woods surface
+STR_7218    :Turf condition
+STR_7219    :{SMALLFONT}{BLACK}Toggle the turf wear and health overlay

@@ -112,6 +112,14 @@ namespace OpenRCT2::Golf
         {
             _holeOverlayEnabled = enabled;
         }
+        bool turfOverlayEnabled() const
+        {
+            return _turfOverlayEnabled;
+        }
+        void setTurfOverlayEnabled(bool enabled)
+        {
+            _turfOverlayEnabled = enabled;
+        }
 
     private:
         class GameRandom;
@@ -170,6 +178,7 @@ namespace OpenRCT2::Golf
         SoundSink _sound;
         Ledger _paid; // what of the director's income has reached the cash of the park
         bool _holeOverlayEnabled = false;
+        bool _turfOverlayEnabled = false;
     };
 
     // The runtime of a game state, created on first call.
