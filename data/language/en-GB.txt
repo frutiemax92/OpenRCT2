@@ -124,7 +124,7 @@ STR_0540    :A stall where guests can purchase food
 STR_0542    :A stall where guests can purchase drinks
 STR_0544    :A stall that sells souvenirs
 STR_0545    :Traditional rotating carousel with carved wooden horses
-STR_0547    :A stall where guests can obtain park maps and purchase umbrellas
+STR_0547    :A stall where guests can obtain course maps and purchase umbrellas
 STR_0548    :A toilet building
 STR_0549    :Rotating big wheel with open chairs
 STR_0550    :Riders view a film inside the motion simulator pod while it is twisted and moved around by a hydraulic arm
@@ -150,7 +150,7 @@ STR_0571    :Circular cars spin around as they travel along the zig-zagging wood
 STR_0572    :Large capacity boats travel along a wide water channel, propelled up slopes by a conveyor belt, accelerating down steep slopes to soak the riders with a giant splash
 STR_0573    :Powered helicopter shaped cars running on a steel track, controlled by the pedalling of the riders
 STR_0574    :Riders are held in special harnesses in a lying-down position, travelling through twisted track and inversions either on their backs or facing the ground
-STR_0575    :Powered trains hanging from a single rail transport people around the park
+STR_0575    :Powered trains hanging from a single rail transport people around the course
 STR_0577    :Bogied cars run on wooden tracks, turning around on special reversing sections
 STR_0578    :Cars run along track enclosed by circular hoops, traversing steep drops and heartline twists
 STR_0579    :A gentle game of miniature golf
@@ -183,7 +183,7 @@ STR_0768    :Handyman {INT32}
 STR_0769    :Mechanic {INT32}
 STR_0770    :Security Guard {INT32}
 STR_0771    :Entertainer {INT32}
-STR_0777    :Unnamed park
+STR_0777    :Unnamed golf course
 STR_0778    :Sign
 STR_0779    :1st
 STR_0780    :2nd
@@ -309,7 +309,7 @@ STR_0932    :Vertical Loop (right)
 STR_0933    :Raise or lower land first
 STR_0934    :Ride entrance in the way
 STR_0935    :Ride exit in the way
-STR_0936    :Park entrance in the way
+STR_0936    :Club entrance in the way
 STR_0937    :View options
 STR_0938    :Adjust land height and slope
 STR_0939    :Underground/Inside View
@@ -382,11 +382,11 @@ STR_1006    :Must be closed first
 STR_1007    :Unable to create enough vehicles
 STR_1008    :Open, close, or test ride/attraction
 STR_1009    :Open or close all rides/attractions
-STR_1010    :Open or close park
+STR_1010    :Open or close course
 STR_1011    :Close all
 STR_1012    :Open all
-STR_1013    :Close park
-STR_1014    :Open park
+STR_1013    :Close course
+STR_1014    :Open course
 STR_1015    :Unable to operate with more than one station platform in this mode
 STR_1016    :Unable to operate with less than two stations in this mode
 STR_1017    :Can’t change operating mode…
@@ -812,7 +812,7 @@ STR_1443    :Watering gardens
 STR_1444    :Watching {STRINGID}
 STR_1445    :Watching construction of {STRINGID}
 STR_1446    :Looking at scenery
-STR_1447    :Leaving the park
+STR_1447    :Leaving the course
 STR_1448    :Watching new ride being constructed
 STR_1449    :{SPRITE} {STRINGID}{NEWLINE}({STRINGID})
 STR_1450    :{INLINE_SPRITE}{09}{20}{00}{00}{SPRITE} {STRINGID}{NEWLINE}({STRINGID})
@@ -823,7 +823,7 @@ STR_1454    :Can’t name guest…
 STR_1455    :Invalid name for guest
 STR_1456    :{WINDOW_COLOUR_2}Cash spent: {BLACK}{CURRENCY2DP}
 STR_1457    :{WINDOW_COLOUR_2}Cash in pocket: {BLACK}{CURRENCY2DP}
-STR_1458    :{WINDOW_COLOUR_2}Time in park: {BLACK}{REALTIME}
+STR_1458    :{WINDOW_COLOUR_2}Time on the course: {BLACK}{REALTIME}
 STR_1459    :Track style
 STR_1460    :‘U’ shaped open track
 STR_1461    :‘O’ shaped enclosed track
@@ -872,7 +872,7 @@ STR_1503    :“I can’t find {STRINGID}”
 STR_1504    :“I’m not paying that much to use {STRINGID}”
 STR_1505    :“I’m not going on {STRINGID} while it’s raining”
 STR_1506    :“The litter here is really bad”
-STR_1507    :“I can’t find the park exit”
+STR_1507    :“I can’t find the course exit”
 STR_1508    :“I want to get off {STRINGID}”
 STR_1509    :“I want to get out of {STRINGID}”
 STR_1510    :“I’m not going on {STRINGID} - it isn’t safe”
@@ -880,12 +880,12 @@ STR_1511    :“This path is disgusting”
 STR_1512    :“It’s too crowded here”
 STR_1513    :“The vandalism here is really bad”
 STR_1514    :“Great scenery!”
-STR_1515    :“This park is really clean and tidy”
+STR_1515    :“This course is really clean and tidy”
 STR_1516    :“The jumping fountains are great”
 STR_1517    :“The music is nice here”
 STR_1518    :“This balloon from {STRINGID} is really good value”
 STR_1519    :“This cuddly toy from {STRINGID} is really good value”
-STR_1520    :“This park map from {STRINGID} is really good value”
+STR_1520    :“This course map from {STRINGID} is really good value”
 STR_1521    :“This on-ride photo from {STRINGID} is really good value”
 STR_1522    :“This umbrella from {STRINGID} is really good value”
 STR_1523    :“This drink from {STRINGID} is really good value”
@@ -919,7 +919,7 @@ STR_1550    :“Wow!”
 STR_1551    :“I have the strangest feeling someone is watching me”
 STR_1552    :“I’m not paying that much for a balloon from {STRINGID}”
 STR_1553    :“I’m not paying that much for a cuddly toy from {STRINGID}”
-STR_1554    :“I’m not paying that much for a park map from {STRINGID}”
+STR_1554    :“I’m not paying that much for a course map from {STRINGID}”
 STR_1555    :“I’m not paying that much for an on-ride photo from {STRINGID}”
 STR_1556    :“I’m not paying that much for an umbrella from {STRINGID}”
 STR_1557    :“I’m not paying that much for a drink from {STRINGID}”
@@ -1078,20 +1078,20 @@ STR_1712    :{INLINE_SPRITE}{247}{19}{00}{00}{WINDOW_COLOUR_2}Sweep footpaths
 STR_1713    :{INLINE_SPRITE}{248}{19}{00}{00}{WINDOW_COLOUR_2}Water gardens
 STR_1714    :{INLINE_SPRITE}{249}{19}{00}{00}{WINDOW_COLOUR_2}Empty litter bins
 STR_1715    :{INLINE_SPRITE}{250}{19}{00}{00}{WINDOW_COLOUR_2}Mow grass
-STR_1716    :Invalid name for park
-STR_1717    :Can’t rename park…
-STR_1718    :Park Name
-STR_1719    :Enter name for park:
-STR_1720    :Name park
-STR_1721    :Park closed
-STR_1722    :Park open
-STR_1723    :Can’t open park…
-STR_1724    :Can’t close park…
+STR_1716    :Invalid name for the course
+STR_1717    :Can’t rename course…
+STR_1718    :Course Name
+STR_1719    :Enter name for the course:
+STR_1720    :Name course
+STR_1721    :Course closed
+STR_1722    :Course open
+STR_1723    :Can’t open course…
+STR_1724    :Can’t close course…
 STR_1725    :Can’t buy land…
 STR_1726    :Land not for sale!
 STR_1727    :Construction rights not for sale!
 STR_1728    :Can’t buy construction rights here…
-STR_1729    :Land not owned by park!
+STR_1729    :Land not owned by the golf course!
 STR_1730    :{RED}Closed
 STR_1732    :Build
 STR_1733    :Mode
@@ -1107,8 +1107,8 @@ STR_1746    :Can’t change this…
 STR_1747    :{WINDOW_COLOUR_2}Time limit:
 STR_1748    :Time limit for ride
 STR_1751    :Can’t change time limit for ride…
-STR_1752    :Show list of individual guests in park
-STR_1753    :Show summarised list of guests in park
+STR_1752    :Show list of individual golfers on the course
+STR_1753    :Show summarised list of golfers on the course
 STR_1754    :{BLACK}{COMMA32} guests
 STR_1755    :{BLACK}{COMMA32} guest
 STR_1756    :{WINDOW_COLOUR_2}Admission price:
@@ -1225,7 +1225,7 @@ STR_1887    :{WINDOW_COLOUR_2}Time since last inspection: {BLACK}{COMMA16} minut
 STR_1888    :{WINDOW_COLOUR_2}Time since last inspection: {BLACK}more than 4 hours
 STR_1889    :{WINDOW_COLOUR_2}Down-Time: {MOVE_X}{255}{BLACK}{COMMA16}%
 STR_1890    :Select how often a mechanic should check this ride
-STR_1891    :No {STRINGID} in park yet!
+STR_1891    :No {STRINGID} on the course yet!
 STR_1894    :{WINDOW_COLOUR_2}{STRINGID} sold: {BLACK}{COMMA32}
 STR_1895    :Build Golf Holes, Tees, Pins & Aim Points
 STR_1896    :{WINDOW_COLOUR_2}Expenditure/Income
@@ -1264,7 +1264,7 @@ STR_1931    :{STRINGID} has joined the queue line for {STRINGID}
 STR_1932    :{STRINGID} is on {STRINGID}
 STR_1933    :{STRINGID} is in {STRINGID}
 STR_1934    :{STRINGID} has left {STRINGID}
-STR_1935    :{STRINGID} has left the park
+STR_1935    :{STRINGID} has left the course
 STR_1936    :{STRINGID} has bought {STRINGID}
 STR_1937    :Show information about the subject of this message
 STR_1938    :Show view of guest
@@ -1290,7 +1290,7 @@ STR_1958    :{COMMA16}
 STR_1959    :Can’t change number of circuits…
 STR_1960    :{WINDOW_COLOUR_2}Balloon price:
 STR_1961    :{WINDOW_COLOUR_2}Cuddly Toy price:
-STR_1962    :{WINDOW_COLOUR_2}Park Map price:
+STR_1962    :{WINDOW_COLOUR_2}Course Map price:
 STR_1963    :{WINDOW_COLOUR_2}On-Ride Photo price:
 STR_1964    :{WINDOW_COLOUR_2}Umbrella price:
 STR_1965    :{WINDOW_COLOUR_2}Drink price:
@@ -1318,7 +1318,7 @@ STR_1986    :{WINDOW_COLOUR_2}
 STR_1987    :{WINDOW_COLOUR_2}
 STR_1988    :Balloon
 STR_1989    :Cuddly Toy
-STR_1990    :Park Map
+STR_1990    :Course Map
 STR_1991    :On-Ride Photo
 STR_1992    :Umbrella
 STR_1993    :Drink
@@ -1346,7 +1346,7 @@ STR_2014    :Empty Box
 STR_2015    :Empty Bottle
 STR_2016    :Balloons
 STR_2017    :Cuddly Toys
-STR_2018    :Park Maps
+STR_2018    :Course Maps
 STR_2019    :On-Ride Photos
 STR_2020    :Umbrellas
 STR_2021    :Drinks
@@ -1374,7 +1374,7 @@ STR_2042    :Empty Boxes
 STR_2043    :Empty Bottles
 STR_2044    :a Balloon
 STR_2045    :a Cuddly Toy
-STR_2046    :a Park Map
+STR_2046    :a Course Map
 STR_2047    :an On-Ride Photo
 STR_2048    :an Umbrella
 STR_2049    :a Drink
@@ -1523,20 +1523,20 @@ STR_2206    :Empty Drink Carton
 STR_2207    :Empty Juice Cup
 STR_2208    :Roast Sausage
 STR_2209    :Empty Bowl
-STR_2210    :Show list of handymen in park
-STR_2211    :Show list of mechanics in park
-STR_2212    :Show list of security guards in park
-STR_2213    :Show list of entertainers in park
+STR_2210    :Show list of handymen on the course
+STR_2211    :Show list of mechanics on the course
+STR_2212    :Show list of security guards on the course
+STR_2213    :Show list of entertainers on the course
 STR_2214    :Construction not possible while game is paused!
 STR_2215    :{STRINGID}{NEWLINE}({STRINGID})
 STR_2216    :{WINDOW_COLOUR_1}{COMMA16}°C
 STR_2217    :{WINDOW_COLOUR_1}{COMMA16}°F
 STR_2218    :{RED}{STRINGID} on {STRINGID} hasn’t returned to the {STRINGID} yet!{NEWLINE}Check whether it is stuck or has stalled
 STR_2219    :{RED}{COMMA16} people have died in an accident on {STRINGID}
-STR_2220    :{WINDOW_COLOUR_2}Park Rating: {BLACK}{COMMA16}
-STR_2221    :Park Rating: {COMMA16}
+STR_2220    :{WINDOW_COLOUR_2}Course Popularity: {BLACK}{COMMA16}
+STR_2221    :Course Popularity: {COMMA16}
 STR_2222    :{BLACK}{STRINGID}
-STR_2223    :{WINDOW_COLOUR_2}Guests in park: {BLACK}{COMMA32}
+STR_2223    :{WINDOW_COLOUR_2}Golfers on the course: {BLACK}{COMMA32}
 STR_2224    :{WINDOW_COLOUR_2}Cash: {BLACK}{CURRENCY2DP}
 STR_2225    :{WINDOW_COLOUR_2}Cash: {RED}{CURRENCY2DP}
 STR_2226    :{WINDOW_COLOUR_2}Course value: {BLACK}{CURRENCY}
@@ -1546,7 +1546,7 @@ STR_2229    :Slope up to vertical
 STR_2230    :Vertical track
 STR_2231    :Holding brake for drop
 STR_2232    :Cable lift hill
-STR_2233    :Park information
+STR_2233    :Course information
 STR_2234    :Recent Messages
 STR_2235    :{STRINGID} {STRINGID}
 STR_2236    :January
@@ -1608,7 +1608,7 @@ STR_2292    :{WINDOW_COLOUR_2}Rides been on:
 STR_2293    :{BLACK} Nothing
 STR_2294    :Change base land style
 STR_2295    :Change vertical edges of land
-STR_2296    :{BLACK}{CURRENCY2DP}{WINDOW_COLOUR_2} paid to enter park
+STR_2296    :{BLACK}{CURRENCY2DP}{WINDOW_COLOUR_2} paid in green fees
 STR_2297    :{BLACK}{CURRENCY2DP}{WINDOW_COLOUR_2} spent on {BLACK}{COMMA16} ride
 STR_2298    :{BLACK}{CURRENCY2DP}{WINDOW_COLOUR_2} spent on {BLACK}{COMMA16} rides
 STR_2299    :{BLACK}{CURRENCY2DP}{WINDOW_COLOUR_2} spent on {BLACK}{COMMA16} item of food
@@ -1631,10 +1631,10 @@ STR_2315    :{WINDOW_COLOUR_2}Cost: {BLACK}around {CURRENCY}
 STR_2316    :{WINDOW_COLOUR_2}Space required: {BLACK}{COMMA16} × {COMMA16} blocks
 STR_2321    :{WINDOW_COLOUR_2}Number of rides/attractions: {BLACK}{COMMA16}
 STR_2322    :{WINDOW_COLOUR_2}Staff: {BLACK}{COMMA32}
-STR_2323    :{WINDOW_COLOUR_2}Park size: {BLACK}{COMMA32}m²
-STR_2324    :{WINDOW_COLOUR_2}Park size: {BLACK}{COMMA32}sq.ft.
-STR_2325    :Buy land to extend park
-STR_2326    :Buy construction rights to allow construction above or below land outside the park
+STR_2323    :{WINDOW_COLOUR_2}Course size: {BLACK}{COMMA32}m²
+STR_2324    :{WINDOW_COLOUR_2}Course size: {BLACK}{COMMA32}sq.ft.
+STR_2325    :Buy land to extend course
+STR_2326    :Buy construction rights to allow construction above or below land outside the course
 STR_2327    :Options
 STR_2328    :{WINDOW_COLOUR_2}Currency:
 STR_2329    :{WINDOW_COLOUR_2}Distance and Speed:
@@ -1692,28 +1692,28 @@ STR_2382    :Land
 STR_2383    :Water
 STR_2384    :{WINDOW_COLOUR_2}Your objective:
 STR_2385    :{BLACK}None
-STR_2386    :{BLACK}To have at least {COMMA32} guests in your park at the end of {MONTHYEAR_SENTENCE}, with a park rating of at least 600
-STR_2387    :{BLACK}To achieve a park value of at least {POP16}{POP16}{CURRENCY} at the end of {PUSH16}{PUSH16}{PUSH16}{PUSH16}{PUSH16}{MONTHYEAR_SENTENCE}
+STR_2386    :{BLACK}To have at least {COMMA32} golfers on your course at the end of {MONTHYEAR_SENTENCE}, with a course popularity of at least 600
+STR_2387    :{BLACK}To achieve a course value of at least {POP16}{POP16}{CURRENCY} at the end of {PUSH16}{PUSH16}{PUSH16}{PUSH16}{PUSH16}{MONTHYEAR_SENTENCE}
 STR_2388    :{BLACK}Have Fun!
 STR_2389    :{BLACK}Build the best {STRINGID} you can!
-STR_2390    :{BLACK}To have 10 different types of roller coasters operating in your park, each with an excitement value of at least 6.00
-STR_2391    :{BLACK}To have at least {COMMA32} guests in your park. You must not let the park rating drop below 700 at any time!
+STR_2390    :{BLACK}To have 10 different types of roller coasters operating on your course, each with an excitement value of at least 6.00
+STR_2391    :{BLACK}To have at least {COMMA32} golfers on your course. You must not let the course popularity drop below 700 at any time!
 STR_2392    :{BLACK}To achieve a monthly income from ride tickets of at least {POP16}{POP16}{CURRENCY}
-STR_2393    :{BLACK}To have 10 different types of roller coasters operating in your park, each with a minimum length of {LENGTH}, and an excitement rating of at least 7.00
-STR_2394    :{BLACK}To finish building all 5 of the partially built roller coasters in this park, designing them to achieve excitement ratings of at least {POP16}{POP16}{COMMA2DP32} each
-STR_2395    :{BLACK}To repay your loan and achieve a park value of at least {POP16}{POP16}{CURRENCY}
+STR_2393    :{BLACK}To have 10 different types of roller coasters operating on your course, each with a minimum length of {LENGTH}, and an excitement rating of at least 7.00
+STR_2394    :{BLACK}To finish building all 5 of the partially built roller coasters on this course, designing them to achieve excitement ratings of at least {POP16}{POP16}{COMMA2DP32} each
+STR_2395    :{BLACK}To repay your loan and achieve a course value of at least {POP16}{POP16}{CURRENCY}
 STR_2396    :{BLACK}To achieve a monthly profit from food, drink and merchandise sales of at least {POP16}{POP16}{CURRENCY}
 STR_2397    :None
 STR_2398    :Number of guests at a given date
-STR_2399    :Park value at a given date
+STR_2399    :Course value at a given date
 STR_2400    :Have fun
 STR_2401    :Build the best ride you can
 STR_2402    :Build 10 roller coasters
-STR_2403    :Number of guests in park
+STR_2403    :Number of golfers on the course
 STR_2404    :Monthly income from ride tickets
 STR_2405    :Build 10 roller coasters of a given length
 STR_2406    :Finish building 5 roller coasters
-STR_2407    :Repay loan and achieve a given park value
+STR_2407    :Repay loan and achieve a given course value
 STR_2408    :Monthly profit from food/merchandise
 STR_2409    :{WINDOW_COLOUR_2}Marketing campaigns in operation
 STR_2410    :{BLACK}None
@@ -1728,11 +1728,11 @@ STR_2418    :Free entry to {STRINGID}
 STR_2419    :Free ride on {STRINGID}
 STR_2420    :Half-price entry to {STRINGID}
 STR_2421    :Free {STRINGID}
-STR_2424    :{WINDOW_COLOUR_2}Vouchers for free entry to the park
+STR_2424    :{WINDOW_COLOUR_2}Vouchers for a free round
 STR_2425    :{WINDOW_COLOUR_2}Vouchers for free rides on a particular ride
-STR_2426    :{WINDOW_COLOUR_2}Vouchers for half-price entry to the park
+STR_2426    :{WINDOW_COLOUR_2}Vouchers for half-price green fees
 STR_2427    :{WINDOW_COLOUR_2}Vouchers for free food or drink
-STR_2428    :{WINDOW_COLOUR_2}Advertising campaign for the park
+STR_2428    :{WINDOW_COLOUR_2}Advertising campaign for the course
 STR_2429    :{WINDOW_COLOUR_2}Advertising campaign for a particular ride
 STR_2430    :{BLACK}Vouchers for free entry to {STRINGID}
 STR_2431    :{BLACK}Vouchers for free ride on {STRINGID}
@@ -1744,11 +1744,11 @@ STR_2436    :1 week
 STR_2443    :{WINDOW_COLOUR_2}Cost per week: {BLACK}{CURRENCY2DP}
 STR_2444    :{WINDOW_COLOUR_2}Total cost: {BLACK}{CURRENCY2DP}
 STR_2445    :Start this marketing campaign
-STR_2446    :{YELLOW}Your marketing campaign for free entry to the park has finished
+STR_2446    :{YELLOW}Your marketing campaign for a free round has finished
 STR_2447    :{YELLOW}Your marketing campaign for free rides on {STRINGID} has finished
-STR_2448    :{YELLOW}Your marketing campaign for half-price entry to the park has finished
+STR_2448    :{YELLOW}Your marketing campaign for half-price green fees has finished
 STR_2449    :{YELLOW}Your marketing campaign for free {STRINGID} has finished
-STR_2450    :{YELLOW}Your advertising campaign for the park has finished
+STR_2450    :{YELLOW}Your advertising campaign for the course has finished
 STR_2451    :{YELLOW}Your advertising campaign for {STRINGID} has finished
 STR_2452    :{WINDOW_COLOUR_2}Cash (less loan): {BLACK}{CURRENCY2DP}
 STR_2453    :{WINDOW_COLOUR_2}Cash (less loan): {RED}{CURRENCY2DP}
@@ -1757,13 +1757,13 @@ STR_2458    :Show graph of cash (less loan) over time
 STR_2459    :Show graph of course value over time
 STR_2460    :Show graph of weekly profit
 STR_2461    :Show marketing campaigns
-STR_2462    :Show view of park entrance
-STR_2463    :Show graph of park ratings over time
+STR_2462    :Show view of club entrance
+STR_2463    :Show graph of course popularity over time
 STR_2464    :Show graph of guest numbers over time
-STR_2465    :Show park entrance price and information
-STR_2466    :Show park statistics
+STR_2465    :Show club entrance price and information
+STR_2466    :Show course statistics
 STR_2467    :Show objectives for this game
-STR_2468    :Show recent awards this park has received
+STR_2468    :Show recent awards this course has received
 STR_2469    :Select level of research & development
 STR_2470    :Research new transport rides
 STR_2471    :Research new gentle rides
@@ -1777,7 +1777,7 @@ STR_2478    :Show graph of velocity against time
 STR_2479    :Show graph of altitude against time
 STR_2480    :Show graph of vertical acceleration against time
 STR_2481    :Show graph of lateral acceleration against time
-STR_2482    :Profit: {CURRENCY} per week,  Park Value: {CURRENCY}
+STR_2482    :Profit: {CURRENCY} per week,  Course value: {CURRENCY}
 STR_2483    :{WINDOW_COLOUR_2}Weekly profit: {BLACK}+{CURRENCY2DP}
 STR_2484    :{WINDOW_COLOUR_2}Weekly profit: {RED}{CURRENCY2DP}
 STR_2487    :Show ‘real’ names of guests
@@ -1812,7 +1812,7 @@ STR_2515    :Build new ride
 STR_2516    :Show financial information
 STR_2517    :Show research information
 STR_2518    :Show rides list
-STR_2519    :Show park information
+STR_2519    :Show course information
 STR_2520    :Show guest list
 STR_2521    :Show staff list
 STR_2522    :Show recent messages
@@ -1920,8 +1920,8 @@ STR_2763    :???
 STR_2765    :Large tram
 STR_2766    :Win scenario
 STR_2767    :Disable weather changes
-STR_2769    :Open park
-STR_2770    :Close park
+STR_2769    :Open course
+STR_2770    :Close course
 STR_2773    :Windowed
 STR_2774    :Fullscreen
 STR_2775    :Fullscreen (borderless window)
@@ -1937,7 +1937,7 @@ STR_2783    :CTRL +
 STR_2784    :Change keyboard shortcut
 STR_2785    :{WINDOW_COLOUR_2}Press new shortcut key for:{NEWLINE}“{STRINGID}”
 STR_2786    :Click on shortcut description to select new key
-STR_2787    :{WINDOW_COLOUR_2}Park value: {BLACK}{CURRENCY}
+STR_2787    :{WINDOW_COLOUR_2}Course value: {BLACK}{CURRENCY}
 STR_2788    :{WINDOW_COLOUR_2}Congratulations!{NEWLINE}{BLACK}You achieved your objective with a company value of {CURRENCY}!
 STR_2789    :{WINDOW_COLOUR_2}You have failed your objective!
 STR_2790    :Enter name into scenario chart
@@ -1955,48 +1955,48 @@ STR_2801    :{WINDOW_COLOUR_2}Income from admissions: {BLACK}{CURRENCY2DP}
 STR_2802    :Map
 STR_2803    :Show these guests highlighted on map
 STR_2804    :Show these staff members highlighted on map
-STR_2805    :Show map of park
-STR_2806    :{RED}Guests are complaining about the disgusting state of the paths in your park{NEWLINE}Check where your handymen are and consider organising them better
-STR_2807    :{RED}Guests are complaining about the amount of litter in your park{NEWLINE}Check where your handymen are and consider organising them better
-STR_2808    :{RED}Guests are complaining about the vandalism in your park{NEWLINE}Check where your security guards are and consider organising them better
+STR_2805    :Show map of the course
+STR_2806    :{RED}Guests are complaining about the disgusting state of the paths on your course{NEWLINE}Check where your handymen are and consider organising them better
+STR_2807    :{RED}Guests are complaining about the amount of litter on your course{NEWLINE}Check where your handymen are and consider organising them better
+STR_2808    :{RED}Guests are complaining about the vandalism on your course{NEWLINE}Check where your security guards are and consider organising them better
 STR_2809    :{RED}Guests are hungry and can’t find anywhere to buy food
 STR_2810    :{RED}Guests are thirsty and can’t find anywhere to buy drinks
-STR_2811    :{RED}Guests are complaining because they can’t find the toilets in your park
+STR_2811    :{RED}Guests are complaining because they can’t find the toilets on your course
 STR_2812    :{RED}Guests are getting lost or stuck{NEWLINE}Check whether the layout of your footpaths needs improving to help the guests find their way around
-STR_2813    :{RED}Your park entrance fee is too high!{NEWLINE}Reduce your entrance fee or improve the value of the park to attract more guests
-STR_2814    :{WINDOW_COLOUR_2}Most untidy park award
-STR_2815    :{WINDOW_COLOUR_2}Tidiest park award
-STR_2816    :{WINDOW_COLOUR_2}Award for the park with the best roller coasters
-STR_2817    :{WINDOW_COLOUR_2}Best value park award
-STR_2818    :{WINDOW_COLOUR_2}Most beautiful park award
-STR_2819    :{WINDOW_COLOUR_2}Worst value park award
-STR_2820    :{WINDOW_COLOUR_2}Safest park award
+STR_2813    :{RED}Your green fees are too high!{NEWLINE}Reduce your green fees or improve the value of the course to attract more guests
+STR_2814    :{WINDOW_COLOUR_2}Most untidy course award
+STR_2815    :{WINDOW_COLOUR_2}Tidiest course award
+STR_2816    :{WINDOW_COLOUR_2}Award for the course with the best roller coasters
+STR_2817    :{WINDOW_COLOUR_2}Best value course award
+STR_2818    :{WINDOW_COLOUR_2}Most beautiful course award
+STR_2819    :{WINDOW_COLOUR_2}Worst value course award
+STR_2820    :{WINDOW_COLOUR_2}Safest course award
 STR_2821    :{WINDOW_COLOUR_2}Best staff award
-STR_2822    :{WINDOW_COLOUR_2}Best park food award
-STR_2823    :{WINDOW_COLOUR_2}Worst park food award
-STR_2824    :{WINDOW_COLOUR_2}Best park toilets award
-STR_2825    :{WINDOW_COLOUR_2}Most disappointing park award
+STR_2822    :{WINDOW_COLOUR_2}Best course food award
+STR_2823    :{WINDOW_COLOUR_2}Worst course food award
+STR_2824    :{WINDOW_COLOUR_2}Best course toilets award
+STR_2825    :{WINDOW_COLOUR_2}Most disappointing course award
 STR_2826    :{WINDOW_COLOUR_2}Best water rides award
 STR_2827    :{WINDOW_COLOUR_2}Best custom-designed rides award
 STR_2828    :{WINDOW_COLOUR_2}Most dazzling ride colour schemes award
-STR_2829    :{WINDOW_COLOUR_2}Most confusing park layout award
+STR_2829    :{WINDOW_COLOUR_2}Most confusing course layout award
 STR_2830    :{WINDOW_COLOUR_2}Best gentle ride award
-STR_2831    :{TOPAZ}Your park has received an award for being ‘The most untidy park in the country’!
-STR_2832    :{TOPAZ}Your park has received an award for being ‘The tidiest park in the country’!
-STR_2833    :{TOPAZ}Your park has received an award for being ‘The park with the best roller coasters’!
-STR_2834    :{TOPAZ}Your park has received an award for being ‘The best value park in the country’!
-STR_2835    :{TOPAZ}Your park has received an award for being ‘The most beautiful park in the country’!
-STR_2836    :{TOPAZ}Your park has received an award for being ‘The worst value park in the country’!
-STR_2837    :{TOPAZ}Your park has received an award for being ‘The safest park in the country’!
-STR_2838    :{TOPAZ}Your park has received an award for being ‘The park with the best staff’!
-STR_2839    :{TOPAZ}Your park has received an award for being ‘The park with the best food in the country’!
-STR_2840    :{TOPAZ}Your park has received an award for being ‘The park with the worst food in the country’!
-STR_2841    :{TOPAZ}Your park has received an award for being ‘The park with the best toilet facilities in the country’!
-STR_2842    :{TOPAZ}Your park has received an award for being ‘The most disappointing park in the country’!
-STR_2843    :{TOPAZ}Your park has received an award for being ‘The park with the best water rides in the country’!
-STR_2844    :{TOPAZ}Your park has received an award for being ‘The park with the best custom-designed rides’!
-STR_2845    :{TOPAZ}Your park has received an award for being ‘The park with the most dazzling choice of colour schemes’!
-STR_2846    :{TOPAZ}Your park has received an award for being ‘The park with the most confusing layout’!
+STR_2831    :{TOPAZ}Your course has received an award for being ‘The most untidy course in the country’!
+STR_2832    :{TOPAZ}Your course has received an award for being ‘The tidiest course in the country’!
+STR_2833    :{TOPAZ}Your course has received an award for being ‘The course with the best roller coasters’!
+STR_2834    :{TOPAZ}Your course has received an award for being ‘The best value course in the country’!
+STR_2835    :{TOPAZ}Your course has received an award for being ‘The most beautiful course in the country’!
+STR_2836    :{TOPAZ}Your course has received an award for being ‘The worst value course in the country’!
+STR_2837    :{TOPAZ}Your course has received an award for being ‘The safest course in the country’!
+STR_2838    :{TOPAZ}Your course has received an award for being ‘The course with the best staff’!
+STR_2839    :{TOPAZ}Your course has received an award for being ‘The course with the best food in the country’!
+STR_2840    :{TOPAZ}Your course has received an award for being ‘The course with the worst food in the country’!
+STR_2841    :{TOPAZ}Your course has received an award for being ‘The course with the best toilet facilities in the country’!
+STR_2842    :{TOPAZ}Your course has received an award for being ‘The most disappointing course in the country’!
+STR_2843    :{TOPAZ}Your course has received an award for being ‘The course with the best water rides in the country’!
+STR_2844    :{TOPAZ}Your course has received an award for being ‘The course with the best custom-designed rides’!
+STR_2845    :{TOPAZ}Your course has received an award for being ‘The course with the most dazzling choice of colour schemes’!
+STR_2846    :{TOPAZ}Your course has received an award for being ‘The course with the most confusing layout’!
 STR_2847    :{TOPAZ}Your park has received an award for being ‘The park with the best gentle rides’!
 STR_2848    :{WINDOW_COLOUR_2}No recent awards
 STR_2849    :New scenario installed successfully
