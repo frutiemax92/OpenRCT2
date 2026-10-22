@@ -10,6 +10,7 @@
 #include <algorithm>
 #include <openrct2-ui/interface/Widget.h>
 #include <openrct2-ui/interface/Window.h>
+#include <openrct2-ui/windows/CoursePopularity.h>
 #include <openrct2-ui/windows/Windows.h>
 #include <openrct2/Context.h>
 #include <openrct2/Game.h>
@@ -68,16 +69,6 @@ namespace OpenRCT2::Ui::Windows
                 return static_cast<uint32_t>(gameState.golfRuntime->director().simulation().golfers().size());
             }
             return gameState.entities.getEntityListCount(EntityType::golfer);
-        }
-
-        static uint16_t GetCoursePopularity(const GameState_t& gameState)
-        {
-            if (gameState.golfRuntime != nullptr)
-            {
-                return static_cast<uint16_t>(
-                    std::clamp<int32_t>(gameState.golfRuntime->director().popularity() * 10, 0, 1000));
-            }
-            return gameState.park.rating;
         }
 
         void drawPanel(RenderTarget& rt)

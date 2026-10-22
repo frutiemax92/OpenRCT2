@@ -14,6 +14,7 @@
 #include <openrct2-ui/interface/Theme.h>
 #include <openrct2-ui/interface/Widget.h>
 #include <openrct2-ui/interface/Window.h>
+#include <openrct2-ui/windows/CoursePopularity.h>
 #include <openrct2-ui/windows/Windows.h>
 #include <openrct2/GameState.h>
 #include <openrct2/SpriteIds.h>
@@ -392,8 +393,9 @@ namespace OpenRCT2::Ui::Windows
     private:
         void SetDisabledTabs()
         {
-            // Disable price tab if money is disabled
-            setWidgetDisabled(WIDX_TAB_4, _parkData.flags.has(ParkFlag::noMoney));
+            // Golf charges green fees per course and gives no theme-park awards, so the price and awards tabs stay disabled
+            setWidgetDisabled(WIDX_TAB_4, true);
+            setWidgetDisabled(WIDX_TAB_7, true);
         }
 
         void PrepareWindowTitleText()
@@ -688,7 +690,7 @@ namespace OpenRCT2::Ui::Windows
 
             // Current value
             Formatter ft;
-            ft.Add<uint16_t>(_parkData.rating);
+            ft.Add<uint16_t>(GetCoursePopularity(getGameState()));
             drawText(rt, windowPos + ScreenCoordsXY{ widget->left + 3, widget->top + 2 }, STR_PARK_RATING_LABEL, ft);
 
             // Graph border
@@ -943,15 +945,6 @@ namespace OpenRCT2::Ui::Windows
             drawText(rt, screenCoords, stringIndex, ft);
             screenCoords.y += kListRowHeight;
 
-            // Draw number of rides / attractions
-            if (_numberOfRides != -1)
-            {
-                ft = Formatter();
-                ft.Add<uint32_t>(_numberOfRides);
-                drawText(rt, screenCoords, STR_NUMBER_OF_RIDES_LABEL, ft);
-            }
-            screenCoords.y += kListRowHeight;
-
             // Draw number of staff
             if (_numberOfStaff != -1)
             {
@@ -965,11 +958,6 @@ namespace OpenRCT2::Ui::Windows
             ft = Formatter();
             ft.Add<uint32_t>(_parkData.numGuestsInPark);
             drawText(rt, screenCoords, STR_GUESTS_IN_PARK_LABEL, ft);
-            screenCoords.y += kListRowHeight;
-
-            ft = Formatter();
-            ft.Add<uint32_t>(_parkData.totalAdmissions);
-            drawText(rt, screenCoords, STR_TOTAL_ADMISSIONS, ft);
         }
 #pragma endregion
 
