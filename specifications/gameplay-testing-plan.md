@@ -134,8 +134,8 @@ flowchart TD
     - **Scenery / Buildings Button** (`WIDX_SCENERY`): Dropdown or direct tabs for **Golf Buildings** (`BuildingToolOpen`), **Trees & Scenery** (`SceneryOpen`), and **Zones (Cottages / Driving Range / OOB)** (`ZonesOpen`).
     - **Paths & Streets Button** (`WIDX_FOOTPATH`): Dropdown to choose **Footpaths & Course Paths** (`FootpathOpen`) or **Streets, Parking & Cart Bays** (`StreetToolOpen`).
     - **Hole & Course Construction Button** (`WIDX_CONSTRUCT_RIDE`): Opens `HoleToolOpen()` with proper golf tooltip (`"Build Golf Holes, Tees, Pins & Aim Points"`), plus dropdown option for **Shot Trajectory Planner** (`ShotToolOpen`).
-    - **Courses & Operations Button** (`WIDX_RIDES`): Dropdown for **Courses & Scorecards** (`CourseOpen`), **Tournaments** (`TournamentOpen`), **Golf Carts Fleet** (`CartsOpen`), and **Zones & Lots** (`ZonesOpen`).
-    - **Park / Facility Button** (`WIDX_PARK`): Includes **Finances**, **Course Overview**, **Tournaments**, and **Golf Sandbox / Testing Panel**.
+    - **Play Button** (`WIDX_RIDES`): Dropdown for **Courses & Scorecards** (`CourseOpen`), **Golf Carts Fleet** (`CartsOpen`), and **Zones & Lots** (`ZonesOpen`).
+    - **Golf Course Button** (`WIDX_PARK`): Includes **Finances**, **Course Overview**, **Tournaments**, and **Golf Sandbox / Testing Panel**.
     - **Golfers Button** (`WIDX_GUESTS`): Opens the updated [`GuestListWindow`](file:///home/lucas/Documents/OpenRCT2/src/openrct2-ui/windows/GuestList.cpp) showing active **Golfers**.
 
 #### `UI-002` — Bottom-Left HUD (`ParkInfoPanel`) Live Golf Metrics

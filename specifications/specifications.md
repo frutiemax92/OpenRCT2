@@ -1,7 +1,7 @@
 # Context
 
 The OpenRCT2 project is an open-source implementation of the RCT2 game.
-It lets the user build an attraction park using an isometric view.
+It lets the user build a golf course using an isometric view.
 
 The goal of this project is to reuse the OpenRCT2 code to design an isometric, retro golf simulator game.
 
