@@ -1298,7 +1298,7 @@ namespace OpenRCT2::Golf
                 spawn.money = 100000;
                 spawn.equipmentLevel = 3;
                 spawn.professional = true;
-                spawn.name = "Pro " + std::to_string(i + 1);
+                spawn.name = _director->rollGolferName(i + 1, "Pro ");
             }
             else if (tier == 2) // VIP
             {
@@ -1307,7 +1307,7 @@ namespace OpenRCT2::Golf
                 spawn.money = 500000;
                 spawn.equipmentLevel = 2;
                 spawn.vip = true;
-                spawn.name = "VIP " + std::to_string(i + 1);
+                spawn.name = _director->rollGolferName(i + 1);
             }
             else // Regular
             {
@@ -1315,7 +1315,7 @@ namespace OpenRCT2::Golf
                     spawn.skills = rollNewGolfer(*_rng, _director ? _director->popularity() : 300, false).skills;
                 spawn.money = 20000;
                 spawn.equipmentLevel = 1;
-                spawn.name = "Golfer " + std::to_string(i + 1);
+                spawn.name = _director->rollGolferName(i + 1);
             }
 
             auto& g = _director->simulation().spawn(spawn);
@@ -1364,7 +1364,7 @@ namespace OpenRCT2::Golf
             spawn.skills = rollNewGolfer(*_rng, _director ? _director->popularity() : 300, false).skills;
         spawn.money = 15000;
         spawn.equipmentLevel = 1;
-        spawn.name = "Range Customer";
+        spawn.name = _director->rollGolferName(1);
 
         auto& g = _director->simulation().spawn(spawn);
         g.rangeId = range.id;
@@ -1423,7 +1423,7 @@ namespace OpenRCT2::Golf
                     spawn.skills = professionalSkills(_director->tournament.tier, *_rng);
                 spawn.professional = true;
                 spawn.equipmentLevel = 3;
-                spawn.name = "Tour Pro #" + std::to_string(i + 1);
+                spawn.name = _director->rollGolferName(i + 1, "Pro ");
                 spawn.position = spawnPos;
                 auto& g = _director->simulation().spawn(spawn);
                 g.destination = spawnPos;

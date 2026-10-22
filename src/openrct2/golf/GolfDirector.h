@@ -72,6 +72,9 @@ namespace OpenRCT2::Golf
         std::vector<std::string> firstNames;
         std::vector<std::string> lastNames;
 
+        // A name no golfer on the course or in the registry has, from the built-in lists unless firstNames and lastNames are set.
+        std::string rollGolferName(uint32_t fallbackNumber, const std::string& prefix = "");
+
         // Advances one tick; `ticks` is the game tick count.
         void update(uint32_t ticks);
 

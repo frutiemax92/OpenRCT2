@@ -34,6 +34,16 @@ namespace OpenRCT2::Golf
             }
             return 0;
         }
+
+        // The corner of the turn into a space: level with the space across the street, level with the car along it.
+        FixedVec3 cornerOfTurn(const FixedVec3& street, const FixedVec3& space, uint8_t facing)
+        {
+            // Along the facing direction the car stays where it is on the street; across it, it lines up with the space.
+            const auto step = directionStep(facing);
+            if (step.x != 0)
+                return { street.x, space.y, street.z };
+            return { space.x, street.y, street.z };
+        }
     } // namespace
 
     int32_t ParkingLot::freeSpaces() const
@@ -41,6 +51,14 @@ namespace OpenRCT2::Golf
         return static_cast<int32_t>(std::count_if(spaces.begin(), spaces.end(), [](const ParkingSpace& s) {
             return s.carId == 0 && s.reservedBy == 0;
         }));
+    }
+
+    const ParkingSpace* ParkingLot::firstFree() const
+    {
+        for (const auto& space : spaces)
+            if (space.carId == 0 && space.reservedBy == 0)
+                return &space;
+        return nullptr;
     }
 
     ParkingSpace* ParkingLot::reserve(uint32_t carId)
@@ -95,6 +113,12 @@ namespace OpenRCT2::Golf
         const Fixed across = space.slot == 0 ? Fixed::fromInt(-8) : Fixed::fromInt(8);
         // The perpendicular of the facing direction.
         return { cx + Fixed::fromInt(-step.y) * across, cy + Fixed::fromInt(step.x) * across, Fixed{} };
+    }
+
+    TileCoordsXY parkingSpaceStreetTile(const ParkingSpace& space)
+    {
+        const auto step = directionStep(space.facing);
+        return { space.tile.x + step.x, space.tile.y + step.y };
     }
 
     Model::ContactPoints carContactPoints()
@@ -185,7 +209,8 @@ namespace OpenRCT2::Golf
         if (entrances.empty())
             return 0;
 
-        // The nearest lot with a free space that a car can reach from an entrance.
+        // The nearest lot with a free space that a car can reach from an entrance. The car drives to the street tile in
+        // front of its own space, not to the lot's first one, so it turns into the space instead of crossing the others.
         const uint32_t carId = _nextCarId;
         ParkingLot* bestLot = nullptr;
         std::vector<TileCoordsXY> bestRoute;
@@ -193,9 +218,12 @@ namespace OpenRCT2::Golf
         {
             for (auto& lot : _lots)
             {
-                if (lot.freeSpaces() == 0)
+                const auto* free = lot.firstFree();
+                if (free == nullptr)
                     continue;
-                auto route = _network->findRoute(entrance, lot.streetTile);
+                auto route = _network->findRoute(entrance, parkingSpaceStreetTile(*free));
+                if (route.empty())
+                    route = _network->findRoute(entrance, lot.streetTile);
                 if (route.empty())
                     continue;
                 if (bestLot == nullptr || route.size() < bestRoute.size())
@@ -256,6 +284,45 @@ namespace OpenRCT2::Golf
         o.restitution = Fixed::ratio(3, 10);
         o.friction = Fixed::ratio(3, 10);
         return o;
+    }
+
+    TileCoordsXY TrafficSimulation::findLotStreet(uint32_t lotId) const
+    {
+        for (const auto& lot : _lots)
+            if (lot.id == lotId)
+                return lot.streetTile;
+        return {};
+    }
+
+    void TrafficSimulation::moveAlongTurn(Car& car, const FixedVec3& from, const FixedVec3& to, Fixed fraction) const
+    {
+        // Two straight legs with the corner at car.parkVia: the first runs along the street, the second straight into the
+        // space. The fraction is of the total length, so the car keeps a steady pace round the turn.
+        const auto length = [](const FixedVec3& a, const FixedVec3& b) {
+            const Fixed dx = a.x - b.x;
+            const Fixed dy = a.y - b.y;
+            return (dx < Fixed{} ? -dx : dx) + (dy < Fixed{} ? -dy : dy);
+        };
+        const Fixed first = length(from, car.parkVia);
+        const Fixed second = length(car.parkVia, to);
+        const Fixed total = first + second;
+        const auto lerp = [](const FixedVec3& a, const FixedVec3& b, Fixed f) {
+            return FixedVec3{ a.x + (b.x - a.x) * f, a.y + (b.y - a.y) * f, a.z + (b.z - a.z) * f };
+        };
+        if (total == Fixed{})
+        {
+            car.position = to;
+            return;
+        }
+        const Fixed done = total * fraction;
+        FixedVec3 at;
+        if (first > Fixed{} && done < first)
+            at = lerp(from, car.parkVia, done / first);
+        else
+            at = lerp(car.parkVia, to, second > Fixed{} ? (done - first) / second : Fixed::fromInt(1));
+        // The height follows the whole way, from the street to the space.
+        at.z = from.z + (to.z - from.z) * fraction;
+        car.position = at;
     }
 
     void TrafficSimulation::updatePosition(Car& car)
@@ -458,18 +525,16 @@ namespace OpenRCT2::Golf
                                 return &l;
                         return nullptr;
                     }();
-                    // Pull into the space: drive from the street to its centre, nose first, at the street's height.
+                    // Pull into the space: along the street to the space, then one 90 degree turn straight in, nose first.
                     const ParkingSpace* space = lot != nullptr ? lot->spaceOf(car.id) : nullptr;
                     if (space != nullptr)
                     {
                         auto target = parkingSpaceCentre(*space);
                         if (const auto* street = lot != nullptr ? _network->tileAt(lot->streetTile) : nullptr)
                             target.z = Fixed::fromInt(street->height);
+                        car.parkVia = cornerOfTurn(car.parkFrom, target, space->facing);
                         const int32_t t = std::min(car.stateTicks, kParkingTicks);
-                        const Fixed f = Fixed::ratio(t, kParkingTicks);
-                        car.position = { car.parkFrom.x + (target.x - car.parkFrom.x) * f,
-                                         car.parkFrom.y + (target.y - car.parkFrom.y) * f,
-                                         car.parkFrom.z + (target.z - car.parkFrom.z) * f };
+                        moveAlongTurn(car, car.parkFrom, target, Fixed::ratio(t, kParkingTicks));
                         car.heading = (space->facing + 2) & 3;
                     }
                     if (car.stateTicks >= kParkingTicks)
@@ -488,15 +553,34 @@ namespace OpenRCT2::Golf
                 case CarState::parked:
                     break;
                 case CarState::departing:
+                {
+                    // STE-022: back out of the space the way the car came in, then drive to the nearest road entrance.
+                    const ParkingSpace* space = nullptr;
+                    for (auto& l : _lots)
+                        if (l.id == car.lotId)
+                            space = l.spaceOf(car.id);
+                    if (space != nullptr && car.stateTicks == 1)
+                    {
+                        const auto streetTile = parkingSpaceStreetTile(*space);
+                        car.route = _network->routeToNearestEntrance(streetTile);
+                        if (car.route.empty())
+                            car.route = _network->routeToNearestEntrance(findLotStreet(car.lotId));
+                        car.index = 0;
+                        car.progress = Fixed{};
+                        updatePosition(car);
+                        car.parkFrom = car.position; // where the car rejoins the street
+                        car.parkVia = cornerOfTurn(car.parkFrom, parkingSpaceCentre(*space), space->facing);
+                    }
+                    if (space != nullptr && !car.route.empty())
+                    {
+                        const int32_t t = std::min(car.stateTicks, kDepartingTicks);
+                        moveAlongTurn(car, car.parkFrom, parkingSpaceCentre(*space), Fixed::ratio(kDepartingTicks - t, kDepartingTicks));
+                    }
                     if (car.stateTicks >= kDepartingTicks)
                     {
-                        // STE-022: pull out, free the space, and drive to the nearest road entrance.
                         for (auto& l : _lots)
                             if (l.id == car.lotId)
-                            {
                                 l.release(car.id);
-                                car.route = _network->routeToNearestEntrance(l.streetTile);
-                            }
                         car.index = 0;
                         car.progress = Fixed{};
                         car.speed = Fixed{};
@@ -515,6 +599,7 @@ namespace OpenRCT2::Golf
                         }
                     }
                     break;
+                }
                 case CarState::leaving:
                     driveCar(car);
                     if (car.index + 1 >= car.route.size())

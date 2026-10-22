@@ -109,7 +109,7 @@ TEST(Traffic, ACarSpawnsAtTheEntranceAndDrivesToTheLot)
     const Car* car = l.sim.find(id);
     ASSERT_NE(car, nullptr);
     EXPECT_EQ(car->route.front(), (TileCoordsXY{ 1, 10 }));
-    EXPECT_EQ(car->route.back(), (TileCoordsXY{ 15, 10 }));
+    EXPECT_EQ(car->route.back(), (TileCoordsXY{ 14, 10 })); // the street tile in front of its own space
     EXPECT_EQ(car->golferIds.size(), 4u);
     EXPECT_EQ(car->groupId, 9u);
     EXPECT_EQ(car->state, CarState::driving);
@@ -393,4 +393,33 @@ TEST(Traffic, CarContactPointsMatchModelConstants)
     const auto cp = carContactPoints();
     EXPECT_FLOAT_EQ(12.0f, cp.halfLength);
     EXPECT_FLOAT_EQ(6.0f, cp.halfWidth);
+}
+
+TEST(Traffic, ACarTurnsIntoItsSpaceAtARightAngleInsteadOfCuttingAcrossTheLot)
+{
+    Layout l;
+    // Fill the first spaces so the next car must go further along the lot.
+    for (int i = 0; i < 6; i++)
+        l.sim.spawn({ static_cast<uint32_t>(i + 1) });
+    const uint32_t id = l.sim.spawn({ 99 });
+    ASSERT_NE(id, 0u);
+    const auto* space = l.sim.lots()[0].spaceOf(id);
+    ASSERT_NE(space, nullptr);
+    // It drives to the street tile in front of that space.
+    EXPECT_EQ(l.sim.find(id)->route.back(), parkingSpaceStreetTile(*space));
+    const auto target = parkingSpaceCentre(*space);
+    int ticks = 0;
+    while (l.sim.find(id)->state != CarState::parking && ticks++ < 8000)
+        l.sim.tick();
+    ASSERT_EQ(l.sim.find(id)->state, CarState::parking);
+    // While pulling in the car is either level with the space along the street or level with it across the street: it
+    // never moves diagonally.
+    for (int t = 0; t < kParkingTicks; t++)
+    {
+        l.sim.tick();
+        const auto& c = l.sim.find(id)->position;
+        const bool onLegOne = c.y == l.sim.find(id)->parkFrom.y; // the street runs along x
+        const bool onLegTwo = c.x == target.x;
+        EXPECT_TRUE(onLegOne || onLegTwo) << "diagonal move at tick " << t;
+    }
 }

@@ -10,8 +10,10 @@
 #include "GolfDirector.h"
 
 #include "Cottages.h"
+#include "GolferNames.h"
 
 #include <algorithm>
+#include <unordered_set>
 
 namespace OpenRCT2::Golf
 {
@@ -26,6 +28,22 @@ namespace OpenRCT2::Golf
 
     // The course a group arriving chooses: of the courses that are open and have something to play, a regular course is three
     // times as likely as a mini putt (MPT-004: each has its own fee and tee sheet). With one course open it is that one.
+    std::string GolfDirector::rollGolferName(uint32_t fallbackNumber, const std::string& prefix)
+    {
+        // Taken: the golfers on the course and those the registry remembers (they come back under their name).
+        std::unordered_set<std::string> used;
+        for (const auto& golfer : _sim.golfers())
+            used.insert(golfer.name);
+        for (const auto& entry : _registry.entries())
+            used.insert(entry.name);
+        const auto& firsts = firstNames.empty() ? defaultFirstNames() : firstNames;
+        const auto& lasts = lastNames.empty() ? defaultFamilyNames() : lastNames;
+        return prefix
+            + rollUniqueName(
+                   *_sim.environment().rng, firsts, lasts, fallbackNumber,
+                   [&](const std::string& name) { return used.count(prefix + name) != 0; });
+    }
+
     uint32_t GolfDirector::addVip(uint32_t lotId)
     {
         auto* rng = _sim.environment().rng;
@@ -33,7 +51,7 @@ namespace OpenRCT2::Golf
         NewGolferTemplate t = rollNewGolfer(*rng, _popularity, true);
         RegistryEntry entry;
         entry.id = _nextRegistryId++;
-        entry.name = rollName(*rng, firstNames, lastNames, entry.id);
+        entry.name = rollGolferName(entry.id);
         entry.skills = SkillPoints::from(t.skills);
         entry.initial = entry.skills;
         entry.equipmentLevel = std::max<uint8_t>(t.equipmentLevel, 2);
@@ -218,7 +236,7 @@ namespace OpenRCT2::Golf
                 spawn.money = 0;
                 spawn.professional = true; // professionals do not pay
                 spawn.equipmentLevel = 3;
-                spawn.name = "Pro " + std::to_string(_nextRegistryId);
+                spawn.name = rollGolferName(_nextRegistryId, "Pro ");
             }
             else
             {
@@ -228,7 +246,7 @@ namespace OpenRCT2::Golf
                 spawn.equipmentLevel = t.equipmentLevel;
                 spawn.money = t.money;
                 spawn.riskTolerance = t.riskTolerance;
-                spawn.name = rollName(*rng, firstNames, lastNames, _sim.nextGolferId());
+                spawn.name = rollGolferName(_sim.nextGolferId());
             }
             auto& golfer = _sim.spawn(spawn);
             arrived.push_back(golfer.id);

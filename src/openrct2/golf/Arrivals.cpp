@@ -135,4 +135,48 @@ namespace OpenRCT2::Golf
         }
         return name;
     }
+
+    std::string rollUniqueName(
+        IBallRandom& rng, const std::vector<std::string>& firstNames, const std::vector<std::string>& lastNames,
+        uint32_t fallbackNumber, const std::function<bool(const std::string&)>& isTaken)
+    {
+        constexpr int32_t kRandomTries = 32;
+        for (int32_t i = 0; i < kRandomTries; i++)
+        {
+            auto name = rollName(rng, firstNames, lastNames, fallbackNumber);
+            if (!isTaken(name))
+                return name;
+        }
+        // Crowded: every combination in turn from a random place, so a free one is found if there is any.
+        const size_t firsts = std::max<size_t>(firstNames.size(), 1);
+        const size_t lasts = std::max<size_t>(lastNames.size(), 1);
+        const size_t total = firsts * lasts;
+        const size_t start = rng.next() % total;
+        std::string base;
+        for (size_t i = 0; i < total; i++)
+        {
+            const size_t k = (start + i) % total;
+            std::string name;
+            if (!firstNames.empty())
+                name = firstNames[k / lasts];
+            if (!lastNames.empty())
+            {
+                if (!name.empty())
+                    name += ' ';
+                name += lastNames[k % lasts];
+            }
+            if (name.empty())
+                name = "Golfer " + std::to_string(fallbackNumber);
+            if (base.empty())
+                base = name;
+            if (!isTaken(name))
+                return name;
+        }
+        for (uint32_t n = 2;; n++)
+        {
+            auto name = base + ' ' + std::to_string(n);
+            if (!isTaken(name))
+                return name;
+        }
+    }
 } // namespace OpenRCT2::Golf

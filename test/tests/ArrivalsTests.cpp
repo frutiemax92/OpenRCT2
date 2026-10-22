@@ -12,6 +12,8 @@
 #include <gtest/gtest.h>
 #include <map>
 #include <openrct2/golf/Arrivals.h>
+#include <openrct2/golf/GolferNames.h>
+#include <set>
 
 using namespace OpenRCT2;
 using namespace OpenRCT2::Golf;
@@ -217,4 +219,29 @@ TEST(Arrivals, NamesComeFromTheListsOrFallBack)
     for (int i = 0; i < 200; i++)
         seen[rollName(rng, { "A", "B", "C" }, { "X", "Y" }, 0)]++;
     EXPECT_EQ(seen.size(), 6u);
+}
+
+TEST(Arrivals, UniqueNamesNeverRepeatEvenWhenCrowded)
+{
+    SeqRandom rng(3);
+    std::set<std::string> taken;
+    const std::vector<std::string> firsts{ "A", "B", "C" };
+    const std::vector<std::string> lasts{ "X", "Y" };
+    // More golfers than combinations: the first six use every combination, the rest are numbered.
+    for (int i = 0; i < 10; i++)
+    {
+        auto name = rollUniqueName(rng, firsts, lasts, 0, [&](const std::string& n) { return taken.count(n) != 0; });
+        EXPECT_TRUE(taken.insert(name).second) << name;
+    }
+    EXPECT_EQ(taken.size(), 10u);
+}
+
+TEST(Arrivals, DefaultNameListsAreLargeAndWithoutDuplicates)
+{
+    const auto& firsts = defaultFirstNames();
+    const auto& lasts = defaultFamilyNames();
+    EXPECT_GE(firsts.size(), 100u);
+    EXPECT_GE(lasts.size(), 100u);
+    EXPECT_EQ(std::set<std::string>(firsts.begin(), firsts.end()).size(), firsts.size());
+    EXPECT_EQ(std::set<std::string>(lasts.begin(), lasts.end()).size(), lasts.size());
 }

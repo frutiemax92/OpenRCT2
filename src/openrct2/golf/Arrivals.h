@@ -18,6 +18,7 @@
 #include "../world/Weather.h"
 
 #include <cstdint>
+#include <functional>
 #include <string>
 #include <vector>
 
@@ -94,4 +95,10 @@ namespace OpenRCT2::Golf
     NewGolferTemplate rollNewGolfer(IBallRandom& rng, int32_t popularity, bool vip);
     // A name from the lists in `firstNames` and `lastNames` (peep_names object); falls back to a numbered golfer.
     std::string rollName(IBallRandom& rng, const std::vector<std::string>& firstNames, const std::vector<std::string>& lastNames, uint32_t fallbackNumber);
+    // Like rollName, but never a name for which `isTaken` is true, so no two golfers share a name. It draws random
+    // combinations first; when those keep hitting taken names it walks through every combination from a random start. With
+    // every combination taken it numbers the name ("Ann Birdie 2").
+    std::string rollUniqueName(
+        IBallRandom& rng, const std::vector<std::string>& firstNames, const std::vector<std::string>& lastNames,
+        uint32_t fallbackNumber, const std::function<bool(const std::string&)>& isTaken);
 } // namespace OpenRCT2::Golf

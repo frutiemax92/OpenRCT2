@@ -124,6 +124,19 @@ TEST(GolfDirector, GolfersArriveWhileTheCourseIsOpenAndPopular)
     EXPECT_GT(park.director->simulation().golfers().size() + park.director->roundsFinished(), 2u);
 }
 
+TEST(GolfDirector, EveryGolferHasADifferentName)
+{
+    Park park;
+    park.run(at(1, 6), 4 * 60 * kTicksPerGameMinute);
+    std::set<std::string> names;
+    for (const auto& golfer : park.director->simulation().golfers())
+    {
+        EXPECT_NE(golfer.name.rfind("Golfer ", 0), 0u) << golfer.name; // from the name lists, not the numbered fallback
+        EXPECT_TRUE(names.insert(golfer.name).second) << golfer.name;
+    }
+    EXPECT_GT(names.size(), 2u);
+}
+
 TEST(GolfDirector, NoOneComesWhenTheCourseIsClosedOrUnpopular)
 {
     Park closed;

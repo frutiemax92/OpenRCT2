@@ -536,7 +536,8 @@ streets are respected.
 - GLF-002 MUST: Two spawn methods:
   1. **Car**: at a road entrance, inside a car (§12.3).
   2. **Cottage**: VIP golfers who own a cottage spawn on foot at its door (§22.4).
-- GLF-003 MUST: On spawn each golfer gets: name (from a `peep_names` object), money (random within a range set by
+- GLF-003 MUST: On spawn each golfer gets: name (a random first name plus a random family name, from the built-in name database or a `peep_names` object;
+  no two golfers on the course or in the registry share a name), money (random within a range set by
   park reputation and golfer type; VIP richer), skills (§13.3), needs at start values, preferred course
   difficulty, equipment level.
 - GLF-004 MUST: A configurable max golfer count (default 500) and arrival rate driven by course popularity (§22.1),
@@ -886,6 +887,8 @@ sounds.
 ---
 
 ## 24. User interface
+
+**Wording rule (REN-000):** no text the player can see contains the word *park* (parking, parked and `.parkobj` are allowed). The site is the *golf course*; park rating is *course popularity*, company value is *club value*, park entrance fees are *green fees*, guests are *golfers on the course*. Guard tests: `GolfWordingTests.cpp` (language files) and `scripts/check-golf-wording.py` (string literals in code).
 
 New or adapted windows/tools (reuse `openrct2-ui` window framework):
 

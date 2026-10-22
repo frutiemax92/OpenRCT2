@@ -47,6 +47,8 @@ namespace OpenRCT2::Golf
         // STE-011: spaces that are neither taken nor reserved.
         int32_t freeSpaces() const;
         ParkingSpace* reserve(uint32_t carId);
+        // The space that reserve() would take next; nullptr when the lot is full.
+        const ParkingSpace* firstFree() const;
         void release(uint32_t carId);
         ParkingSpace* spaceOf(uint32_t carId);
         // Adds the two spaces of a tile.
@@ -55,6 +57,8 @@ namespace OpenRCT2::Golf
 
     // Centre of a space in world units: two spaces share a tile, one each side of its centre across the facing direction.
     FixedVec3 parkingSpaceCentre(const ParkingSpace& space);
+    // The street tile in front of a space: the one a car drives to, and leaves from, so it never crosses the other spaces.
+    TileCoordsXY parkingSpaceStreetTile(const ParkingSpace& space);
 
     enum class CarState : uint8_t
     {
@@ -80,7 +84,8 @@ namespace OpenRCT2::Golf
         uint32_t spaceId = 0;
         int32_t stateTicks = 0;
         FixedVec3 position;                // world position with the lane offset
-        FixedVec3 parkFrom;                // where the car stood when it began to pull into its space
+        FixedVec3 parkFrom;                // where the car stood on the street when it began to pull into its space
+        FixedVec3 parkVia;                 // the corner of the 90 degree turn between the street and the space
         int32_t heading = 0;               // direction 0-3 of travel, for drawing
         uint32_t waitingFor = 0;           // car or junction blocking it, for the tests
     };
@@ -158,6 +163,9 @@ namespace OpenRCT2::Golf
 
     private:
         void driveCar(Car& car);
+        TileCoordsXY findLotStreet(uint32_t lotId) const;
+        // Pulling into a space and out of it: along the street to the space, then straight in (one 90 degree turn).
+        void moveAlongTurn(Car& car, const FixedVec3& from, const FixedVec3& to, Fixed fraction) const;
         Fixed targetSpeed(const Car& car) const;
         Fixed gapAhead(const Car& car) const;
         bool tryEnterJunction(Car& car);
