@@ -207,6 +207,8 @@ TEST(GolfSimulation, AGolferWaitsAsideForTheGroupAndTheFarthestBallPlaysNext)
     int waited = 0;
     int turnsChecked = 0;
     bool twoOnTee = false;
+    bool groupNotBeside = false;
+    int shotsWithGroupWaiting = 0;
     uint32_t longestPreparing = 0;
     bool walkedWhileMateHit = false;
     bool notFarthest = false;
@@ -249,7 +251,23 @@ TEST(GolfSimulation, AGolferWaitsAsideForTheGroupAndTheFarthestBallPlaysNext)
             }
         }
         twoOnTee |= preparing > 1;
+        // The group waits beside the ball of the golfer who plays.
+        for (const auto& g : sim.golfers())
+        {
+            if (g.state != GolferState::swinging || g.stateTicks != 1 || g.score.shots == 0)
+                continue;
+            for (const auto& other : sim.golfers())
+                if (other.id != g.id && other.holeIndex == g.holeIndex && other.state == GolferState::waitingForTurn)
+                {
+                    shotsWithGroupWaiting++;
+                    if (std::hypot(other.position.x.toDouble() - g.ball.position.x.toDouble(),
+                            other.position.y.toDouble() - g.ball.position.y.toDouble()) > 120)
+                        groupNotBeside = true;
+                }
+        }
     }
+    EXPECT_FALSE(groupNotBeside);
+    EXPECT_GT(shotsWithGroupWaiting, 3);
     EXPECT_FALSE(twoOnTee); // one golfer of the group at a time gets ready on the tee
     EXPECT_LT(longestPreparing, 3000u); // and nobody stands there stuck
     EXPECT_GT(waited, 0); // after the tee shot the golfer stands aside instead of walking to the ball

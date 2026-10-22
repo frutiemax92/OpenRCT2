@@ -322,6 +322,11 @@ namespace OpenRCT2::Golf
         // from the hole.
         bool myTurn(const Golfer& g) const;
         bool hasGroupMates(const Golfer& g) const;
+        // Where a golfer waiting for the turn stands: beside the ball of the group mate who is playing, else aside where the
+        // shot was hit.
+        FixedVec3 turnWaitingSpot(const Golfer& g) const;
+        // Whether the group mates waiting for the turn stand beside the ball of the golfer who is about to play.
+        bool groupHasArrived(const Golfer& g) const;
         // Whether another golfer stands near the path the golfer expects the ball to take.
         bool lineOfFireBlocked(const Golfer& g) const;
         // Whether a golfer of another group is using the tee at `tee` (waiting for its time, or playing the first shot).
