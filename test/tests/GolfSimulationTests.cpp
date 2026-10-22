@@ -739,3 +739,40 @@ TEST(GolfSimulation, SceneryNearHoleRaisesHappiness)
         return t.type == ThoughtType::enjoyingTheRound;
     }));
 }
+
+// A golfer walks 1.96 yards per second on a path, 1.5 on normal ground and slower on rough going. A game second is 200 / 60
+// ticks and a yard is 6.4 world units.
+TEST(GolfSimulationWalking, SpeedDependsOnTheGroundUnderTheGolfer)
+{
+    const auto yardsPerSecond = [](int32_t hundredthsPerTick) {
+        return hundredthsPerTick / 100.0 * (Golf::kTicksPerGameMinute / 60.0) / 6.4;
+    };
+    EXPECT_NEAR(yardsPerSecond(Golf::kWalkSpeedPathHundredths), 1.96, 0.01);
+    EXPECT_NEAR(yardsPerSecond(Golf::kWalkSpeedHundredths), 1.5, 0.01);
+    EXPECT_LT(yardsPerSecond(Golf::kWalkSpeedHarshHundredths), 1.22);
+
+    SurfaceSample fairway;
+    fairway.roughness = Fixed::ratio(15, 100);
+    EXPECT_EQ(Golf::walkSpeedHundredthsOn(fairway), Golf::kWalkSpeedHundredths);
+
+    SurfaceSample path = fairway;
+    path.path = true;
+    EXPECT_EQ(Golf::walkSpeedHundredthsOn(path), Golf::kWalkSpeedPathHundredths);
+
+    SurfaceSample sand = fairway;
+    sand.hazard = true;
+    sand.roughness = Fixed::ratio(90, 100);
+    EXPECT_EQ(Golf::walkSpeedHundredthsOn(sand), Golf::kWalkSpeedHarshHundredths);
+
+    SurfaceSample deepRough = fairway;
+    deepRough.roughness = Fixed::ratio(75, 100);
+    EXPECT_EQ(Golf::walkSpeedHundredthsOn(deepRough), Golf::kWalkSpeedHarshHundredths);
+
+    SurfaceSample slope = fairway;
+    slope.normal = { Fixed::ratio(60, 100), Fixed{}, Fixed::ratio(80, 100) };
+    EXPECT_EQ(Golf::walkSpeedHundredthsOn(slope), Golf::kWalkSpeedHarshHundredths);
+
+    // A path wins over a slope: paths are laid to be walked.
+    slope.path = true;
+    EXPECT_EQ(Golf::walkSpeedHundredthsOn(slope), Golf::kWalkSpeedPathHundredths);
+}

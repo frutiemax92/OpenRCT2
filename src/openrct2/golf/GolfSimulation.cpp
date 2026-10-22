@@ -571,7 +571,9 @@ namespace OpenRCT2::Golf
     {
         if (g.onCart)
             return ride(g, to);
-        const Fixed speed = Fixed::ratio(kWalkSpeedHundredths, 100);
+        const int32_t speedHundredths = _env.world != nullptr ? walkSpeedHundredthsOn(_env.world->surfaceAt(g.position.x, g.position.y))
+                                                              : kWalkSpeedHundredths;
+        const Fixed speed = Fixed::ratio(speedHundredths, 100);
         const FixedVec3 delta{ to.x - g.position.x, to.y - g.position.y, Fixed{} };
         const Fixed distance = length(delta);
         if (distance <= Fixed::fromInt(kArriveDistanceUnits) || distance <= speed)

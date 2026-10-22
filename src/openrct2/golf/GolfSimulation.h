@@ -134,8 +134,25 @@ namespace OpenRCT2::Golf
     constexpr int32_t kRestTicksPerMinute = kTicksPerGameMinute;
     constexpr int32_t kRestEnergyPerMinute = 30;
     constexpr int32_t kTalkMinutes = 1;
-    // Walking speed in world units per tick: 90 yards per game minute (HoleSchedule).
+    // Walking speed in world units per tick. A game second is 200 / 60 ticks and a yard is 6.4 units, so 1.5 yards per
+    // second on normal ground is 90 yards per game minute (HoleSchedule), 1.96 on a path is the fast end of a human's
+    // 1.22 to 1.96, and rough going (a slope, sand, deep rough, woods) is slower still.
     constexpr int32_t kWalkSpeedHundredths = 288;
+    constexpr int32_t kWalkSpeedPathHundredths = 376;
+    constexpr int32_t kWalkSpeedHarshHundredths = 173; // 0.9 yards per second
+    // The roughness from which ground is hard going, and the steepest slope (the z of the surface normal) that is not.
+    constexpr int32_t kHarshRoughnessHundredths = 60;
+    constexpr int32_t kHarshSlopeNormalZHundredths = 95;
+
+    inline int32_t walkSpeedHundredthsOn(const SurfaceSample& ground)
+    {
+        if (ground.path)
+            return kWalkSpeedPathHundredths;
+        if (ground.hazard || ground.roughness >= Fixed::ratio(kHarshRoughnessHundredths, 100)
+            || ground.normal.z < Fixed::ratio(kHarshSlopeNormalZHundredths, 100))
+            return kWalkSpeedHarshHundredths;
+        return kWalkSpeedHundredths;
+    }
     constexpr int32_t kArriveDistanceUnits = 2;
     // A group waiting at a tee longer than this many minutes counts it as a course problem (GLF-013, GLF-040).
     constexpr int32_t kLongWaitMinutes = 8;
