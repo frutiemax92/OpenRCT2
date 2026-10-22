@@ -49,6 +49,14 @@ namespace OpenRCT2::Scripting
                 return "large_scenery";
             case TileElementType::banner:
                 return "banner";
+            case TileElementType::stream:
+                return "stream";
+            case TileElementType::building:
+                return "building";
+            case TileElementType::street:
+                return "street";
+            case TileElementType::parking:
+                return "parking";
             default:
                 return "unknown";
         }
@@ -95,6 +103,14 @@ namespace OpenRCT2::Scripting
             element->setType(TileElementType::largeScenery);
         else if (value == "banner")
             element->setType(TileElementType::banner);
+        else if (value == "stream")
+            element->setType(TileElementType::stream);
+        else if (value == "building")
+            element->setType(TileElementType::building);
+        else if (value == "street")
+            element->setType(TileElementType::street);
+        else if (value == "parking")
+            element->setType(TileElementType::parking);
         else
         {
             auto& scriptEngine = GetContext()->GetScriptEngine();
