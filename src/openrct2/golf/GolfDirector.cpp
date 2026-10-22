@@ -26,6 +26,23 @@ namespace OpenRCT2::Golf
 
     // The course a group arriving chooses: of the courses that are open and have something to play, a regular course is three
     // times as likely as a mini putt (MPT-004: each has its own fee and tee sheet). With one course open it is that one.
+    uint32_t GolfDirector::addVip(uint32_t lotId)
+    {
+        auto* rng = _sim.environment().rng;
+        // A VIP is a good golfer with good equipment, from the registry on.
+        NewGolferTemplate t = rollNewGolfer(*rng, _popularity, true);
+        RegistryEntry entry;
+        entry.id = _nextRegistryId++;
+        entry.name = rollName(*rng, firstNames, lastNames, entry.id);
+        entry.skills = SkillPoints::from(t.skills);
+        entry.initial = entry.skills;
+        entry.equipmentLevel = std::max<uint8_t>(t.equipmentLevel, 2);
+        entry.lastSeenDay = _day;
+        entry.vip = true;
+        entry.lotId = lotId;
+        return _registry.remember(entry).id;
+    }
+
     uint32_t GolfDirector::openCourse() const
     {
         if (_sim.environment().courses == nullptr)

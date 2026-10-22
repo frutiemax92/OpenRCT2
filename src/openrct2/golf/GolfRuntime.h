@@ -102,6 +102,9 @@ namespace OpenRCT2::Golf
         void syncBalls();
         // Animals (section 20) and the golfers as obstacles for the balls.
         void refreshAnimals();
+        // Cottage lots (section 22.4): a VIP buys a lot when the course is popular.
+        void sellCottages();
+        bool sellLot(CottageLot& lot, int32_t attractiveness);
         void driveAnimals();
         void syncObstacles();
         void refreshRanges();
@@ -140,7 +143,8 @@ namespace OpenRCT2::Golf
         std::vector<uint16_t> _animalObjects;                             // species index -> animal object entry index
         std::vector<Audio::SoundId> _animalSounds;                        // species index -> the sound it makes when hit
         std::vector<uint32_t> _golferObstacles;                           // golfer ids that are in the way of balls
-        uint32_t _animalDay = 0xFFFFFFFFu;                                // the game day animals last tried to spawn
+        uint32_t _animalDay = 0xFFFFFFFFu;
+        uint32_t _saleDay = 0xFFFFFFFFu;                                  // the game day cottage lots were last offered                                // the game day animals last tried to spawn
         std::unordered_map<uint64_t, uint16_t> _ballEntities;             // golfer id (range balls: | 1 << 32) -> entity id
         SoundSink _sound;
         Ledger _paid; // what of the director's income has reached the cash of the park

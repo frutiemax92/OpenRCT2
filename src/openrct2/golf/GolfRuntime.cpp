@@ -34,6 +34,14 @@
 #include "../entity/AnimalEntity.h"
 #include "../entity/GolfBall.h"
 #include "../object/AnimalObject.h"
+#include "../actions/GameActionRunner.h"
+#include "../actions/scenery/BuildingPlaceAction.h"
+#include "../world/Building.h"
+#include "../world/MapOwnership.h"
+#include "../world/TileElementsView.h"
+#include "../world/Park.h"
+#include "../world/tile_element/SurfaceElement.h"
+#include "Cottages.h"
 #include "../object/ObjectLimits.h"
 #include "../object/ObjectManager.h"
 #include "../entity/GolfVehicleEntity.h"
@@ -795,6 +803,133 @@ namespace OpenRCT2::Golf
         }
     }
 
+    namespace
+    {
+        // ECO-031: what a lot looks out on, counted around its middle.
+        LotFeatures featuresOf(const CottageLot& lot, const FixedVec3& club)
+        {
+            LotFeatures features;
+            const TileCoordsXY centre{ (lot.min.x + lot.max.x) / 2, (lot.min.y + lot.max.y) / 2 };
+            const auto& golf = getGameState().golf;
+            auto near = [&](const HolePoint& p, int32_t tiles) {
+                return std::abs((p.x >> 5) - centre.x) <= tiles && std::abs((p.y >> 5) - centre.y) <= tiles;
+            };
+            for (const auto& course : golf.courses())
+            {
+                for (const auto& hole : course.holes)
+                {
+                    for (const auto& tee : hole.tees)
+                        if (tee && near(*tee, 10))
+                            features.holesInView++;
+                    if (hole.cup && near(*hole.cup, 10))
+                        features.holesInView++;
+                }
+            }
+            constexpr int32_t kLook = 6;
+            for (int32_t y = centre.y - kLook; y <= centre.y + kLook; y++)
+            {
+                for (int32_t x = centre.x - kLook; x <= centre.x + kLook; x++)
+                {
+                    const CoordsXY at{ x * kCoordsXYStep, y * kCoordsXYStep };
+                    if (!MapIsLocationValid(at))
+                        continue;
+                    if (const auto* surface = MapGetSurfaceElementAt(at); surface != nullptr && surface->getWaterHeight() > 0)
+                        features.waterTiles++;
+                    for (const auto* scenery : TileElementsView<SmallSceneryElement>(at))
+                        if (!scenery->isGhost())
+                            features.sceneryItems++;
+                }
+            }
+            features.distanceToClubTiles = std::max(
+                std::abs(static_cast<int32_t>(club.x.floor()) / kTileSize - centre.x),
+                std::abs(static_cast<int32_t>(club.y.floor()) / kTileSize - centre.y));
+            return features;
+        }
+    } // namespace
+
+    // ECO-031: a cottage goes up on the lot (the buyer pays for it), the park is paid for the land, and the land is the VIP's.
+    bool GolfRuntime::sellLot(CottageLot& lot, int32_t attractiveness)
+    {
+        auto& objects = GetContext()->GetObjectManager();
+        std::vector<ObjectEntryIndex> cottages;
+        for (ObjectEntryIndex i = 0; i < kMaxBuildingObjects; i++)
+        {
+            const auto* object = objects.GetLoadedObject<BuildingObject>(i);
+            if (object != nullptr && object->Kind == BuildingKind::cottage)
+                cottages.push_back(i);
+        }
+        if (cottages.empty())
+            return false;
+        // A random cottage of the loaded set; the first that fits the lot with its door on a path.
+        const auto first = static_cast<size_t>(_rng->next() % cottages.size());
+        for (size_t n = 0; n < cottages.size(); n++)
+        {
+            const auto index = cottages[(first + n) % cottages.size()];
+            const auto* object = BuildingObject::GetById(index);
+            for (Direction rotation = 0; rotation < 4; rotation++)
+            {
+                const int32_t fx = object->getFootprintX(rotation), fy = object->getFootprintY(rotation);
+                for (int32_t y = lot.min.y; y + fy - 1 <= lot.max.y; y++)
+                {
+                    for (int32_t x = lot.min.x; x + fx - 1 <= lot.max.x; x++)
+                    {
+                        GameActions::BuildingPlaceAction place({ x * kCoordsXYStep, y * kCoordsXYStep }, index, rotation);
+                        if (GameActions::QueryNested(&place, getGameState()).error != GameActions::Status::ok)
+                            continue;
+                        if (GameActions::ExecuteNested(&place, getGameState()).error != GameActions::Status::ok)
+                            continue;
+
+                        const int32_t tiles = lot.width() * lot.depth();
+                        const int64_t price = lotPrice(_director->popularity(), attractiveness, tiles);
+                        FinancePayment(-static_cast<money64>(price), ExpenditureType::landPurchase);
+                        lot.sold = true;
+                        lot.buildingObject = index;
+                        lot.pricePaid = price;
+                        lot.ownerGolferId = _director->addVip(lot.id);
+                        // The land is no longer the park's: it cannot be changed (ECO-033), and balls do not play over it.
+                        for (int32_t ty = lot.min.y; ty <= lot.max.y; ty++)
+                        {
+                            for (int32_t tx = lot.min.x; tx <= lot.max.x; tx++)
+                            {
+                                const CoordsXY at{ tx * kCoordsXYStep, ty * kCoordsXYStep };
+                                if (auto* surface = MapGetSurfaceElementAt(at))
+                                {
+                                    surface->setOwnership(kUnowned);
+                                    Park::UpdateFencesAroundTile(at);
+                                    MapInvalidateTileFull(at);
+                                }
+                            }
+                        }
+                        return true;
+                    }
+                }
+            }
+        }
+        return false;
+    }
+
+    // Once a game day each lot that is not sold has a chance of being bought, from the popularity and how good the lot is.
+    void GolfRuntime::sellCottages()
+    {
+        const auto day = _director->currentDay();
+        if (day == _saleDay)
+            return;
+        const bool first = _saleDay == 0xFFFFFFFFu;
+        _saleDay = day;
+        if (first)
+            return;
+        for (auto& lot : getGameState().golf.lots())
+        {
+            if (lot.sold)
+                continue;
+            const auto attractiveness = lotAttractiveness(featuresOf(lot, _scan.club));
+            const auto chance = salePerMillionPerDay(_director->popularity(), attractiveness);
+            if (chance == 0 || static_cast<int32_t>(_rng->next() % 1000000u) >= chance)
+                continue;
+            sellLot(lot, attractiveness);
+        }
+    }
+
     // BAL-034, BAL-035: a golfer standing out on the course is a cylinder a ball can hit.
     void GolfRuntime::syncObstacles()
     {
@@ -886,6 +1021,7 @@ namespace OpenRCT2::Golf
             releaseStrandedGolfers();
         }
         _director->update(ticks);
+        sellCottages();
         driveTraffic();
         for (const auto& event : _director->takeEvents())
             announce(event);

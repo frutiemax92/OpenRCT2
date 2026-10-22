@@ -272,6 +272,11 @@ namespace OpenRCT2::Golf
             a.io(e.lastHappiness);
             a.io(e.visits);
             a.io(e.touch);
+            if (a.format >= 6)
+            {
+                a.io(e.vip);
+                a.io(e.lotId);
+            }
         }
 
         void io(Archive& a, Ledger& l)

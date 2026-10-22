@@ -71,6 +71,8 @@ namespace OpenRCT2::Golf
         uint8_t lastHappiness = 128;
         uint32_t visits = 0;
         uint64_t touch = 0; // increases with every use, to evict the least recently seen
+        bool vip = false;   // owns a cottage (ECO-032)
+        uint32_t lotId = 0; // the cottage lot the VIP owns
     };
 
     class GolferRegistry

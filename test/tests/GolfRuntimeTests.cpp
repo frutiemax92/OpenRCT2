@@ -33,6 +33,8 @@
 #include <openrct2/world/Footpath.h>
 #include <openrct2/actions/golf/CartEditAction.h>
 #include <openrct2/actions/golf/RangeEditAction.h>
+#include <openrct2/actions/golf/ZoneEditAction.h>
+#include <openrct2/world/MapOwnership.h>
 #include <openrct2/actions/scenery/SmallSceneryPlaceAction.h>
 #include <openrct2/golf/DrivingRange.h>
 #include <openrct2/golf/MapObstacles.h>
@@ -1228,4 +1230,107 @@ TEST(GolfRuntimeTests, ADuckThatIsHitQuacksAndADeerChirps)
     EXPECT_EQ(heard.size(), 2u);
     EXPECT_NE(std::find(heard.begin(), heard.end(), Audio::SoundId::duck), heard.end());
     EXPECT_NE(std::find(heard.begin(), heard.end(), Audio::SoundId::birdChirp), heard.end());
+}
+
+TEST(GolfRuntimeTests, AVipBuysACottageLotWhenTheCourseIsPopular)
+{
+    auto context = startPark();
+    ASSERT_NE(context.get(), nullptr);
+    auto& gameState = getGameState();
+    gameState.cheats.sandboxMode = true;
+    gameState.mapSize = { 60, 60 };
+    auto& objectManager = context->GetObjectManager();
+    ObjectEntryIndex clubIndex{};
+    auto* club = loadClub(*context, clubIndex);
+    if (club == nullptr || objectManager.LoadObject("golf.building.cottage") == nullptr)
+        GTEST_SKIP() << "the club house or the cottage is not installed";
+
+    // The lot: a block of bare ground with a path all round it.
+    const auto block = findFlatBlock(4, 3);
+    ASSERT_TRUE(block.has_value());
+    for (int32_t y = -1; y <= 3; y++)
+        for (int32_t x = -1; x <= 4; x++)
+            if (x == -1 || x == 4 || y == -1 || y == 3)
+                insertPath({ block->x + x * 32, block->y + y * 32 });
+    const CoordsXY lotMax{ block->x + 3 * 32, block->y + 2 * 32 };
+    GameActions::ZoneEditAction zone(GameActions::ZoneEditType::createLot, 0, *block, lotMax);
+    const auto created = GameActions::ExecuteNested(&zone, gameState);
+    ASSERT_EQ(created.error, GameActions::Status::ok);
+    const auto lotId = created.getData<GameActions::ZoneEditResult>().zoneId;
+
+    // The club, somewhere else.
+    const auto clubAt = findFlatBlock(3, 2);
+    ASSERT_TRUE(clubAt.has_value());
+    insertPath(Building::GetEntrance(*club, *clubAt, 0).outsideTile);
+    GameActions::BuildingPlaceAction placeClub(*clubAt, clubIndex, 0);
+    ASSERT_EQ(GameActions::ExecuteNested(&placeClub, gameState).error, GameActions::Status::ok);
+    gameState.golf.createCourse("Links");
+
+    auto& runtime = Golf::runtimeOf(gameState);
+    runtime.director().setPopularity(1000);
+    const auto cash = gameState.park.cash;
+    // Days go by until the lot is bought (about one in five a day at this popularity).
+    for (uint32_t day = 1; day < 120 && !gameState.golf.findLot(lotId)->sold; day++)
+        runtime.update(day * Golf::kTicksPerGameDay);
+    const auto* lot = gameState.golf.findLot(lotId);
+    ASSERT_TRUE(lot->sold) << "the lot was never sold";
+
+    // The park was paid for the land, and the cottage stands on it.
+    EXPECT_GT(lot->pricePaid, 0);
+    // (less the upkeep of the cottage for the days since it was built)
+    EXPECT_LE(gameState.park.cash - cash, lot->pricePaid);
+    EXPECT_GT(gameState.park.cash - cash, lot->pricePaid - 2000);
+    bool cottage = false;
+    for (int32_t y = lot->min.y; y <= lot->max.y; y++)
+        for (int32_t x = lot->min.x; x <= lot->max.x; x++)
+            cottage = cottage || Building::FindAt({ x * 32, y * 32 }) != nullptr;
+    EXPECT_TRUE(cottage);
+    // ECO-033: the land is no longer the park's, so nothing can be built on it.
+    for (int32_t y = lot->min.y; y <= lot->max.y; y++)
+        for (int32_t x = lot->min.x; x <= lot->max.x; x++)
+            EXPECT_FALSE(MapGetSurfaceElementAt(CoordsXY{ x * 32, y * 32 })->hasOwnership(OwnershipFlag::landOwned));
+    // The buyer is a VIP in the registry, who cannot be forgotten.
+    const auto* owner = runtime.director().registry().find(lot->ownerGolferId);
+    ASSERT_NE(owner, nullptr);
+    EXPECT_TRUE(owner->vip);
+    EXPECT_EQ(owner->lotId, lotId);
+    // And the lot is not for sale a second time.
+    GameActions::ZoneEditAction again(GameActions::ZoneEditType::removeLot, lotId);
+    EXPECT_EQ(GameActions::Query(&again, gameState).error, GameActions::Status::invalidParameters);
+}
+
+TEST(GolfRuntimeTests, NoLotSellsBelowThePopularityItNeeds)
+{
+    auto context = startPark();
+    ASSERT_NE(context.get(), nullptr);
+    auto& gameState = getGameState();
+    gameState.cheats.sandboxMode = true;
+    gameState.mapSize = { 60, 60 };
+    ObjectEntryIndex clubIndex{};
+    auto* club = loadClub(*context, clubIndex);
+    if (club == nullptr || context->GetObjectManager().LoadObject("golf.building.cottage") == nullptr)
+        GTEST_SKIP() << "the club house or the cottage is not installed";
+    const auto block = findFlatBlock(4, 3);
+    ASSERT_TRUE(block.has_value());
+    for (int32_t y = -1; y <= 3; y++)
+        for (int32_t x = -1; x <= 4; x++)
+            if (x == -1 || x == 4 || y == -1 || y == 3)
+                insertPath({ block->x + x * 32, block->y + y * 32 });
+    GameActions::ZoneEditAction zone(GameActions::ZoneEditType::createLot, 0, *block, CoordsXY{ block->x + 96, block->y + 64 });
+    const auto lotId = GameActions::ExecuteNested(&zone, gameState).getData<GameActions::ZoneEditResult>().zoneId;
+    const auto clubAt = findFlatBlock(3, 2);
+    ASSERT_TRUE(clubAt.has_value());
+    insertPath(Building::GetEntrance(*club, *clubAt, 0).outsideTile);
+    GameActions::BuildingPlaceAction placeClub(*clubAt, clubIndex, 0);
+    ASSERT_EQ(GameActions::ExecuteNested(&placeClub, gameState).error, GameActions::Status::ok);
+    gameState.golf.createCourse("Links");
+
+    auto& runtime = Golf::runtimeOf(gameState);
+    runtime.director().setPopularity(100);
+    for (uint32_t day = 1; day < 200; day++)
+    {
+        runtime.director().setPopularity(100); // the day's popularity update would raise it
+        runtime.update(day * Golf::kTicksPerGameDay);
+    }
+    EXPECT_FALSE(gameState.golf.findLot(lotId)->sold);
 }

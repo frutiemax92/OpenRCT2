@@ -130,6 +130,9 @@ namespace OpenRCT2::Golf
 
         PopularityInputs popularityInputs() const;
 
+        // ECO-031: a VIP golfer joins the registry as the owner of a cottage lot. Returns the registry id.
+        uint32_t addVip(uint32_t lotId);
+
     private:
         friend struct GolfSaveAccess;
         void everyMinute(uint32_t ticks);

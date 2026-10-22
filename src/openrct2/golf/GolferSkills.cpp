@@ -96,8 +96,13 @@ namespace OpenRCT2::Golf
     {
         while (_entries.size() > _capacity && !_entries.empty())
         {
-            auto oldest = std::min_element(
-                _entries.begin(), _entries.end(), [](const RegistryEntry& a, const RegistryEntry& b) { return a.touch < b.touch; });
+            // The owners of cottages stay (ECO-032): only other golfers are forgotten.
+            auto oldest = _entries.end();
+            for (auto it = _entries.begin(); it != _entries.end(); ++it)
+                if (!it->vip && (oldest == _entries.end() || it->touch < oldest->touch))
+                    oldest = it;
+            if (oldest == _entries.end())
+                return;
             _entries.erase(oldest);
             reindex();
         }
