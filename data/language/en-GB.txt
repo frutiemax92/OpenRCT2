@@ -1997,7 +1997,7 @@ STR_2843    :{TOPAZ}Your course has received an award for being ‘The course wi
 STR_2844    :{TOPAZ}Your course has received an award for being ‘The course with the best custom-designed rides’!
 STR_2845    :{TOPAZ}Your course has received an award for being ‘The course with the most dazzling choice of colour schemes’!
 STR_2846    :{TOPAZ}Your course has received an award for being ‘The course with the most confusing layout’!
-STR_2847    :{TOPAZ}Your park has received an award for being ‘The park with the best gentle rides’!
+STR_2847    :{TOPAZ}Your course has received an award for being ‘The course with the best gentle rides’!
 STR_2848    :{WINDOW_COLOUR_2}No recent awards
 STR_2849    :New scenario installed successfully
 STR_2850    :New track design installed successfully
@@ -2064,20 +2064,20 @@ STR_3060    :Ice blocks
 STR_3061    :Wooden fences
 STR_3062    :Standard roller coaster track
 STR_3063    :Water channel (track submerged)
-STR_3064    :Beginner Parks
-STR_3065    :Challenging Parks
-STR_3066    :Expert Parks
-STR_3067    :“Real” Parks
-STR_3068    :Other Parks
+STR_3064    :Beginner Courses
+STR_3065    :Challenging Courses
+STR_3066    :Expert Courses
+STR_3067    :“Real” Courses
+STR_3068    :Other Courses
 STR_3069    :Top Section
 STR_3070    :Slope to Level
-STR_3071    :{WINDOW_COLOUR_2}Same price throughout park
-STR_3072    :Select whether this price is used throughout the entire park
-STR_3073    :{RED}WARNING: Your park rating has dropped below 700!{NEWLINE}If you haven’t raised the park rating in 4 weeks, your park will be closed down
-STR_3074    :{RED}WARNING: Your park rating is still below 700!{NEWLINE}You have 3 weeks to raise the park rating
-STR_3075    :{RED}WARNING: Your park rating is still below 700!{NEWLINE}You have only 2 weeks to raise the park rating, or your park will be closed down
-STR_3076    :{RED}FINAL WARNING: Your park rating is still below 700!{NEWLINE}In just 7 days your park will be closed down unless you can raise the rating
-STR_3077    :{RED}CLOSURE NOTICE: Your park has been closed down!
+STR_3071    :{WINDOW_COLOUR_2}Same price throughout the course
+STR_3072    :Select whether this price is used throughout the entire course
+STR_3073    :{RED}WARNING: Your course popularity has dropped below 700!{NEWLINE}If you haven’t raised the course popularity in 4 weeks, your course will be closed down
+STR_3074    :{RED}WARNING: Your course popularity is still below 700!{NEWLINE}You have 3 weeks to raise the course popularity
+STR_3075    :{RED}WARNING: Your course popularity is still below 700!{NEWLINE}You have only 2 weeks to raise the course popularity, or your course will be closed down
+STR_3076    :{RED}FINAL WARNING: Your course popularity is still below 700!{NEWLINE}In just 7 days your course will be closed down unless you can raise the popularity
+STR_3077    :{RED}CLOSURE NOTICE: Your course has been closed down!
 STR_3090    :Select style of entrance, exit, and station
 STR_3091    :You are not allowed to remove this section!
 STR_3092    :You are not allowed to move or modify the station for this ride!
@@ -2147,7 +2147,7 @@ STR_3177    :Unable to de-select this object
 STR_3179    :At least one ride vehicle/attraction object must be selected
 STR_3180    :Invalid selection of objects
 STR_3181    :Object Selection - {STRINGID}
-STR_3182    :Park entrance type must be selected
+STR_3182    :Club entrance type must be selected
 STR_3183    :Water type must be selected
 STR_3184    :Ride Vehicles/Attractions
 STR_3185    :Small Scenery
@@ -2157,7 +2157,7 @@ STR_3188    :Path Signs
 STR_3189    :Legacy footpaths
 STR_3190    :Path Extras
 STR_3191    :Scenery Groups
-STR_3192    :Park Entrances
+STR_3192    :Club Entrances
 STR_3193    :Water
 STR_3195    :Invention List
 STR_3196    :{WINDOW_COLOUR_2}Research Group: {BLACK}{STRINGID}
@@ -2179,18 +2179,18 @@ STR_3211    :Map size:
 STR_3213    :Can’t decrease map size any further
 STR_3214    :Can’t increase map size any further
 STR_3215    :Too close to edge of map
-STR_3216    :Select park-owned land etc.
+STR_3216    :Select course-owned land etc.
 STR_3217    :Land Owned
 STR_3218    :Construction Rights Owned
 STR_3219    :Land For Sale
 STR_3220    :Construction Rights For Sale
-STR_3221    :Set land to be owned by the park
-STR_3222    :Set construction rights only to be owned by the park
-STR_3223    :Set land to be available to purchase by the park
-STR_3224    :Set construction rights to be available to purchase by the park
+STR_3221    :Set land to be owned by the course
+STR_3222    :Set construction rights only to be owned by the course
+STR_3223    :Set land to be available to purchase by the course
+STR_3224    :Set construction rights to be available to purchase by the course
 STR_3225    :Toggle on/off building a random cluster of objects around the selected position
-STR_3226    :Build park entrance
-STR_3227    :Too many park entrances!
+STR_3226    :Build club entrance
+STR_3227    :Too many club entrances!
 STR_3228    :Set starting positions for people
 STR_3229    :Block Brakes cannot be used directly after station
 STR_3230    :Block Brakes cannot be used directly after each other
@@ -2200,7 +2200,7 @@ STR_3233    :Scenario options - Guests
 STR_3235    :Show financial options
 STR_3236    :Show guest options
 STR_3238    :No Money
-STR_3239    :Make this park a ‘no money’ park with no financial restrictions
+STR_3239    :Make this course a ‘no money’ course with no financial restrictions
 STR_3240    :Initial cash:
 STR_3241    :Initial loan:
 STR_3242    :Maximum loan size:
@@ -2223,37 +2223,37 @@ STR_3262    :Guests’ initial hunger:
 STR_3263    :Guests’ initial thirst:
 STR_3264    :Can’t increase this any further!
 STR_3265    :Can’t reduce this any further!
-STR_3266    :Select how this park charges for entrance and rides
+STR_3266    :Select how this course charges for entrance and rides
 STR_3267    :Forbid tree removal
 STR_3268    :Forbid tall trees being removed
 STR_3269    :Forbid landscape changes
 STR_3270    :Forbid any changes to the landscape
 STR_3271    :Forbid high construction
 STR_3272    :Forbid any tall construction
-STR_3273    :Park rating is harder to increase and maintain
-STR_3274    :Make the park rating value more challenging
+STR_3273    :Course popularity is harder to increase and maintain
+STR_3274    :Make the course popularity value more challenging
 STR_3275    :Guests are more difficult to attract
-STR_3276    :Make it more difficult to attract guests to the park
+STR_3276    :Make it more difficult to attract guests to the course
 STR_3277    :Cost to buy land:
 STR_3278    :Cost to buy construction rights:
-STR_3279    :Free park entry / Pay per ride
-STR_3280    :Pay to enter park / Free rides
+STR_3279    :Free course entry / Pay per ride
+STR_3280    :Pay to enter course / Free rides
 STR_3281    :Entry price:
 STR_3283    :Select rides to be preserved
 STR_3285    :Scenario options - Preserved Rides
 STR_3286    :Select objective for this scenario
 STR_3287    :{WINDOW_COLOUR_2}Objective:
 STR_3294    :Change…
-STR_3295    :Change name of park
+STR_3295    :Change name of the course
 STR_3296    :Change name of scenario
-STR_3297    :Change detail notes about park / scenario
-STR_3298    :{WINDOW_COLOUR_2}Park Name: {BLACK}{STRINGID}
-STR_3299    :{WINDOW_COLOUR_2}Park/Scenario Details:
+STR_3297    :Change detail notes about course / scenario
+STR_3298    :{WINDOW_COLOUR_2}Course Name: {BLACK}{STRINGID}
+STR_3299    :{WINDOW_COLOUR_2}Course/Scenario Details:
 STR_3300    :{WINDOW_COLOUR_2}Scenario Name: {BLACK}{STRINGID}
 STR_3301    :{WINDOW_COLOUR_2}Objective Date:
 STR_3302    :{WINDOW_COLOUR_2}{MONTHYEAR}
 STR_3303    :{WINDOW_COLOUR_2}Number of guests:
-STR_3304    :{WINDOW_COLOUR_2}Park value:
+STR_3304    :{WINDOW_COLOUR_2}Course value:
 STR_3305    :{WINDOW_COLOUR_2}Monthly income:
 STR_3306    :{WINDOW_COLOUR_2}Monthly profit:
 STR_3307    :{WINDOW_COLOUR_2}Minimum length:
@@ -2264,7 +2264,7 @@ STR_3311    :{WINDOW_COLOUR_2}{COMMA2DP32}
 STR_3312    :{WINDOW_COLOUR_2}Rides/attractions under a preservation order:
 STR_3313    :Scenario Name
 STR_3314    :Enter name for scenario:
-STR_3315    :Park/Scenario Details
+STR_3315    :Course/Scenario Details
 STR_3316    :Enter description of this scenario:
 STR_3317    :No details yet
 STR_3318    :Select which group this scenario appears in
@@ -2275,10 +2275,10 @@ STR_3322    :{WINDOW_COLOUR_2}Objective: {BLACK}{STRINGID}
 STR_3326    :{WINDOW_COLOUR_2}(no image)
 STR_3327    :Starting positions for people not set
 STR_3328    :Can’t advance to next editor stage…
-STR_3329    :Park entrance not yet built
-STR_3330    :Park must own some land
-STR_3331    :Path from park entrance to map edge either not complete or too complex. Path must be single-width with as few junctions and corners as possible.
-STR_3332    :Park entrance is the wrong way round or has no path leading to the map edge
+STR_3329    :Club entrance not yet built
+STR_3330    :Course must own some land
+STR_3331    :Path from club entrance to map edge either not complete or too complex. Path must be single-width with as few junctions and corners as possible.
+STR_3332    :Club entrance is the wrong way round or has no path leading to the map edge
 STR_3333    :Export custom objects with saved games
 STR_3334    :Select whether to save any additional custom object data required (add-in data not supplied with the main product) in saved game or scenario files, allowing them to be loaded by someone who doesn’t have the additional object data
 STR_3335    :Track Designer - Select Ride Types & Vehicles
@@ -2382,7 +2382,7 @@ STR_5163    :Month/Day/Year
 STR_5177    :Screen mode:
 STR_5178    :Show financial cheats
 STR_5179    :Show guest cheats
-STR_5180    :Show park cheats
+STR_5180    :Show course cheats
 STR_5181    :Show ride cheats
 STR_5182    :{INT32}
 STR_5183    :Base height
@@ -2431,7 +2431,7 @@ STR_5225    :Fire Staff Prompt
 STR_5226    :Track Delete Prompt
 STR_5227    :Save Overwrite Prompt
 STR_5228    :Main UI
-STR_5229    :Park
+STR_5229    :Course
 STR_5230    :Tools
 STR_5231    :Rides and Guests
 STR_5232    :Editors
@@ -2452,7 +2452,7 @@ STR_5249    :Title Menu Buttons
 STR_5250    :Title Exit Button
 STR_5251    :Title Options Button
 STR_5252    :Title Scenario Selection
-STR_5253    :Park Information
+STR_5253    :Course Information
 STR_5256    :Create a new theme to make changes to
 STR_5257    :Create a new theme based on the current one
 STR_5258    :Delete the current theme
@@ -2479,7 +2479,7 @@ STR_5279    :Sandbox mode off
 STR_5280    :Allow editing land ownership settings through the Map window and other options that are normally restricted to the Scenario Editor
 STR_5281    :Features
 STR_5282    :RCT1 Ride Open/Close Lights
-STR_5283    :RCT1 Park Open/Close Lights
+STR_5283    :RCT1 Course Open/Close Lights
 STR_5284    :RCT1 Scenario Selection Font
 STR_5287    :Ride is already broken down
 STR_5288    :Ride is closed
@@ -2490,8 +2490,8 @@ STR_5292    :Force a breakdown
 STR_5293    :Close ride/attraction
 STR_5294    :Test ride/attraction
 STR_5295    :Open ride/attraction
-STR_5296    :Close park
-STR_5297    :Open park
+STR_5296    :Close course
+STR_5297    :Open course
 STR_5298    :{RED}{STRINGID}
 STR_5299    :{LIGHTPINK}{STRINGID}
 STR_5300    :Quick fire staff
@@ -2511,7 +2511,7 @@ STR_5313    :Show tile inspector
 STR_5314    :Tile inspector
 STR_5335    :Ride entrance
 STR_5336    :Ride exit
-STR_5337    :Park entrance
+STR_5337    :Club entrance
 STR_5338    :Element type
 STR_5339    :Base height
 STR_5340    :Clearance height
@@ -2519,7 +2519,7 @@ STR_5343    :Automatically place staff
 STR_5344    :Changelog
 STR_5345    :Financial cheats
 STR_5346    :Guest cheats
-STR_5347    :Park cheats
+STR_5347    :Course cheats
 STR_5348    :Ride cheats
 STR_5349    :All Rides
 STR_5350    :Max
@@ -2549,7 +2549,7 @@ STR_5375    :▲
 STR_5376    :▼
 STR_5404    :Name already exists
 STR_5440    :Minimise fullscreen on focus loss
-STR_5442    :Force park rating:
+STR_5442    :Force course popularity:
 STR_5447    :Type {STRINGID}
 STR_5448    :Ride / Vehicle {STRINGID}
 STR_5449    :Reduce game speed
@@ -2613,7 +2613,7 @@ STR_5511    :(UNKNOWN)
 STR_5512    :Save Game As
 STR_5513    :(Quick) save game
 STR_5514    :Disable vandalism
-STR_5515    :Stops guests from vandalising your park when they’re angry
+STR_5515    :Stops guests from vandalising your course when they’re angry
 STR_5516    :Black
 STR_5517    :Grey
 STR_5518    :White
@@ -2685,16 +2685,16 @@ STR_5586    :Automatically open and close shops and stalls
 STR_5587    :Shops and stalls will be automatically opened after building them, and automatically closed before construction.
 STR_5588    :Play with other players
 STR_5589    :Notification Settings
-STR_5590    :Park awards
+STR_5590    :Course awards
 STR_5591    :Marketing campaign has finished
-STR_5592    :Park warnings
-STR_5593    :Park rating warnings
+STR_5592    :Course warnings
+STR_5593    :Course popularity warnings
 STR_5594    :Ride has broken down
 STR_5595    :Ride has crashed
 STR_5596    :Ride warnings
 STR_5597    :Ride / scenery researched
 STR_5598    :Guest warnings
-STR_5600    :Guest has left the park
+STR_5600    :Golfer has left the course
 STR_5601    :Guest is queuing for ride
 STR_5602    :Guest is on ride
 STR_5603    :Guest has left ride
@@ -2719,10 +2719,10 @@ STR_5621    :Loopy Landscapes
 STR_5622    :RollerCoaster Tycoon 2
 STR_5623    :Wacky Worlds
 STR_5624    :Time Twister
-STR_5625    :“Real” Parks
-STR_5626    :Other Parks
+STR_5625    :“Real” Courses
+STR_5626    :Other Courses
 STR_5630    :Enable progressive unlocking
-STR_5631    :Original DLC Parks
+STR_5631    :Original DLC Courses
 STR_5632    :Build your own…
 STR_5633    :CMD + 
 STR_5634    :OPTION + 
@@ -2748,8 +2748,8 @@ STR_5653    :Scenery
 STR_5654    :Path
 STR_5655    :Guest
 STR_5656    :Staff
-STR_5657    :Park Properties
-STR_5658    :Park Funding
+STR_5657    :Course Properties
+STR_5658    :Course Funding
 STR_5659    :Kick Player
 STR_5660    :Modify Groups
 STR_5661    :Set Player Group
@@ -2784,7 +2784,7 @@ STR_5722    :Rain
 STR_5723    :Heavy Rain
 STR_5724    :Thunderstorm
 STR_5725    :{BLACK}Change weather to:
-STR_5726    :Sets the current weather in the park
+STR_5726    :Sets the current weather on the course
 # tooltip for tab in options window
 STR_5734    :Rendering
 STR_5735    :Network Status
@@ -2846,9 +2846,9 @@ STR_5790    :Toggles RCT1-style pricing{NEWLINE}(e.g. both ride price and entran
 STR_5791    :Sets the reliability of all rides to 100%{NEWLINE}and resets their built date to “this year”
 STR_5792    :Fixes all broken down rides
 STR_5793    :Resets the crash history of a ride,{NEWLINE}so guests will not complain that its unsafe
-STR_5794    :Some scenarios disable editing of some{NEWLINE}of the rides already in the park.{NEWLINE}This cheat lifts the restriction
-STR_5795    :Guests ride every attraction in the park{NEWLINE}even if the intensity is extremely high
-STR_5796    :Forces the park to close or open
+STR_5794    :Some scenarios disable editing of some{NEWLINE}of the rides already on the course.{NEWLINE}This cheat lifts the restriction
+STR_5795    :Guests ride every attraction on the course{NEWLINE}even if the intensity is extremely high
+STR_5796    :Forces the course to close or open
 STR_5797    :Disables weather changes and{NEWLINE}freezes the selected weather
 STR_5798    :Allows building actions in pause mode
 STR_5799    :Disables ride breakdowns and crashes due to brake failure
@@ -2897,7 +2897,7 @@ STR_5843    :Enables progressive unlocking of scenarios (RCT1 behaviour)
 STR_5844    :Stay connected to a multiplayer server{NEWLINE}even if a desync or error occurs
 STR_5845    :Adds a button for{NEWLINE}debugging tools to the toolbar.{NEWLINE}Enables keyboard shortcut for developer console
 STR_5846    :Set how often OpenRCT2 automatically saves
-STR_5847    :Select park sequence used on the title screen.{NEWLINE}Title sequences from RCT1/2 require imported scenarios to function
+STR_5847    :Select course sequence used on the title screen.{NEWLINE}Title sequences from RCT1/2 require imported scenarios to function
 STR_5849    :Automatically place{NEWLINE}newly hired staff members
 STR_5851    :Sets the default inspection interval{NEWLINE}on newly built rides
 STR_5853    :Toggle sound effects on/off
@@ -2983,8 +2983,8 @@ STR_5935    :Terrain edge: {BLACK}{STRINGID}
 STR_5936    :Land ownership: {BLACK}{STRINGID}
 STR_5937    :Not owned and not for sale
 STR_5938    :Water level: {BLACK}{COMMA16}
-STR_5939    :Remove park fences
-STR_5940    :Restore park fences
+STR_5939    :Remove course fences
+STR_5940    :Restore course fences
 STR_5941    :Base height:
 STR_5942    :Path name: {BLACK}{STRINGID}
 STR_5943    :Additions: {BLACK}{STRINGID}
@@ -3010,7 +3010,7 @@ STR_5962    :Collision detection:
 STR_5963    :Raised Corners:
 STR_5964    :Diagonal
 STR_5965    :Entrance type: {BLACK}{STRINGID}
-STR_5966    :Park entrance part: {BLACK}{STRINGID}
+STR_5966    :Club entrance part: {BLACK}{STRINGID}
 STR_5967    :Middle
 STR_5968    :Left
 STR_5969    :Right
@@ -3057,8 +3057,8 @@ STR_6009    :Select cut height
 STR_6010    :{COMMA2DP32}m
 STR_6011    :{COMMA1DP16}ft
 STR_6012    :{COMMA1DP16}
-STR_6013    :Guests will only pay the ticket to enter the park and services.{NEWLINE}Ride entry is free.
-STR_6014    :Guests will only pay entrance tickets for rides and services.{NEWLINE}They won’t pay anything to enter the park.
+STR_6013    :Guests will only pay the ticket to enter the course and services.{NEWLINE}Ride entry is free.
+STR_6014    :Guests will only pay entrance tickets for rides and services.{NEWLINE}They won’t pay anything to enter the course.
 STR_6015    :Sloped
 STR_6016    :Modify Tile
 STR_6017    :Please slow down
@@ -3132,10 +3132,10 @@ STR_6085    :{STRING} changed the ride settings of ride ‘{STRING}’.
 STR_6086    :{STRING} renamed the ride ‘{STRING}’ to ‘{STRING}’.
 STR_6087    :{STRING} changed the price of ride ‘{STRING}’ to {STRING}
 STR_6088    :{STRING} changed the secondary price of ride ‘{STRING}’ to {STRING}
-STR_6089    :{STRING} renamed the park from ‘{STRING}’ to ‘{STRING}’.
-STR_6090    :{STRING} opened the park.
-STR_6091    :{STRING} closed the park.
-STR_6092    :{STRING} changed the park entrance fee to {STRING}
+STR_6089    :{STRING} renamed the course from ‘{STRING}’ to ‘{STRING}’.
+STR_6090    :{STRING} opened the course.
+STR_6091    :{STRING} closed the course.
+STR_6092    :{STRING} changed the green fees to {STRING}
 STR_6093    :{STRING} placed new scenery.
 STR_6094    :{STRING} removed scenery.
 STR_6095    :{STRING} edited scenery.
@@ -3156,9 +3156,9 @@ STR_6115    :Powered giant 4 × 4 trucks which can climb steep slopes
 STR_6116    :Wide roller coaster trains glide along smooth steel track, travelling through a variety of inversions
 STR_6119    :A cheap and easy to build roller coaster, but with a limited height
 STR_6120    :{BABYBLUE}New vehicle now available for {STRINGID}:{NEWLINE}{STRINGID}
-STR_6121    :Extends the park’s land rights all the way to the edges of the map
+STR_6121    :Extends the course’s land rights all the way to the edges of the map
 STR_6122    :There are not enough roller coasters in this scenario!
-STR_6123    :Error loading objects for park
+STR_6123    :Error loading objects for the course
 STR_6124    :Object name
 STR_6125    :Object type
 STR_6126    :Unknown type
@@ -3187,7 +3187,7 @@ STR_6149    :Unable to connect to master server
 STR_6150    :Invalid response from master server (no JSON number)
 STR_6151    :Master server failed to return servers
 STR_6152    :Invalid response from master server (no JSON array)
-STR_6153    :Pay to enter park / Pay per ride
+STR_6153    :Pay to enter course / Pay per ride
 STR_6154    :For security reasons, it is not recommended to run OpenRCT2 with elevated permissions.
 STR_6155    :Neither KDialog nor Zenity are installed. Please install one, or configure from the command line.
 STR_6156    :Name is reserved
@@ -3227,7 +3227,7 @@ STR_6219    :Highlight path issues
 STR_6220    :Make Usable
 STR_6221    :This will set the ride’s known entrance or exit location to the currently selected tile. Only one entrance and exit location can be made usable per station.
 STR_6222    :Can’t place guest entry point here…
-STR_6223    :Must be outside park boundaries!
+STR_6223    :Must be outside the course boundaries!
 STR_6224    :{STRING} placed a guest entry point.
 STR_6225    :Not supported with OpenGL renderer
 STR_6226    :Enable early scenario completion
@@ -3347,7 +3347,7 @@ STR_6352    :Density
 STR_6353    :Low density
 STR_6354    :Medium density
 STR_6355    :High density
-STR_6356    :Spawns ducks if park contains water
+STR_6356    :Spawns ducks if course contains water
 STR_6357    :Removes all ducks from the map
 STR_6358    :Page {UINT16}
 STR_6361    :Enable lighting effects on rides (experimental)
@@ -3476,12 +3476,12 @@ STR_6484    :See-Through vegetation toggle
 STR_6485    :See-Through vehicles toggle
 STR_6486    :Hide guests toggle
 STR_6487    :Hide staff toggle
-STR_6488    :{RED}Guests are complaining about the length of the queues in your park.{NEWLINE}Consider shortening problematic queues, or increasing the rides’ throughput.
-STR_6489    :Error: Incompatible Park Version
-STR_6490    :Warning: Semi-compatible Park Version
-STR_6491    :This park was saved in a later version of OpenRCT2. The park was saved in v{INT32} and requires at least v{INT32}. You are currently on v{INT32}.
-STR_6492    :This park was saved in an old version of OpenRCT2, and can not be opened with this version of OpenRCT2. Park is v{INT32}.
-STR_6493    :This park was saved in a later version of OpenRCT2, some data may be lost. The park was saved in v{INT32}. You are currently on v{INT32}.
+STR_6488    :{RED}Guests are complaining about the length of the queues on your course.{NEWLINE}Consider shortening problematic queues, or increasing the rides’ throughput.
+STR_6489    :Error: Incompatible Course Version
+STR_6490    :Warning: Semi-compatible Course Version
+STR_6491    :This course was saved in a later version of OpenRCT2. The course was saved in v{INT32} and requires at least v{INT32}. You are currently on v{INT32}.
+STR_6492    :This course was saved in an old version of OpenRCT2, and can not be opened with this version of OpenRCT2. Course is v{INT32}.
+STR_6493    :This course was saved in a later version of OpenRCT2, some data may be lost. The course was saved in v{INT32}. You are currently on v{INT32}.
 STR_6494    :Group by ride type
 STR_6495    :Group rides by ride types instead of showing each vehicle separately.
 STR_6496    :{WINDOW_COLOUR_2}{STRINGID}
@@ -3505,7 +3505,7 @@ STR_6513    :Large Zero G Roll (right)
 STR_6514    :Invalid height!
 STR_6515    :{BLACK}RollerCoaster Tycoon 1 not linked - fallback images will be used.
 STR_6516    :One or more objects added require RollerCoaster Tycoon 1 linked for proper display. Fallback images will be used.
-STR_6517    :One or more objects in this park require RollerCoaster Tycoon 1 linked for proper display. Fallback images will be used.
+STR_6517    :One or more objects on this course require RollerCoaster Tycoon 1 linked for proper display. Fallback images will be used.
 STR_6518    :{BLACK}Hover over a scenario to view its description and objective. Click it to start playing.
 STR_6519    :Extras
 STR_6520    :Asset Packs
@@ -3524,7 +3524,7 @@ STR_6532    :Katy’s Dreamworld
 STR_6533    :{WINDOW_COLOUR_2}Excitement Factor: {BLACK}-{COMMA16}%
 STR_6534    :{WINDOW_COLOUR_2}Intensity Factor: {BLACK}-{COMMA16}%
 STR_6535    :{WINDOW_COLOUR_2}Nausea Factor: {BLACK}-{COMMA16}%
-STR_6536    :This park was saved in a later version of OpenRCT2. The park was saved in v{INT32}, you are currently on v{INT32}.
+STR_6536    :This course was saved in a later version of OpenRCT2. The course was saved in v{INT32}, you are currently on v{INT32}.
 STR_6537    :Allow using regular paths as queue
 STR_6538    :Shows regular paths in the queues dropdown of the Footpaths window.
 STR_6539    :Brake Closed
@@ -3582,7 +3582,7 @@ STR_6589    :Show window buttons on the left
 STR_6590    :Show the window buttons (e.g. to close the window) on the left of the title bar instead of on the right.
 STR_6591    :Staff member is currently fixing a ride and can’t be fired.
 STR_6592    :Staff member is currently inspecting a ride and can’t be fired.
-STR_6593    :Remove park fences
+STR_6593    :Remove course fences
 STR_6594    :Tile Inspector: Toggle wall slope
 STR_6595    :{WINDOW_COLOUR_2}Author: {BLACK}{STRING}
 STR_6596    :{WINDOW_COLOUR_2}Authors: {BLACK}{STRING}
@@ -3603,7 +3603,7 @@ STR_6610    :Path element not found
 STR_6611    :Wall element not found
 STR_6612    :Banner element not found
 STR_6613    :Reload object
-STR_6614    :Can’t change park entrance fee
+STR_6614    :Can’t change green fees
 STR_6615    :Track on this tile needs water
 STR_6616    :Action invalid for that staff type
 STR_6617    :Can’t swap tile element with itself
@@ -3645,9 +3645,9 @@ STR_6652    :Error Window
 STR_6653    :All sources shown
 STR_6654    :Showing {POP16}{UINT16} sources
 STR_6655    :Only ‘{POP16}{STRINGID}’
-STR_6656    :Remove all fences from the park
+STR_6656    :Remove all fences from the course
 STR_6657    :Land Not Owned
-STR_6658    :Set land to be not owned by the park, nor available for purchase
+STR_6658    :Set land to be not owned by the course, nor available for purchase
 STR_6659    :Guests ignore prices
 STR_6660    :Guests will ignore the price of rides and stalls.
 STR_6661    :Randomise all
@@ -3728,7 +3728,7 @@ STR_6734    :Map elements that are at or above the cutting height are rendered t
 STR_6735    :Go up to parent folder
 STR_6736    :Preview
 STR_6737    :No preview available
-STR_6738    :{WINDOW_COLOUR_2}Park rating: {BLACK}{UINT16}
+STR_6738    :{WINDOW_COLOUR_2}Course popularity: {BLACK}{UINT16}
 STR_6739    :{WINDOW_COLOUR_2}Date: {BLACK}{STRINGID}
 STR_6740    :{WINDOW_COLOUR_2}Cash: {BLACK}{CURRENCY2DP}
 STR_6741    :{WINDOW_COLOUR_2}Num. rides: {BLACK}{UINT16}
@@ -3772,7 +3772,7 @@ STR_6778    :Preview scenarios using:
 STR_6779    :Select the kind of preview image to use in the scenario selection screen.
 STR_6780    :Mini maps
 STR_6781    :Screenshots
-STR_6782    :Park notifications
+STR_6782    :Course notifications
 STR_6783    :Ride notifications
 STR_6784    :Guest notifications
 STR_6785    :Gamepad
@@ -3831,7 +3831,7 @@ STR_7037    :Operating mode
 STR_7038    :Wait and load
 STR_7039    :Ride type
 STR_7040    :Footpath additions
-STR_7041    :Park info panel
+STR_7041    :Course info panel
 STR_7042    :Date info panel
 STR_7043    :Can’t change land height here…
 STR_7044    :News ticker
@@ -3852,7 +3852,7 @@ STR_7058    :Guests picked up
 STR_7059    :Guests watching {STRINGID}
 STR_7060    :Guests watching construction of {STRINGID}
 STR_7061    :Guests looking at scenery
-STR_7062    :Guests leaving the park
+STR_7062    :Golfers leaving the course
 STR_7063    :Guests watching new ride being constructed
 STR_7064    :Gold
 STR_7065    :Amber
