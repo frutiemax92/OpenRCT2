@@ -110,6 +110,13 @@ enum class ViewportInteractionItem : uint8_t
 };
 using ViewportInteractionItems = FlagHolder<uint16_t, ViewportInteractionItem>;
 
+// Everything a click can land on. Labels are only ever drawn, and the enum is ordered with building last.
+constexpr bool IsPickableInteractionItem(ViewportInteractionItem item)
+{
+    return item != ViewportInteractionItem::none && item != ViewportInteractionItem::label
+        && item <= ViewportInteractionItem::building;
+}
+
 enum class ViewportVisibility : uint8_t
 {
     standard = 0,

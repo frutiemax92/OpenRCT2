@@ -17,6 +17,7 @@
 #include <openrct2/entity/EntityList.h>
 #include <openrct2/entity/GolferEntity.h>
 #include <openrct2/golf/GolfRuntime.h>
+#include <openrct2/interface/Viewport.h>
 #include <openrct2/world/MapAnimation.h>
 
 using namespace OpenRCT2;
@@ -143,11 +144,14 @@ TEST_F(GolfGameplayFlowTests, TestingSandboxActionsExecuteSuccessfully)
 // TEST-002 & VIEW-001: Viewport interaction preserves building and golfer items
 TEST_F(GolfGameplayFlowTests, ViewportInteractionPreservesBuildingAndGolferItems)
 {
-    ViewportInteractionItem itemBuilding = ViewportInteractionItem::building;
-    ViewportInteractionItem itemGolfer = ViewportInteractionItem::entity;
-
-    EXPECT_EQ(itemBuilding, ViewportInteractionItem::building);
-    EXPECT_EQ(itemGolfer, ViewportInteractionItem::entity);
+    // The paint picking drops every item the filter helper rejects: a building used to be rejected because it sits after
+    // the banner in the enum, so clicking one never reached the building window.
+    EXPECT_TRUE(IsPickableInteractionItem(ViewportInteractionItem::building));
+    EXPECT_TRUE(IsPickableInteractionItem(ViewportInteractionItem::entity));
+    EXPECT_TRUE(IsPickableInteractionItem(ViewportInteractionItem::terrain));
+    EXPECT_TRUE(IsPickableInteractionItem(ViewportInteractionItem::banner));
+    EXPECT_FALSE(IsPickableInteractionItem(ViewportInteractionItem::none));
+    EXPECT_FALSE(IsPickableInteractionItem(ViewportInteractionItem::label));
 
     auto& gameState = getGameState();
     Golf::SetupDemoGolfCourse(gameState);
