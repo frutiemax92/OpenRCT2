@@ -250,6 +250,12 @@ namespace OpenRCT2::Golf
                 a.io(g.rangeId);
                 a.io(g.rangeVisited);
             }
+            if (a.format >= 10)
+            {
+                a.io(g.hasTurnSpot);
+                a.io(g.turnSpot);
+                a.io(g.queueSpot);
+            }
             if (a.format >= 3)
             {
                 a.io(g.cartId);
@@ -347,7 +353,12 @@ namespace OpenRCT2::Golf
             a.io(sim._now);
             a.io(sim._nextId);
             a.io(sim._income);
-            a.list(sim._golfers, [&](Golfer& g) { io(a, g); });
+            a.list(sim._golfers, [&](Golfer& g) {
+                io(a, g);
+                // Older saves did not keep where the golfer stands aside: stay where they are rather than walk to the origin.
+                if (a.reading() && a.format < 10)
+                    g.queueSpot = g.turnSpot = g.position;
+            });
 
             uint32_t sheets = static_cast<uint32_t>(sim._sheets.size());
             a.io(sheets);

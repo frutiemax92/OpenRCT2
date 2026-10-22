@@ -56,6 +56,10 @@ TEST(GolfSave, GolfersSurviveASaveAndLoadOfThePark)
         auto& golfer = runtime.director().simulation().spawn(spawn);
         golfer.scorecard = { 1, -1, 0 };
         golfer.thoughts.push_back(Thought{ ThoughtType::enjoyingTheRound, 77 });
+        // The spots where a golfer stands aside while a group mate plays: a golfer that loses them walks to the origin.
+        golfer.hasTurnSpot = true;
+        golfer.turnSpot = { Fixed::fromInt(1500), Fixed::fromInt(2100), Fixed::fromInt(8) };
+        golfer.queueSpot = { Fixed::fromInt(1700), Fixed::fromInt(2300), Fixed::fromInt(8) };
         runtime.director().setPopularity(812);
 
         auto exporter = std::make_unique<ParkFileExporter>();
@@ -83,6 +87,11 @@ TEST(GolfSave, GolfersSurviveASaveAndLoadOfThePark)
         EXPECT_EQ(golfer.scorecard, (std::vector<int8_t>{ 1, -1, 0 }));
         ASSERT_EQ(golfer.thoughts.size(), 1u);
         EXPECT_EQ(golfer.thoughts[0].tick, 77u);
+        EXPECT_TRUE(golfer.hasTurnSpot);
+        EXPECT_EQ(golfer.turnSpot.x, Fixed::fromInt(1500));
+        EXPECT_EQ(golfer.turnSpot.y, Fixed::fromInt(2100));
+        EXPECT_EQ(golfer.queueSpot.x, Fixed::fromInt(1700));
+        EXPECT_EQ(golfer.queueSpot.y, Fixed::fromInt(2300));
         EXPECT_EQ(runtime.director().popularity(), 812);
     }
 }
