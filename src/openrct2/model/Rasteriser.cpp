@@ -121,7 +121,7 @@ namespace OpenRCT2::Model
 
     std::array<float, 2> project(const Vec3& p, float pixelsPerUnit)
     {
-        return { (p[0] - p[1]) * pixelsPerUnit, ((p[0] + p[1]) * 0.5f - p[2]) * pixelsPerUnit };
+        return { (p[1] - p[0]) * pixelsPerUnit, ((p[0] + p[1]) * 0.5f - p[2]) * pixelsPerUnit };
     }
 
     size_t RenderedImage::coveredPixels() const

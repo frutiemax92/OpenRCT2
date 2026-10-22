@@ -9,6 +9,7 @@
 
 #include <cmath>
 #include <gtest/gtest.h>
+#include <openrct2/interface/Viewport.h>
 #include <openrct2/model/Rasteriser.h>
 
 using namespace OpenRCT2::Model;
@@ -58,14 +59,14 @@ namespace
 
 TEST(Rasteriser, ProjectsLikeTheMap)
 {
-    // One tile east (+x) moves right and down by half; +z moves straight up.
+    // One tile east (+x) moves left and down by half, as in the game; +z moves straight up.
     const auto east = project({ 32, 0, 0 }, 1.0f);
-    EXPECT_FLOAT_EQ(east[0], 32.0f);
+    EXPECT_FLOAT_EQ(east[0], -32.0f);
     EXPECT_FLOAT_EQ(east[1], 16.0f);
     const auto up = project({ 0, 0, 8 }, 1.0f);
     EXPECT_FLOAT_EQ(up[0], 0.0f);
     EXPECT_FLOAT_EQ(up[1], -8.0f);
-    EXPECT_FLOAT_EQ(project({ 32, 0, 0 }, 0.5f)[0], 16.0f);
+    EXPECT_FLOAT_EQ(project({ 32, 0, 0 }, 0.5f)[0], -16.0f);
     // glTF +Y is map up, glTF -Z is map +y.
     EXPECT_EQ(modelToMap({ 1, 2, 3 }), (Vec3{ 1, -3, 2 }));
 }
@@ -214,8 +215,8 @@ TEST(Rasteriser, PosesFollowTheAnimationClip)
     s1.time = 1;
     const auto a = render(model, s0);
     const auto b = render(model, s1);
-    // Moving along +x shifts the picture right of the origin by the projected distance (2 m = 32 units).
-    EXPECT_EQ(a.originX - b.originX, 32);
+    // Moving along +x shifts the picture left of the origin by the projected distance (2 m = 32 units).
+    EXPECT_EQ(a.originX - b.originX, -32);
 }
 
 TEST(Rasteriser, BoundsFollowTheModelAndItsYaw)
@@ -365,4 +366,24 @@ TEST(Rasteriser, RemapColoursReplaceTheTexture)
     const auto notGreen = countColour(image, [](const auto& p) { return p[0] > 50 || p[2] > 50; });
     EXPECT_EQ(notGreen, 0u);
     EXPECT_GT(image.coveredPixels(), 100u); // and no cut-out hole either
+}
+
+// The models used to be drawn mirrored: the rasteriser sent +x to the right of the screen while the game sends it to the
+// left, so a golfer walking along +x was turned a quarter turn away from its walking direction.
+TEST(Rasteriser, ProjectsLikeTheGameAtEveryViewRotation)
+{
+    for (int32_t rotation = 0; rotation < 4; rotation++)
+    {
+        for (const auto& p : { CoordsXYZ{ 32, 0, 0 }, CoordsXYZ{ 0, 64, 8 }, CoordsXYZ{ 40, 24, 16 } })
+        {
+            const auto game = OpenRCT2::Translate3DTo2DWithZ(rotation, p);
+            // The imposter turns the model by the opposite of the view rotation and always projects at rotation 0.
+            const float yaw = -static_cast<float>(rotation) * 1.57079632679f;
+            const auto c = std::cos(yaw), s = std::sin(yaw);
+            const Vec3 turned{ p.x * c - p.y * s, p.x * s + p.y * c, static_cast<float>(p.z) };
+            const auto ours = project(turned, 1.0f);
+            EXPECT_NEAR(ours[0], static_cast<float>(game.x), 0.01f) << "rotation " << rotation;
+            EXPECT_NEAR(ours[1], static_cast<float>(game.y), 1.0f) << "rotation " << rotation;
+        }
+    }
 }

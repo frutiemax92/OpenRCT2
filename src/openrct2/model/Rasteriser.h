@@ -25,7 +25,8 @@ namespace OpenRCT2::Model
     //
     // Model space is glTF (+Y up, +X right, +Z towards the viewer). It maps to map space as
     // (x, y, z) = (mx, -mz, my), then the 2:1 dimetric projection of the map is used:
-    //   screenX = (x - y) * scale,  screenY = ((x + y) / 2 - z) * scale
+    //   (the same as Translate3DTo2DWithZ at view rotation 0: +x runs down and to the left)
+    //   screenX = (y - x) * scale,  screenY = ((x + y) / 2 - z) * scale
     // The viewer is at +x +y +z, so a larger (x + y + z) is closer to the camera.
 
     struct Orientation

@@ -285,6 +285,44 @@ TEST(GolfRuntimeTests, TheStandardGolferModelLoadsWithAllClipsAndRemapMaterials)
         EXPECT_NE(model->findClip(golferClipName(static_cast<Golf::GolferState>(i))), nullptr);
 }
 
+// A golfer who walks along +x must show the stride along +x: the yaw the entity takes from its travel direction has to put
+// the model's forward axis on that direction, or the golfer walks sideways.
+TEST(GolfRuntimeTests, AWalkingGolferModelStridesAlongTheDirectionItIsTurnedTo)
+{
+    auto context = startPark();
+    ASSERT_NE(context.get(), nullptr);
+    auto* object = context->GetObjectManager().LoadObject("golf.golfer_model.standard");
+    if (object == nullptr)
+        GTEST_SKIP() << "the golfer model object is not installed";
+    const auto modelId = static_cast<GolferModelObject*>(object)->ModelId;
+    const auto* model = Drawing::ModelSpriteStore::Instance().GetModel(modelId);
+    ASSERT_NE(model, nullptr);
+    const auto* walk = model->findClip("walk");
+    ASSERT_NE(walk, nullptr);
+
+    // Yaw is in turns of 256 and 0 faces -x, so +x is 128, +y is 192, -x is 0 and -y is 64.
+    struct Case
+    {
+        int yaw;
+        bool alongX;
+    };
+    for (const auto c : { Case{ 0, true }, Case{ 128, true }, Case{ 64, false }, Case{ 192, false } })
+    {
+        Model::RenderSettings settings;
+        settings.clipIndex = static_cast<int32_t>(walk - model->clips.data());
+        settings.time = 0; // the legs are at the widest stride
+        settings.orientation.yaw = static_cast<float>(c.yaw) * (2.0f * 3.14159265f / 256.0f);
+        const auto bounds = Model::computeBounds(*model, settings);
+        ASSERT_TRUE(bounds.valid);
+        const float extentX = bounds.max[0] - bounds.min[0];
+        const float extentY = bounds.max[1] - bounds.min[1];
+        if (c.alongX)
+            EXPECT_GT(extentX, extentY) << "yaw " << c.yaw;
+        else
+            EXPECT_GT(extentY, extentX) << "yaw " << c.yaw;
+    }
+}
+
 TEST(GolfRuntimeTests, BenchesAndBinsOnThePathAreFoundAndKeepTheirState)
 {
     auto context = startPark();

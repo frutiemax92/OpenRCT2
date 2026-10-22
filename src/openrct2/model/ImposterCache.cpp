@@ -93,7 +93,7 @@ namespace OpenRCT2::Model
     PaletteImage renderImposter(const GlbModel& model, const ImposterKey& key, const ImposterRenderSettings& settings)
     {
         RenderSettings render_settings;
-        render_settings.orientation.yaw = bucketToYaw(key.yawBucket) + static_cast<float>(key.rotation) * (kTwoPi / 4);
+        render_settings.orientation.yaw = bucketToYaw(key.yawBucket) - static_cast<float>(key.rotation) * (kTwoPi / 4);
         render_settings.orientation.pitch = bucketToTilt(key.pitchBucket);
         render_settings.orientation.roll = bucketToTilt(key.rollBucket);
         render_settings.unitsPerMetre = settings.unitsPerMetre;
