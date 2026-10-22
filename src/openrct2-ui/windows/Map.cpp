@@ -1098,7 +1098,8 @@ namespace OpenRCT2::Ui::Windows
         void ShowDefaultScenarioEditorButtons()
         {
             widgets[WIDX_SET_LAND_RIGHTS].setVisible();
-            widgets[WIDX_BUILD_PARK_ENTRANCE].setVisible();
+            // Golf has road entrances, placed with the street tool
+            widgets[WIDX_BUILD_PARK_ENTRANCE].setHidden();
             widgets[WIDX_PEOPLE_STARTING_POSITION].setVisible();
 
             // only show this in the scenario editor, even when in sandbox mode.

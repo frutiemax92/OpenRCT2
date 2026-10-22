@@ -253,6 +253,9 @@ namespace OpenRCT2::Ui::Windows
     };
 
     // clang-format off
+    // Only the languages that have the golf text are offered; the other language files still hold the RCT2 translations.
+    static constexpr int32_t kOfferedLanguages[] = { LANGUAGE_ENGLISH_UK, LANGUAGE_ENGLISH_US };
+
     static constexpr StringId kWindowTitle = STR_OPTIONS_TITLE;
     static constexpr ScreenSize kWindowSize = { 310, 332 };
 
@@ -1209,12 +1212,16 @@ namespace OpenRCT2::Ui::Windows
                     gDropdown.items[static_cast<int32_t>(Config::Get().general.temperatureFormat)].setChecked(true);
                     break;
                 case WIDX_LANGUAGE_DROPDOWN:
-                    for (size_t i = 1; i < LANGUAGE_COUNT; i++)
+                    for (size_t i = 0; i < std::size(kOfferedLanguages); i++)
                     {
-                        gDropdown.items[i - 1] = Dropdown::MenuLabel(LanguagesDescriptors[i].native_name);
+                        gDropdown.items[i] = Dropdown::MenuLabel(LanguagesDescriptors[kOfferedLanguages[i]].native_name);
                     }
-                    ShowDropdown(widget, LANGUAGE_COUNT - 1);
-                    gDropdown.items[LocalisationService_GetCurrentLanguage() - 1].setChecked(true);
+                    ShowDropdown(widget, static_cast<int32_t>(std::size(kOfferedLanguages)));
+                    for (size_t i = 0; i < std::size(kOfferedLanguages); i++)
+                    {
+                        if (kOfferedLanguages[i] == LocalisationService_GetCurrentLanguage())
+                            gDropdown.items[i].setChecked(true);
+                    }
                     break;
                 case WIDX_DATE_FORMAT_DROPDOWN:
                     for (size_t i = 0; i < 4; i++)
@@ -1271,9 +1278,12 @@ namespace OpenRCT2::Ui::Windows
                 case WIDX_LANGUAGE_DROPDOWN:
                 {
                     auto fallbackLanguage = LocalisationService_GetCurrentLanguage();
-                    if (dropdownIndex != LocalisationService_GetCurrentLanguage() - 1)
+                    if (dropdownIndex < 0 || dropdownIndex >= static_cast<int32_t>(std::size(kOfferedLanguages)))
+                        break;
+                    const auto newLanguage = kOfferedLanguages[dropdownIndex];
+                    if (newLanguage != fallbackLanguage)
                     {
-                        if (!LanguageOpen(dropdownIndex + 1))
+                        if (!LanguageOpen(newLanguage))
                         {
                             // Failed to open language file, try to recover by falling
                             // back to previously used language
@@ -1287,7 +1297,7 @@ namespace OpenRCT2::Ui::Windows
                         }
                         else
                         {
-                            Config::Get().general.language = dropdownIndex + 1;
+                            Config::Get().general.language = newLanguage;
                             Config::Save();
                             GfxInvalidateScreen();
                         }

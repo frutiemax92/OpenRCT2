@@ -15,6 +15,7 @@
 #include "../entity/EntityList.h"
 #include "../entity/Guest.h"
 #include "../entity/Staff.h"
+#include "../golf/GolfRuntime.h"
 #include "../localisation/Formatter.h"
 #include "../profiling/Profiling.h"
 #include "../ride/Ride.h"
@@ -655,8 +656,12 @@ void AwardUpdateAll()
         windowMgr->InvalidateByClass(WindowClass::parkInformation);
     }
 
-    // Only add new awards if park is open
+    // The awards are theme-park awards: none are given on a golf course
     auto& gameState = getGameState();
+    if (gameState.golfRuntime != nullptr)
+        return;
+
+    // Only add new awards if park is open
     auto& park = gameState.park;
 
     if (park.flags.has(ParkFlag::parkOpen))
