@@ -100,18 +100,18 @@ namespace OpenRCT2::GameActions
                 {
                     if (height > maxHeight)
                         continue;
-                    if (height + 2 > UINT8_MAX)
+                    if (height + 1 > UINT8_MAX)
                     {
                         height = UINT8_MAX;
                     }
                     else
                     {
-                        height += 2;
+                        height += 1;
                     }
                 }
                 else
                 {
-                    height = surfaceElement->baseHeight + 2;
+                    height = surfaceElement->baseHeight + 1;
                 }
                 auto waterSetHeightAction = WaterSetHeightAction({ x, y }, height);
                 waterSetHeightAction.SetFlags(GetFlags());

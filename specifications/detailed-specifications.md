@@ -353,7 +353,8 @@ for random points on all 369 shapes; (5) old saves are not required to load.
 ## 7. Water
 
 - WAT-001 MUST: Lakes/ponds behave like OpenRCT2 water: per-tile water height, raise/lower water tool, animated
-  water, transparency option. Water height uses Q increments.
+  water, transparency option. Water height uses Q increments, and the raise/lower water tool moves it by one Q
+  per click.
 - WAT-002 MUST: New `water` object assets (palette animation or animated texture) drawn for this project.
 - WAT-003 MUST: Water is a hazard: a ball whose rest position or landing point is under water is lost (§15.6).
 - WAT-004 SHOULD: Water edges (shoreline) render correctly against every terrain shape, including partially

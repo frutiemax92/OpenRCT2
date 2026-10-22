@@ -98,7 +98,7 @@ namespace OpenRCT2::GameActions
                 if (height < minHeight)
                     continue;
 
-                height -= 2;
+                height -= 1;
                 auto waterSetHeightAction = WaterSetHeightAction({ x, y }, height);
                 waterSetHeightAction.SetFlags(GetFlags());
                 auto result = isExecuting ? ExecuteNested(&waterSetHeightAction, gameState)
