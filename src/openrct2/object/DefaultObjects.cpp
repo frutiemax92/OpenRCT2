@@ -27,7 +27,7 @@ namespace OpenRCT2
         "golf.terrain_edge.rock_cliff",
     };
 
-    constexpr std::array<std::string_view, 12> kCommonScenarioAndTrackDesignerObjects = {
+    constexpr std::array<std::string_view, 36> kCommonScenarioAndTrackDesignerObjects = {
         // Terrain surfaces
         "golf.terrain_surface.grass",
         "golf.terrain_surface.tee",
@@ -45,6 +45,44 @@ namespace OpenRCT2
 
         // Climate
         "golf.climate.temperate",
+
+        // Buildings
+        "golf.building.club_house",
+        "golf.building.cart_rental",
+        "golf.building.driving_range_kiosk",
+        "golf.building.food_truck",
+        "golf.building.restroom",
+        "golf.building.cottage",
+
+        // Streets
+        "golf.street.road",
+        "golf.street.one_way",
+
+        // Streams
+        "golf.stream.creek",
+
+        // 3D Models
+        "golf.golfer_model.standard",
+        "golf.vehicle_model.car",
+        "golf.vehicle_model.golf_cart",
+
+        // Animals
+        "golf.animal.duck",
+        "golf.animal.deer",
+
+        // Scenery & Walls
+        "golf.scenery_small.distance_sign",
+        "golf.scenery_small.ramp",
+        "golf.scenery_small.bumper",
+        "golf.wall.fishnet",
+        "golf.wall.low_wall",
+
+        // Path Additions
+        "golf.path_addition.bench",
+        "golf.path_addition.bin",
+        "golf.path_addition.lamp",
+        "golf.path_addition.ball_washer",
+        "golf.path_addition.path_sign",
     };
 
     ObjectEntryIndex GetDefaultStationObject(IObjectManager& objectManager)

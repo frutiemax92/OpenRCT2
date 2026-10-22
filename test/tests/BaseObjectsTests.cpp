@@ -316,6 +316,8 @@ TEST_F(BaseObjects, PathAdditionsLoadWithTheirProperties)
         { "golf.path_addition.bench", PathAdditionDrawType::bench, PathAdditionFlag::isBench },
         { "golf.path_addition.bin", PathAdditionDrawType::bin, PathAdditionFlag::isBin },
         { "golf.path_addition.lamp", PathAdditionDrawType::light, PathAdditionFlag::lamp },
+        { "golf.path_addition.ball_washer", PathAdditionDrawType::ballWasher, PathAdditionFlag::isBallWasher },
+        { "golf.path_addition.path_sign", PathAdditionDrawType::sign, PathAdditionFlag::isSign },
     };
 
     for (const auto& exp : expectations)

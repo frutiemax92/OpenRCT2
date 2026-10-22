@@ -25,6 +25,8 @@
 #include <openrct2/scenes/editor/EditorScene.h>
 #include <openrct2/ui/UiContext.h>
 #include <openrct2/ui/WindowManager.h>
+#include <openrct2/golf/GolfRuntime.h>
+#include <openrct2/scenario/Scenario.h>
 
 namespace OpenRCT2::Ui::Windows
 {
@@ -37,6 +39,13 @@ namespace OpenRCT2::Ui::Windows
         WIDX_MULTIPLAYER,
         WIDX_GAME_TOOLS,
         WIDX_NEW_VERSION,
+    };
+
+    enum
+    {
+        DDIDX_START_DEMO_COURSE,
+        DDIDX_START_EMPTY_SANDBOX,
+        DDIDX_SELECT_SCENARIO,
     };
 
     enum
@@ -64,6 +73,24 @@ namespace OpenRCT2::Ui::Windows
     {
         GameNotifyMapChange();
         GetContext()->LoadParkFromFile(path, false, true);
+        GameLoadScripts();
+        GameNotifyMapChanged();
+    }
+
+    static void StartGolfGame(bool sandboxOnly)
+    {
+        GameNotifyMapChange();
+        auto& gameState = getGameState();
+        if (sandboxOnly)
+        {
+            Golf::SetupEmptyGolfSandbox(gameState);
+        }
+        else
+        {
+            Golf::SetupDemoGolfCourse(gameState);
+        }
+        GameLoadInit();
+        ScenarioReset(gameState);
         GameLoadScripts();
         GameNotifyMapChanged();
     }
@@ -128,12 +155,7 @@ namespace OpenRCT2::Ui::Windows
             switch (widgetIndex)
             {
                 case WIDX_START_NEW_GAME:
-                    if (windowMgr->BringToFrontByClass(WindowClass::scenarioSelect) == nullptr)
-                    {
-                        windowMgr->CloseByClass(WindowClass::loadsave);
-                        windowMgr->CloseByClass(WindowClass::serverList);
-                        ScenarioselectOpen(WindowTitleMenuScenarioselectCallback);
-                    }
+                    StartGolfGame(false);
                     break;
                 case WIDX_CONTINUE_SAVED_GAME:
                     if (windowMgr->BringToFrontByClass(WindowClass::loadsave) == nullptr)
@@ -160,6 +182,18 @@ namespace OpenRCT2::Ui::Windows
 
         void onMouseDown(WidgetIndex widgetIndex) override
         {
+            if (widgetIndex == WIDX_START_NEW_GAME)
+            {
+                gDropdown.items[0] = Dropdown::PlainMenuLabel("Start Playable Demo Course");
+                gDropdown.items[1] = Dropdown::PlainMenuLabel("Start Empty Golf Sandbox");
+                gDropdown.items[2] = Dropdown::PlainMenuLabel("Select Scenario...");
+
+                Widget* widget = &widgets[widgetIndex];
+                WindowDropdownShowText(
+                    windowPos + ScreenCoordsXY{ widget->left, widget->top }, widget->height(),
+                    colours[0].withFlag(ColourFlag::translucent, true), {}, 3);
+                return;
+            }
             if (widgetIndex == WIDX_GAME_TOOLS)
             {
                 int32_t i = 0;
@@ -206,6 +240,30 @@ namespace OpenRCT2::Ui::Windows
         {
             if (selectedIndex == -1)
             {
+                return;
+            }
+            if (widgetIndex == WIDX_START_NEW_GAME)
+            {
+                switch (selectedIndex)
+                {
+                    case DDIDX_START_DEMO_COURSE:
+                        StartGolfGame(false);
+                        break;
+                    case DDIDX_START_EMPTY_SANDBOX:
+                        StartGolfGame(true);
+                        break;
+                    case DDIDX_SELECT_SCENARIO:
+                    {
+                        auto* windowMgr = GetWindowManager();
+                        if (windowMgr->BringToFrontByClass(WindowClass::scenarioSelect) == nullptr)
+                        {
+                            windowMgr->CloseByClass(WindowClass::loadsave);
+                            windowMgr->CloseByClass(WindowClass::serverList);
+                            ScenarioselectOpen(WindowTitleMenuScenarioselectCallback);
+                        }
+                        break;
+                    }
+                }
                 return;
             }
             if (widgetIndex == WIDX_GAME_TOOLS)

@@ -47,6 +47,11 @@
 #include "../entity/GolfVehicleEntity.h"
 #include "../world/Parking.h"
 #include "../world/Street.h"
+#include "../actions/scenery/ParkingPlaceAction.h"
+#include "../actions/scenery/StreetPlaceAction.h"
+#include "../actions/scenery/StreetRoadEntranceAction.h"
+#include "../object/DefaultObjects.h"
+#include "../GameState.h"
 
 namespace OpenRCT2::Golf
 {
@@ -1245,5 +1250,222 @@ namespace OpenRCT2::Golf
         if (gameState.golfRuntime == nullptr && gameState.golf.courses().empty())
             return;
         runtimeOf(gameState).update(gameState.currentTicks);
+    }
+
+    void SetupEmptyGolfSandbox(GameState_t& gameState)
+    {
+        static constexpr TileCoordsXY kDefaultMapSize{ 150, 150 };
+        gameStateInitAll(gameState, kDefaultMapSize);
+
+        auto* context = GetContext();
+        auto& objectManager = context->GetObjectManager();
+        for (const auto& entry : kCommonScenarioAndTrackDesignerObjects)
+        {
+            objectManager.LoadObject(entry);
+        }
+
+        gameState.park.cash = 100000.00_GBP;
+        gameState.park.flags.set(ParkFlag::parkOpen);
+        gameState.park.flags.set(ParkFlag::freeEntry);
+        gameState.park.name = "Golf Sandbox";
+
+        for (int32_t y = 1; y < kDefaultMapSize.y - 1; y++)
+        {
+            for (int32_t x = 1; x < kDefaultMapSize.x - 1; x++)
+            {
+                auto* surface = MapGetSurfaceElementAt(TileCoordsXY{ x, y });
+                if (surface != nullptr)
+                {
+                    surface->setOwnership(OwnershipFlag::landOwned);
+                }
+            }
+        }
+        Park::UpdateSize(gameState.park);
+
+        gameState.savedView = ScreenCoordsXY{ 75 * 32, 75 * 32 };
+        gameState.savedViewZoom = ZoomLevel{ 0 };
+        gameState.savedViewRotation = 0;
+    }
+
+    void SetupDemoGolfCourse(GameState_t& gameState)
+    {
+        SetupEmptyGolfSandbox(gameState);
+        gameState.park.cash = 50000.00_GBP;
+        gameState.park.name = "Pinewood Golf Club";
+
+        auto* context = GetContext();
+        auto& objectManager = context->GetObjectManager();
+
+        auto getObjIndex = [&](std::string_view id) -> ObjectEntryIndex {
+            auto* obj = objectManager.LoadObject(id);
+            return obj != nullptr ? objectManager.GetLoadedObjectEntryIndex(obj) : kObjectEntryIndexNull;
+        };
+
+        auto roadIndex = getObjIndex("golf.street.road");
+        auto clubIndex = getObjIndex("golf.building.club_house");
+        auto cartIndex = getObjIndex("golf.building.cart_rental");
+        auto kioskIndex = getObjIndex("golf.building.driving_range_kiosk");
+        auto fairwayIndex = getObjIndex("golf.terrain_surface.fairway");
+        auto greenIndex = getObjIndex("golf.terrain_surface.green");
+        auto teeSurfIndex = getObjIndex("golf.terrain_surface.tee");
+        auto sandIndex = getObjIndex("golf.terrain_surface.sand");
+        auto carpetIndex = getObjIndex("golf.terrain_surface.mini_putt_carpet");
+
+        auto paintRect = [&](int32_t minX, int32_t minY, int32_t maxX, int32_t maxY, ObjectEntryIndex surf) {
+            if (surf == kObjectEntryIndexNull)
+                return;
+            for (int32_t y = minY; y <= maxY; y++)
+            {
+                for (int32_t x = minX; x <= maxX; x++)
+                {
+                    auto* surface = MapGetSurfaceElementAt(TileCoordsXY{ x, y });
+                    if (surface != nullptr)
+                    {
+                        surface->setSurfaceObjectIndex(surf);
+                    }
+                }
+            }
+        };
+
+        auto addPath = [](int32_t x, int32_t y) {
+            auto* surface = MapGetSurfaceElementAt(TileCoordsXY{ x, y });
+            if (surface != nullptr)
+            {
+                const auto baseZ = surface->getBaseZ();
+                auto* path = TileElementInsert<PathElement>(CoordsXYZ{ x * 32, y * 32, baseZ }, 0b1111);
+                if (path != nullptr)
+                {
+                    path->setClearanceZ(baseZ + 16);
+                }
+            }
+        };
+
+        // 1. Road from map edge (x=1) to parking lot
+        const int32_t roadRow = 30;
+        if (roadIndex != kObjectEntryIndexNull)
+        {
+            for (int32_t x = 1; x <= 16; x++)
+            {
+                GameActions::StreetPlaceAction street(CoordsXY{ x * 32, roadRow * 32 }, roadIndex);
+                GameActions::ExecuteNested(&street, gameState);
+            }
+            GameActions::StreetRoadEntranceAction entrance(CoordsXY{ 1 * 32, roadRow * 32 }, true);
+            GameActions::ExecuteNested(&entrance, gameState);
+
+            // Parking spaces (x = 8..15, y = 31..32)
+            for (int32_t x = 8; x <= 15; x++)
+            {
+                GameActions::ParkingPlaceAction parking(CoordsXY{ x * 32, (roadRow + 1) * 32 }, roadIndex, 3);
+                GameActions::ExecuteNested(&parking, gameState);
+            }
+        }
+
+        // Footpath connecting parking to buildings and entrance doors
+        for (int32_t y = roadRow; y <= 35; y++)
+        {
+            addPath(7, y);
+        }
+        for (int32_t x = 7; x <= 22; x++)
+        {
+            addPath(x, 35);
+        }
+
+        // 2. Buildings
+        // Golf Club (footprint 3x2, origin at { 10 * 32, 36 * 32 }, entrance at y=35)
+        if (clubIndex != kObjectEntryIndexNull)
+        {
+            GameActions::BuildingPlaceAction placeClub(CoordsXY{ 10 * 32, 36 * 32 }, clubIndex, 0);
+            GameActions::ExecuteNested(&placeClub, gameState);
+        }
+        // Cart Rental (footprint 2x1, origin at { 14 * 32, 36 * 32 }, entrance at y=35)
+        if (cartIndex != kObjectEntryIndexNull)
+        {
+            GameActions::BuildingPlaceAction placeCart(CoordsXY{ 14 * 32, 36 * 32 }, cartIndex, 0);
+            GameActions::ExecuteNested(&placeCart, gameState);
+        }
+        // Driving Range Kiosk (footprint 1x1, origin at { 18 * 32, 36 * 32 }, entrance at y=35)
+        if (kioskIndex != kObjectEntryIndexNull)
+        {
+            GameActions::BuildingPlaceAction placeKiosk(CoordsXY{ 18 * 32, 36 * 32 }, kioskIndex, 0);
+            GameActions::ExecuteNested(&placeKiosk, gameState);
+        }
+
+        // Driving range zone
+        gameState.golf.createRange({ 19, 20 }, { 28, 35 });
+
+        // Cottage lots
+        gameState.golf.createLot({ 9, 41 }, { 13, 45 });
+
+        // 3. Courses & Holes
+        auto* regular = gameState.golf.createCourse("Championship Course");
+        if (regular != nullptr)
+        {
+            regular->open = true;
+            regular->greenFee = 2500;
+            regular->kind = CourseKind::regular;
+
+            // Hole 1: Par 4
+            auto* hole1 = gameState.golf.createHole(regular->id);
+            if (hole1 != nullptr)
+            {
+                hole1->tees[0] = HolePoint{ 30 * 32 + 16, 38 * 32 + 16 };
+                hole1->aimPoints[0] = HolePoint{ 45 * 32 + 16, 38 * 32 + 16 };
+                hole1->cup = HolePoint{ 60 * 32 + 16, 38 * 32 + 16 };
+                hole1->parOverride = 4;
+                paintRect(29, 37, 31, 39, teeSurfIndex);
+                paintRect(32, 37, 57, 39, fairwayIndex);
+                paintRect(45, 40, 47, 41, sandIndex);
+                paintRect(58, 36, 62, 40, greenIndex);
+            }
+
+            // Hole 2: Par 3
+            auto* hole2 = gameState.golf.createHole(regular->id);
+            if (hole2 != nullptr)
+            {
+                hole2->tees[0] = HolePoint{ 62 * 32 + 16, 43 * 32 + 16 };
+                hole2->cup = HolePoint{ 78 * 32 + 16, 43 * 32 + 16 };
+                hole2->parOverride = 3;
+                paintRect(61, 42, 63, 44, teeSurfIndex);
+                paintRect(64, 42, 75, 44, fairwayIndex);
+                paintRect(72, 45, 74, 46, sandIndex);
+                paintRect(76, 41, 80, 45, greenIndex);
+            }
+
+            // Hole 3: Par 5
+            auto* hole3 = gameState.golf.createHole(regular->id);
+            if (hole3 != nullptr)
+            {
+                hole3->tees[0] = HolePoint{ 78 * 32 + 16, 48 * 32 + 16 };
+                hole3->aimPoints[0] = HolePoint{ 58 * 32 + 16, 55 * 32 + 16 };
+                hole3->cup = HolePoint{ 38 * 32 + 16, 55 * 32 + 16 };
+                hole3->parOverride = 5;
+                paintRect(77, 47, 79, 49, teeSurfIndex);
+                paintRect(55, 50, 76, 53, fairwayIndex);
+                paintRect(39, 54, 57, 56, fairwayIndex);
+                paintRect(35, 53, 38, 57, greenIndex);
+            }
+        }
+
+        // Mini-Putt Course
+        auto* mini = gameState.golf.createCourse("Mini-Putt Course");
+        if (mini != nullptr)
+        {
+            mini->open = true;
+            mini->greenFee = 800;
+            mini->kind = CourseKind::miniPutt;
+
+            auto* miniHole = gameState.golf.createHole(mini->id);
+            if (miniHole != nullptr)
+            {
+                miniHole->tees[0] = HolePoint{ 12 * 32 + 16, 48 * 32 + 16 };
+                miniHole->cup = HolePoint{ 18 * 32 + 16, 48 * 32 + 16 };
+                miniHole->parOverride = 2;
+                paintRect(12, 48, 18, 48, carpetIndex);
+            }
+        }
+
+        gameState.savedView = ScreenCoordsXY{ 12 * 32, 37 * 32 };
+        gameState.savedViewZoom = ZoomLevel{ 0 };
+        gameState.savedViewRotation = 0;
     }
 } // namespace OpenRCT2::Golf

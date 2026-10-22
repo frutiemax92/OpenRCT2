@@ -128,11 +128,6 @@ namespace OpenRCT2::Editor
             return { false, STR_PARK_MUST_OWN_SOME_LAND };
         }
 
-        if (gameState.park.entrances.empty())
-        {
-            return { false, STR_NO_PARK_ENTRANCES };
-        }
-
         for (const auto& parkEntrance : gameState.park.entrances)
         {
             Direction direction = DirectionReverse(parkEntrance.direction);
@@ -149,11 +144,6 @@ namespace OpenRCT2::Editor
                     FootpathIsConnectedToMapEdge(parkEntrance, direction, (1 << 5));
                     break;
             }
-        }
-
-        if (gameState.peepSpawns.empty())
-        {
-            return { false, STR_PEEP_SPAWNS_NOT_SET };
         }
 
         return { true, kStringIdNone };

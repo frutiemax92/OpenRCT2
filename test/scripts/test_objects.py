@@ -155,6 +155,8 @@ class ObjectTests(unittest.TestCase):
         expected.add("path_addition/golf.path_addition.bench.parkobj")
         expected.add("path_addition/golf.path_addition.bin.parkobj")
         expected.add("path_addition/golf.path_addition.lamp.parkobj")
+        expected.add("path_addition/golf.path_addition.ball_washer.parkobj")
+        expected.add("path_addition/golf.path_addition.path_sign.parkobj")
         expected.add("scenery_small/golf.scenery_small.bumper.parkobj")
         expected.add("scenery_small/golf.scenery_small.ramp.parkobj")
         expected.add("wall/golf.wall.low_wall.parkobj")
@@ -357,11 +359,13 @@ class ObjectTests(unittest.TestCase):
 
     def test_all_path_addition_kinds_and_properties(self):
         expected = {
-            "bench": ("bench", True, False, False, 1 + 8),
-            "bin": ("bin", False, True, False, 1 + 12),
-            "lamp": ("lamp", False, False, True, 1 + 8),
+            "bench": ("bench", True, False, False, False, False, 1 + 8),
+            "bin": ("bin", False, True, False, False, False, 1 + 12),
+            "lamp": ("lamp", False, False, True, False, False, 1 + 8),
+            "ball_washer": ("ball_washer", False, False, False, False, True, 1 + 8),
+            "path_sign": ("sign", False, False, False, True, False, 1 + 8),
         }
-        for name, (render_as, is_bench, is_bin, is_lamp, num_images) in expected.items():
+        for name, (render_as, is_bench, is_bin, is_lamp, is_sign, is_ball_washer, num_images) in expected.items():
             _, data = open_object("path_addition/golf.path_addition.%s.parkobj" % name)
             self.assertEqual("path_addition", data["objectType"])
             self.assertEqual(num_images, len(data["images"]))
@@ -370,6 +374,8 @@ class ObjectTests(unittest.TestCase):
             self.assertEqual(is_bench, props.get("isBench", False))
             self.assertEqual(is_bin, props.get("isBin", False))
             self.assertEqual(is_lamp, props.get("isLamp", False))
+            self.assertEqual(is_sign, props.get("isSign", False))
+            self.assertEqual(is_ball_washer, props.get("isBallWasher", False))
             self.assertGreater(props["price"], 0)
 
     def test_weather_size_matches_the_engine(self):

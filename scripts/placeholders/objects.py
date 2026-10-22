@@ -495,7 +495,7 @@ def path_addition_view(colour, broken=False, full=False):
     return image
 
 
-def path_addition(name, description, render_as, is_bench, is_bin, is_lamp, colour, palette, price=300):
+def path_addition(name, description, render_as, is_bench, is_bin, is_lamp, colour, palette, price=300, is_sign=False, is_ball_washer=False):
     images = {"images/icon.png": quantise(path_addition_icon(colour), palette).png()}
     table = [{"path": "images/icon.png", "x": 0, "y": 0}]
     # 4 intact
@@ -521,7 +521,9 @@ def path_addition(name, description, render_as, is_bench, is_bin, is_lamp, colou
         "isBench": is_bench,
         "isBin": is_bin,
         "isLamp": is_lamp,
-        "cursor": "CURSOR_BENCH_DOWN" if is_bench else ("CURSOR_BIN_DOWN" if is_bin else "CURSOR_LAMPPOST_DOWN"),
+        "isSign": is_sign,
+        "isBallWasher": is_ball_washer,
+        "cursor": "CURSOR_BENCH_DOWN" if is_bench else ("CURSOR_BIN_DOWN" if is_bin else ("CURSOR_LAMPPOST_DOWN" if is_lamp else "CURSOR_STATUE_DOWN")),
     }
     data = manifest("golf.path_addition." + name, "path_addition", description, properties, table)
     return object_files(data, images)
@@ -801,6 +803,10 @@ def build(layout=None, palette=None):
         path_addition("bin", "Litter bin", "bin", False, True, False, (0x4A, 0x70, 0x4A), palette, price=30))
     out["path_addition/golf.path_addition.lamp.parkobj"] = pack(
         path_addition("lamp", "Lamp post", "lamp", False, False, True, (0x20, 0x20, 0x30), palette, price=40))
+    out["path_addition/golf.path_addition.ball_washer.parkobj"] = pack(
+        path_addition("ball_washer", "Ball washer", "ball_washer", False, False, False, (0x20, 0x60, 0x20), palette, price=60, is_ball_washer=True))
+    out["path_addition/golf.path_addition.path_sign.parkobj"] = pack(
+        path_addition("path_sign", "Path sign", "sign", False, False, False, (0x70, 0x4A, 0x20), palette, price=40, is_sign=True))
     out["scenery_small/golf.scenery_small.bumper.parkobj"] = pack(
         small_scenery("bumper", "Mini-putt bumper", "1/4", 1, 50, 10,
                       {"shape": "cylinder", "radius": 6, "height": 8, "restitution": 0.90, "friction": 0.10},

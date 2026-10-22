@@ -168,4 +168,9 @@ namespace OpenRCT2::Golf
     void resetRuntime(GameState_t& gameState);
     // Called from the game logic update: ticks the runtime when the park is in play.
     void updateGolf(GameState_t& gameState);
+
+    // Initialises an empty golf sandbox with all default golf objects loaded (NAV-005).
+    void SetupEmptyGolfSandbox(GameState_t& gameState);
+    // Initialises a fully playable demo golf course with road, club, holes, range and mini-putt (NAV-005, TEST-001).
+    void SetupDemoGolfCourse(GameState_t& gameState);
 } // namespace OpenRCT2::Golf

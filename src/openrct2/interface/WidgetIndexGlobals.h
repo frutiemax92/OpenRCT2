@@ -42,7 +42,7 @@ namespace OpenRCT2
     constexpr int32_t WC_TRACK_DESIGN_PLACE__WIDX_ROTATE = 3;
 
     constexpr int32_t WC_EDITOR_PARK_ENTRANCE__WIDX_ROTATE_ENTRANCE_BUTTON = 6;
-    constexpr int32_t WC_EDITOR_OBJECT_SELECTION__WIDX_TAB_1 = 22;
+    constexpr int32_t WC_EDITOR_OBJECT_SELECTION__WIDX_TAB_1 = 25;
 
     constexpr int32_t WC_STAFF__WIDX_PICKUP = 9;
 } // namespace OpenRCT2

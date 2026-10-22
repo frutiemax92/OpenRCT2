@@ -13,18 +13,25 @@ When you hit a problem or an open question you cannot resolve with reasonable ef
 
 ## Scope of Work: Implement Everything
 
-The goal is to implement **all** features detailed in `specifications/detailed-specifications.md`, not just one.
+The goal is to implement **all** features detailed in `specifications/gameplay-testing-plan.md`, not just one.
 Do not stop after a single feature or commit. Keep iterating, feature by feature, until every requirement is implemented or you are genuinely blocked.
 
 - **Do NOT look at or touch `openrct2-claude/`**: this is an external directory and is **not** part of the code! All work is strictly for Open Golf Simulator.
 
-1. Read the specification and follow the phase order in §25. Each phase's acceptance criteria must pass before starting the next, unless the phase is marked independent.
-2. Pick the next unimplemented requirement (by ID, e.g. `TER-012`). Implement it, test it, commit it, and push it (see "Git Workflow"). Then immediately move on to the next requirement.
+1. Read `specifications/gameplay-testing-plan.md` and follow the phase order (Phases 1 through 6):
+   - **Phase 1**: Instant Game Entry, Default Golf Objects & Starter Scenarios (`NAV-001` to `NAV-005`)
+   - **Phase 2**: Top Toolbar & HUD Overhaul for Golf (`UI-001` to `UI-003`)
+   - **Phase 3**: Missing Construction & Course Editing Tools (`TOOL-001` to `TOOL-005`)
+   - **Phase 4**: Viewport Interaction & Entity Picking Fixes (`VIEW-001` to `VIEW-002`)
+   - **Phase 5**: Live Gameplay Monitoring Windows (`MON-001` to `MON-003`)
+   - **Phase 6**: In-Game Gameplay Testing & Sandbox Panel (`TEST-001` to `TEST-002`)
+   Each phase's acceptance criteria must pass before starting the next.
+2. Pick the next unimplemented requirement (by ID, e.g. `NAV-001`). Implement it, test it, commit it, and push it (see "Git Workflow"). Then immediately move on to the next requirement.
 3. Check `git log` and existing code/tests to see what is already completed; requirement IDs in commit messages indicate progress. Do not redo completed work.
 4. Treat a short status summary after each commit as a progress milestone, not as a stopping point. Do not ask "should I continue?"; the answer is always yes.
 5. Only stop when:
-   - Every requirement in the specification is implemented and its acceptance criteria pass, or
-   - You are blocked on something only the user can resolve (e.g., missing asset files, credentials, or an architectural choice with no default in §26). Clearly document what is blocking and what was attempted, then continue with any other unblocked work.
+   - Every requirement in `specifications/gameplay-testing-plan.md` is implemented and its acceptance criteria pass, or
+   - You are blocked on something only the user can resolve (e.g., missing asset files, credentials). Clearly document what is blocking and what was attempted, then continue with any other unblocked work.
 6. When finished or reporting status, list any requirements that were skipped or only partially implemented, along with the rationale.
 
 ## Git Workflow
@@ -40,7 +47,7 @@ After every feature or fix:
 1. Write unit tests for it (see "Unit Tests" below).
 2. Build and run the **entire** test suite, not only the new tests. Do not commit if anything fails to build or any test fails; fix all failures first.
 3. Stage only the files that belong to that change (exclude build artifacts, logs, untracked scratch files, or `openrct2-claude/`).
-4. Commit with a clear message describing what changed and why. Include requirement IDs (e.g., `(ANM-001 to ANM-005)`) and ensure tests are committed alongside the feature code.
+4. Commit with a clear message describing what changed and why. Include requirement IDs (e.g., `(NAV-001)` or `(NAV-001 to NAV-005)`) and ensure tests are committed alongside the feature code.
    Always include Gemini as a co-author at the end of the commit message:
    ```
    Co-Authored-By: Gemini <noreply@google.com>

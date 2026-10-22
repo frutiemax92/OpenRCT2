@@ -223,6 +223,9 @@ namespace OpenRCT2::Ui::Windows
         WIDX_SUB_TAB_4,
         WIDX_SUB_TAB_5,
         WIDX_SUB_TAB_6,
+        WIDX_SUB_TAB_7,
+        WIDX_SUB_TAB_8,
+        WIDX_SUB_TAB_9,
         WIDX_LIST_SORT_TYPE,
         WIDX_LIST_SORT_RIDE,
         WIDX_RELOAD_OBJECT,
@@ -249,6 +252,9 @@ namespace OpenRCT2::Ui::Windows
         makeTab            ({127, 47}                                                                                                                                              ),
         makeTab            ({158, 47}                                                                                                                                              ),
         makeTab            ({189, 47}                                                                                                                                              ),
+        makeTab            ({220, 47}                                                                                                                                              ),
+        makeTab            ({251, 47}                                                                                                                                              ),
+        makeTab            ({282, 47}                                                                                                                                              ),
         makeWidget         ({  4, 80}, {              145,  14}, WidgetType::tableHeader, WindowColour::secondary                                                                  ),
         makeWidget         ({149, 80}, {              143,  14}, WidgetType::tableHeader, WindowColour::secondary                                                                  ),
         makeWidget         ({700, 50}, {               24,  24}, WidgetType::imgBtn,      WindowColour::secondary,  SPR_G2_RELOAD,                STR_RELOAD_OBJECT_TIP            ),
@@ -418,6 +424,9 @@ namespace OpenRCT2::Ui::Windows
                 case WIDX_SUB_TAB_4:
                 case WIDX_SUB_TAB_5:
                 case WIDX_SUB_TAB_6:
+                case WIDX_SUB_TAB_7:
+                case WIDX_SUB_TAB_8:
+                case WIDX_SUB_TAB_9:
                 {
                     _selectedSubTab = widgetIndex - WIDX_SUB_TAB_0;
 
@@ -945,7 +954,7 @@ namespace OpenRCT2::Ui::Windows
 
             // Toggle sub-tab visibility
             const auto numSubTabs = static_cast<int8_t>(currentPage.subTabs.size());
-            for (int8_t i = 0; i <= 6; i++)
+            for (int8_t i = 0; i <= 9; i++)
             {
                 widgets[WIDX_SUB_TAB_0 + i].tooltip = i < numSubTabs ? currentPage.subTabs[i].tooltip : kStringIdNone;
                 widgets[WIDX_SUB_TAB_0 + i].setVisible(i < numSubTabs);
