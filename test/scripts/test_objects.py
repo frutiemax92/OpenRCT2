@@ -152,6 +152,9 @@ class ObjectTests(unittest.TestCase):
         expected.add("building/golf.building.driving_range_kiosk.parkobj")
         expected.add("building/golf.building.cart_rental.parkobj")
         expected.add("building/golf.building.restroom.parkobj")
+        expected |= {"footpath_surface/golf.footpath_surface.gravel.parkobj",
+                     "footpath_surface/golf.footpath_surface.tee_queue.parkobj",
+                     "footpath_railings/golf.footpath_railings.none.parkobj"}
         expected.add("path_addition/golf.path_addition.bench.parkobj")
         expected.add("path_addition/golf.path_addition.bin.parkobj")
         expected.add("path_addition/golf.path_addition.lamp.parkobj")
@@ -356,6 +359,24 @@ class ObjectTests(unittest.TestCase):
             self.assertEqual(services, set(props["services"]))
             tile = props["entrance"]["tile"]
             self.assertTrue(0 <= tile[0] < footprint[0] and 0 <= tile[1] < footprint[1])
+
+    def test_footpath_surfaces_have_every_image_the_paint_code_indexes(self):
+        # 51 flat images (edge and corner shapes), then 4 rises x 4 directions of sloped ones, after the icon.
+        for name, queue in (("gravel", False), ("tee_queue", True)):
+            z, data = open_object("footpath_surface/golf.footpath_surface.%s.parkobj" % name)
+            self.assertEqual("footpath_surface", data["objectType"])
+            self.assertEqual(1 + 51 + 16, len(data["images"]))
+            self.assertEqual(queue, data["properties"]["isQueue"])
+            for image in data["images"]:
+                self.assertIn(image["path"], z.namelist())
+
+    def test_footpath_railings_cover_the_bridge_images(self):
+        z, data = open_object("footpath_railings/golf.footpath_railings.none.parkobj")
+        self.assertEqual("footpath_railings", data["objectType"])
+        # The bridge images start at 37 after the preview and the paint code reads up to 54 beyond that.
+        self.assertGreater(len(data["images"]), 1 + 37 + 54)
+        for image in data["images"]:
+            self.assertIn(image["path"], z.namelist())
 
     def test_all_path_addition_kinds_and_properties(self):
         expected = {

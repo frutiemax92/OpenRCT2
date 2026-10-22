@@ -45,7 +45,7 @@ protected:
 // NAV-001: Auto-load all golf objects in DefaultObjects
 TEST_F(GolfNavigationTests, DefaultGolfObjectsArrayContainsAllCoreGolfObjects)
 {
-    EXPECT_EQ(kCommonScenarioAndTrackDesignerObjects.size(), 36u);
+    EXPECT_EQ(kCommonScenarioAndTrackDesignerObjects.size(), 39u);
 
     bool hasClubHouse = false;
     bool hasRoad = false;
@@ -73,6 +73,18 @@ TEST_F(GolfNavigationTests, DefaultGolfObjectsArrayContainsAllCoreGolfObjects)
     EXPECT_TRUE(hasCartRental);
     EXPECT_TRUE(hasBallWasher);
     EXPECT_TRUE(hasPathSign);
+}
+
+// The footpath window refuses to open without a footpath surface and railings, so the defaults must provide them.
+TEST_F(GolfNavigationTests, DefaultObjectsLoadAFootpathSurfaceAndRailings)
+{
+    auto& objectManager = _context->GetObjectManager();
+    for (const auto& entry : kCommonScenarioAndTrackDesignerObjects)
+        objectManager.LoadObject(entry);
+
+    EXPECT_NE(objectManager.GetLoadedObjectEntryIndex("golf.footpath_surface.gravel"), kObjectEntryIndexNull);
+    EXPECT_NE(objectManager.GetLoadedObjectEntryIndex("golf.footpath_surface.tee_queue"), kObjectEntryIndexNull);
+    EXPECT_NE(objectManager.GetLoadedObjectEntryIndex("golf.footpath_railings.none"), kObjectEntryIndexNull);
 }
 
 // NAV-004: Editor::CheckPark succeeds on golf courses without legacy theme-park gates

@@ -820,7 +820,8 @@ static ImageIndex PathPaintGetBaseImage(
     {
         auto directionOffset = (pathElement.getSlopeDirection() + session.CurrentRotation) % kNumOrthogonalDirections;
         const uint8_t riseQ = std::clamp<uint8_t>(pathElement.getSlopeRiseQ(), 1, 4);
-        surfaceBaseImageIndex += 16 + (riseQ - 1) * 4 + directionOffset;
+        // The 51 flat images (edge and corner shapes) come first, then 4 rises of 4 directions.
+        surfaceBaseImageIndex += 51 + (riseQ - 1) * 4 + directionOffset;
     }
     else
     {

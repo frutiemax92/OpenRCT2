@@ -529,6 +529,70 @@ def path_addition(name, description, render_as, is_bench, is_bin, is_lamp, colou
     return object_files(data, images)
 
 
+# Footpath surface layout, as PathPaintGetBaseImage in paint/tile_element/Paint.Path.cpp: 51 flat images (0-15 by edge
+# mask NE SE SW NW, the rest corner variants of the same shapes), then 16 sloped ones (4 rises of 1-4 quarter steps
+# times 4 directions).
+FOOTPATH_FLAT_IMAGES = 51
+FOOTPATH_SLOPE_IMAGES = 16
+FOOTPATH_SLOPE_DIRECTIONS = [S | W, N | W, N | E, S | E]  # slope direction 0..3 = SW, NW, NE, SE side up
+FOOTPATH_ARM = (8, 24)  # the path is half a tile wide (PTH-001): 16 of the 32 units, centred
+# Railings and bridge images the paint code can index (bridge images start at 37 and reach about 55 beyond that).
+FOOTPATH_RAILING_IMAGES = 100
+
+
+def footpath_flat_image(edges, colour, paved):
+    """A flat tile (S is the top corner, E the left one) with the path drawn as a centre square plus an arm to each connected edge (all of it when paved)."""
+    image = Image(64, 32, (0, 0, 0), alpha=0)
+    lo, hi = FOOTPATH_ARM
+    for y in range(32):
+        for x in range(64):
+            sx, sy = x + 0.5 - 32, y + 0.5
+            wx, wy = sy - sx / 2, sy + sx / 2
+            if not (0 <= wx < 32 and 0 <= wy < 32):
+                continue
+            centre = lo <= wx < hi and lo <= wy < hi
+            arms = ((edges & 1) and wx < lo and lo <= wy < hi) or ((edges & 2) and wy >= hi and lo <= wx < hi) \
+                or ((edges & 4) and wx >= hi and lo <= wy < hi) or ((edges & 8) and wy < lo and lo <= wx < hi)
+            if paved or centre or arms:
+                border = paved is False and not (lo + 1 <= wx < hi - 1 or lo + 1 <= wy < hi - 1)
+                image.set(x, y, shade(colour, 0.8 if border else 1.0 + ((x + y) % 3) * 0.04))
+    return image
+
+
+def footpath_surface_icon(colour):
+    icon = Image(32, 32, shade(colour, 0.6))
+    icon.fill_rect(4, 4, 24, 24, colour)
+    return icon
+
+
+def footpath_surface(name, description, colour, palette, queue=False):
+    images = {"images/icon.png": quantise(footpath_surface_icon(colour), palette).png()}
+    table = [{"path": "images/icon.png", "x": 0, "y": 0}]
+    for offset in range(FOOTPATH_FLAT_IMAGES):
+        # Image offsets above 15 draw corner variants of the 16 edge shapes: the placeholder keeps the same shape.
+        image = footpath_flat_image(offset & 15 if offset < 16 else 15, colour, offset >= 16)
+        path = "images/flat_%02d.png" % offset
+        images[path] = quantise(image, palette).png()
+        table.append({"path": path, "x": -32, "y": 0})
+    for rise in range(4):
+        for direction in range(4):
+            image, x, y = surface_image(FOOTPATH_SLOPE_DIRECTIONS[direction], colour, "", "normal")
+            path = "images/slope_%d_%d.png" % (rise + 1, direction)
+            images[path] = quantise(image, palette).png()
+            table.append({"path": path, "x": x, "y": y})
+    properties = {"isQueue": queue}
+    return object_files(manifest("golf.footpath_surface." + name, "footpath_surface", description, properties, table), images)
+
+
+def footpath_railings(name, description, palette):
+    """Invisible railings: every image is a single transparent pixel, there are as many as the paint code can index."""
+    blank = quantise(Image(1, 1, (0, 0, 0), alpha=0), palette).png()
+    images = {"images/blank.png": blank}
+    table = [{"path": "images/blank.png", "x": 0, "y": 0}] * (FOOTPATH_RAILING_IMAGES + 1)
+    properties = {"supportType": "pole", "scrollingMode": 0, "hasSupportImages": False}
+    return object_files(manifest("golf.footpath_railings." + name, "footpath_railings", description, properties, table), images)
+
+
 def building_icon(colour):
     image = Image(32, 32, (0, 0, 0), 0)
     image.fill_rect(6, 12, 20, 14, shade(colour, 0.9))
@@ -797,6 +861,12 @@ def build(layout=None, palette=None):
         building("restroom", "Restroom", "restroom", (1, 1), (0x80, 0x80, 0x80),
                  ["toilet"], palette,
                  build_cost=6000, remove_cost=1200, upkeep=60, capacity=8))
+    out["footpath_surface/golf.footpath_surface.gravel.parkobj"] = pack(
+        footpath_surface("gravel", "Gravel path", (0xB8, 0xA0, 0x78), palette))
+    out["footpath_surface/golf.footpath_surface.tee_queue.parkobj"] = pack(
+        footpath_surface("tee_queue", "Tee waiting path", (0xA0, 0x88, 0x60), palette, queue=True))
+    out["footpath_railings/golf.footpath_railings.none.parkobj"] = pack(
+        footpath_railings("none", "No railings", palette))
     out["path_addition/golf.path_addition.bench.parkobj"] = pack(
         path_addition("bench", "Park bench", "bench", True, False, False, (0x8B, 0x5A, 0x2B), palette, price=50))
     out["path_addition/golf.path_addition.bin.parkobj"] = pack(
