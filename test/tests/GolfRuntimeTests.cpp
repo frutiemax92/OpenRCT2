@@ -33,6 +33,7 @@
 #include <openrct2/world/Footpath.h>
 #include <openrct2/actions/golf/CartEditAction.h>
 #include <openrct2/actions/golf/RangeEditAction.h>
+#include <openrct2/actions/golf/TournamentEditAction.h>
 #include <openrct2/actions/golf/ZoneEditAction.h>
 #include <openrct2/world/MapOwnership.h>
 #include <openrct2/actions/scenery/SmallSceneryPlaceAction.h>
@@ -1407,4 +1408,106 @@ TEST(GolfRuntimeTests, ACottageOwnerPlaysFromTheirOwnDoor)
     EXPECT_TRUE(seen);
     EXPECT_EQ(most, 1);
     (void)owner;
+}
+
+TEST(GolfRuntimeTests, TheTournamentChecklistComesFromTheMapAndABookingNeedsItMet)
+{
+    auto context = startPark();
+    ASSERT_NE(context.get(), nullptr);
+    auto& gameState = getGameState();
+    gameState.cheats.sandboxMode = true;
+    gameState.mapSize = { 60, 60 };
+    auto& objectManager = context->GetObjectManager();
+    ObjectEntryIndex clubIndex{};
+    auto* club = loadClub(*context, clubIndex);
+    auto* road = objectManager.LoadObject("golf.street.road");
+    if (club == nullptr || road == nullptr)
+        GTEST_SKIP() << "the club house or the street is not installed";
+    const auto roadIndex = objectManager.GetLoadedObjectEntryIndex(road);
+
+    // 18 holes of 60 tiles (300 yards): 5400 yards, par 72.
+    auto* course = gameState.golf.createCourse("Championship");
+    course->open = true;
+    for (int i = 0; i < 18; i++)
+    {
+        auto* hole = gameState.golf.createHole(course->id);
+        hole->tees[0] = Golf::HolePoint{ 100, (4 + i) * 32 };
+        hole->cup = Golf::HolePoint{ 100 + 60 * 32, (4 + i) * 32 };
+    }
+    ASSERT_EQ(course->totalPar(), 72);
+
+    // A street with ten tiles of parking along it and a path: 20 spaces. And the club.
+    const auto lotBlock = findFlatBlock(12, 3);
+    if (!lotBlock.has_value())
+        GTEST_SKIP() << "the test park has no room for a car park";
+    for (int x = 0; x < 10; x++)
+    {
+        GameActions::StreetPlaceAction street({ lotBlock->x + x * 32, lotBlock->y }, roadIndex);
+        ASSERT_EQ(GameActions::ExecuteNested(&street, gameState).error, GameActions::Status::ok);
+        GameActions::ParkingPlaceAction parking({ lotBlock->x + x * 32, lotBlock->y + 32 }, roadIndex, 3);
+        ASSERT_EQ(GameActions::ExecuteNested(&parking, gameState).error, GameActions::Status::ok);
+        insertPath({ lotBlock->x + x * 32, lotBlock->y + 64 });
+    }
+    const auto clubAt = findFlatBlock(3, 2);
+    ASSERT_TRUE(clubAt.has_value());
+    insertPath(Building::GetEntrance(*club, *clubAt, 0).outsideTile);
+    GameActions::BuildingPlaceAction placeClub(*clubAt, clubIndex, 0);
+    ASSERT_EQ(GameActions::ExecuteNested(&placeClub, gameState).error, GameActions::Status::ok);
+
+    auto& runtime = Golf::runtimeOf(gameState);
+    runtime.director().setPopularity(500);
+    runtime.update(0);
+    auto inputs = runtime.tournamentInputs();
+    EXPECT_EQ(inputs.holes, 18);
+    EXPECT_EQ(inputs.totalYards, 18 * 300);
+    EXPECT_EQ(inputs.totalPar, 72);
+    EXPECT_EQ(inputs.popularity, 500);
+    EXPECT_EQ(inputs.golfClubs, 1);
+    EXPECT_EQ(inputs.parkingCapacity, 20);
+    EXPECT_EQ(inputs.spectatorTiles, 0);
+
+    // The zones are not drawn yet: the booking is refused.
+    GameActions::TournamentEditAction book(GameActions::TournamentEditType::book, 0, 5, 1500);
+    EXPECT_EQ(GameActions::Query(&book, gameState).error, GameActions::Status::invalidParameters);
+
+    auto zone = [&](Golf::TournamentZoneKind kind, int32_t x, int32_t y, int32_t w, int32_t h) {
+        GameActions::ZoneEditAction action(
+            GameActions::ZoneEditType::createTournamentZone, 0, CoordsXY{ x * 32, y * 32 }, CoordsXY{ (x + w - 1) * 32, (y + h - 1) * 32 },
+            static_cast<int32_t>(kind));
+        EXPECT_EQ(GameActions::ExecuteNested(&action, gameState).error, GameActions::Status::ok);
+    };
+    zone(Golf::TournamentZoneKind::spectator, 2, 30, 5, 4);       // 20 tiles
+    zone(Golf::TournamentZoneKind::media, 8, 30, 2, 2);           // 4
+    zone(Golf::TournamentZoneKind::extraParking, 12, 30, 5, 4);   // 20
+    zone(Golf::TournamentZoneKind::grandstand, 61 - 10, 4 + 17, 3, 2); // 6, by the last green (tile 61, 21)
+    inputs = runtime.tournamentInputs();
+    EXPECT_EQ(inputs.spectatorTiles, 20);
+    EXPECT_EQ(inputs.mediaTiles, 4);
+    EXPECT_EQ(inputs.extraParkingTiles, 20);
+    EXPECT_EQ(inputs.grandstandTiles, 6);
+    EXPECT_LE(inputs.grandstandDistanceToLastGreen, 12);
+    EXPECT_TRUE(Golf::canHost(Golf::TournamentTier::local, inputs));
+    EXPECT_FALSE(Golf::canHost(Golf::TournamentTier::national, inputs));
+
+    // Now it can be booked: for a day to come, with a ticket price.
+    GameActions::TournamentEditAction past(GameActions::TournamentEditType::book, 0, 0, 1500);
+    EXPECT_EQ(GameActions::Query(&past, gameState).error, GameActions::Status::invalidParameters);
+    GameActions::TournamentEditAction national(GameActions::TournamentEditType::book, 2, 5, 1500);
+    EXPECT_EQ(GameActions::Query(&national, gameState).error, GameActions::Status::invalidParameters);
+    GameActions::TournamentEditAction cheap(GameActions::TournamentEditType::book, 0, 5, -1);
+    EXPECT_EQ(GameActions::Query(&cheap, gameState).error, GameActions::Status::invalidParameters);
+    ASSERT_EQ(GameActions::ExecuteNested(&book, gameState).error, GameActions::Status::ok);
+    const auto& tournament = runtime.director().tournament;
+    EXPECT_EQ(tournament.phase, Golf::TournamentPhase::scheduled);
+    EXPECT_EQ(tournament.tier, Golf::TournamentTier::local);
+    EXPECT_EQ(tournament.day, runtime.director().currentDay() + 5);
+    EXPECT_EQ(tournament.ticketPrice, 1500);
+
+    // One at a time; cancelling frees the calendar.
+    GameActions::TournamentEditAction second(GameActions::TournamentEditType::book, 0, 9, 1500);
+    EXPECT_EQ(GameActions::Query(&second, gameState).error, GameActions::Status::invalidParameters);
+    GameActions::TournamentEditAction cancel(GameActions::TournamentEditType::cancel);
+    ASSERT_EQ(GameActions::ExecuteNested(&cancel, gameState).error, GameActions::Status::ok);
+    EXPECT_EQ(runtime.director().tournament.phase, Golf::TournamentPhase::none);
+    EXPECT_EQ(GameActions::Query(&cancel, gameState).error, GameActions::Status::invalidParameters);
 }

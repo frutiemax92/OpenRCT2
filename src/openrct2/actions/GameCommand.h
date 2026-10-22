@@ -115,6 +115,7 @@ namespace OpenRCT2
         editCarts,
         editRange,
         editZone,
+        editTournament,
         count,
     };
 }

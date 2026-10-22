@@ -140,6 +140,8 @@ namespace OpenRCT2::Golf
             service.rest = object->Services.has(BuildingService::rest);
             service.proShop = object->Services.has(BuildingService::proShop);
 
+            if (object->Kind == BuildingKind::golfClub)
+                scan.clubCount++;
             if (object->Kind == BuildingKind::golfClub && !scan.hasClub)
             {
                 scan.hasClub = true;
@@ -179,6 +181,7 @@ namespace OpenRCT2::Golf
         sources.spawnPoint = [this] { return _scan.club; };
         sources.clubEntrance = [this] { return _scan.club; };
         sources.exitPoint = [this] { return _scan.club; };
+        sources.tournamentInputs = [this] { return tournamentInputs(); };
         sources.carArrival = [this](const std::vector<uint32_t>& ids, uint32_t group) { return receiveCar(ids, group); };
         sources.weather = [&gameState] { return gameState.weatherCurrent.weatherType; };
         env.pathPoints = [this] { return _scan.pathPoints; };
@@ -403,6 +406,50 @@ namespace OpenRCT2::Golf
         if (first || _scan.upkeepPerMonth == 0)
             return;
         FinancePayment(_scan.upkeepPerMonth / 30, ExpenditureType::rideRunningCosts);
+    }
+
+    TournamentInputs GolfRuntime::tournamentInputs() const
+    {
+        TournamentInputs in;
+        const auto& golf = getGameState().golf;
+        const Course* best = nullptr;
+        for (const auto& course : golf.courses())
+            if (course.kind == CourseKind::regular && (best == nullptr || course.playableHoles() > best->playableHoles()))
+                best = &course;
+        if (best != nullptr)
+        {
+            in.holes = static_cast<int32_t>(best->playableHoles());
+            in.totalYards = best->totalYards(TeeCategory::men);
+            in.totalPar = best->totalPar();
+        }
+        in.popularity = _director->popularity();
+        in.golfClubs = _scan.clubCount;
+        in.parkingCapacity = _traffic.capacity();
+        in.spectatorTiles = golf.tournamentZoneTiles(TournamentZoneKind::spectator);
+        in.mediaTiles = golf.tournamentZoneTiles(TournamentZoneKind::media);
+        in.extraParkingTiles = golf.tournamentZoneTiles(TournamentZoneKind::extraParking);
+        in.grandstandTiles = golf.tournamentZoneTiles(TournamentZoneKind::grandstand);
+        // ECO-040: the grandstand is by the last green: the distance in tiles from its zone to the cup of the last hole.
+        in.grandstandDistanceToLastGreen = 1000;
+        if (best != nullptr)
+        {
+            for (auto it = best->holes.rbegin(); it != best->holes.rend(); ++it)
+            {
+                if (!it->isComplete())
+                    continue;
+                for (const auto& zone : golf.tournamentZones())
+                {
+                    if (zone.kind != TournamentZoneKind::grandstand)
+                        continue;
+                    const int32_t cx = it->cup->x >> 5, cy = it->cup->y >> 5;
+                    const int32_t dx = std::max({ zone.min.x - cx, cx - zone.max.x, 0 });
+                    const int32_t dy = std::max({ zone.min.y - cy, cy - zone.max.y, 0 });
+                    in.grandstandDistanceToLastGreen = std::min(in.grandstandDistanceToLastGreen, std::max(dx, dy));
+                }
+                break;
+            }
+        }
+        return in;
     }
 
     void GolfRuntime::refreshTraffic()

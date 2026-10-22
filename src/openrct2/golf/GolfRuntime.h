@@ -35,6 +35,7 @@ namespace OpenRCT2::Golf
         bool hasClub = false;
         FixedVec3 club;                 // the entrance of the first golf club
         std::vector<Service> services;  // food trucks, restrooms, the pro shop of the club
+        int32_t clubCount = 0;               // golf club buildings (ECO-040)
         std::vector<HolePoint> kiosks;       // driving range kiosks (DRV-001)
         std::vector<HolePoint> distanceSigns; // driving range distance signs (DRV-004)
         std::vector<FixedVec3> pathPoints; // the middle of every path tile, where carts may stop (CRT-004)
@@ -87,6 +88,10 @@ namespace OpenRCT2::Golf
         {
             return _traffic;
         }
+
+        // ECO-040: the figures the tournament checklist is made of, from the map. The course is the regular course with the
+        // most holes.
+        TournamentInputs tournamentInputs() const;
 
         // The entity that shows a golfer, nullptr when it has none.
         GolferEntity* entityOf(uint32_t golferId) const;

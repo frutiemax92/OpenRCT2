@@ -3981,3 +3981,8 @@ STR_7187    :A cottage lot needs a path or a street along it
 STR_7188    :The lot overlaps another lot
 STR_7189    :The lot takes land from a hole
 STR_7190    :The lot has been sold
+STR_7191    :Can't change the tournament
+STR_7192    :There is no tournament booked
+STR_7193    :The tournament has to be on a day to come
+STR_7194    :A tournament is booked already
+STR_7195    :The course does not meet the requirements of this tournament
